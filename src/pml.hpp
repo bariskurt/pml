@@ -1148,11 +1148,16 @@ namespace pml {
 
       inline double& operator()(const size_t i0, const size_t i1,
                                 const size_t i2) {
-        return data_[i0*size1_*size2_ + i2*size1_ + i1];
+        //return data_[i0*size1_*size2_ + i2*size1_ + i1];
+        // Cagatay, check these out:
+        // http://www.obliquity.com/computer/fortran/array.html
+        // https://en.wikipedia.org/wiki/Row-major_order
+        return data_[i0 + size0_ * (i1 + size1_ * i2)];
       }
-      inline const double& operator()(const size_t i0, const size_t i1,
+      inline double operator()(const size_t i0, const size_t i1,
                                       const size_t i2) const{
-        return data_[i0*size1_*size2_ + i2*size1_ + i1];
+        //return data_[i0*size1_*size2_ + i2*size1_ + i1];
+        return data_[i0 + size0_ * (i1 + size1_ * i2)];
       }
 
     public:
