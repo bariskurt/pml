@@ -11,7 +11,7 @@
 #include <iostream>
 #include <iomanip>
 #include <valarray>
-
+#include <tuple>
 #include <gsl/gsl_cblas.h>
 #include <gsl/gsl_sf_psi.h>
 
