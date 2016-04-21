@@ -102,6 +102,10 @@ namespace pml {
         return data_.size();
       }
 
+      bool empty() const{
+        return length() == 0;
+      }
+
       double *data() {
         return &data_[0];
       }
@@ -325,6 +329,15 @@ namespace pml {
           ifs.close();
         }
         return result;
+      }
+
+      // Accessors
+      double last() const{
+        return data_[length()-1];
+      }
+
+      double& last(){
+        return data_[length()-1];
       }
 
       virtual void Save(const std::string &filename) const {
