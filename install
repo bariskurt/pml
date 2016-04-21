@@ -1,7 +1,0 @@
-if [ ! -d /usr/include/pml ]; then
-    mkdir /usr/include/pml
-fi
-
-cp src/pml.hpp /usr/include/pml
-cp src/pml_linalg.hpp /usr/include/pml
-cp src/pml_rand.hpp /usr/include/pml
