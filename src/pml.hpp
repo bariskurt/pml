@@ -38,14 +38,14 @@ namespace pml {
 
       virtual ~Block() {}
 
-      Block(size_t length) : data_(length) {}
+      explicit Block(size_t length) : data_(length) {}
 
       Block(size_t length, const double *initial_values)
               : data_(initial_values, length) {}
 
-      Block(std::initializer_list<double> values) : data_(values) {}
+      explicit Block(std::initializer_list<double> values) : data_(values) {}
 
-      Block(const std::slice_array<double> &slice) : data_(slice) {}
+      explicit Block(const std::slice_array<double> &slice) : data_(slice) {}
 
       Block(const Block &other) : data_(other.data_) {}
 
@@ -62,7 +62,7 @@ namespace pml {
         return *this;
       }
 
-      virtual double operator=(double d) {
+      double operator=(double d) {
         data_ = d;
         return d;
       }
@@ -275,7 +275,7 @@ namespace pml {
 
       virtual ~Vector() {}
 
-      Vector(size_t length) : Block(length) {}
+      explicit Vector(size_t length) : Block(length) {}
 
       Vector(size_t length, const double *initial_values) :
               Block(length, initial_values) {}
@@ -283,7 +283,7 @@ namespace pml {
       Vector(std::initializer_list<double> values) :
               Block(values) {}
 
-      Vector(const std::slice_array<double> &slice) :
+      explicit Vector(const std::slice_array<double> &slice) :
               Block(slice) {}
 
       Vector(const Vector &other) : Block(other) {}
@@ -298,6 +298,11 @@ namespace pml {
       Vector& operator=(Vector &&other) {
         data_ = other.data_;
         return *this;
+      }
+
+      double operator=(double d) {
+        data_ = d;
+        return d;
       }
 
       // Special Vectors
@@ -332,6 +337,14 @@ namespace pml {
       }
 
       // Accessors
+      double first() const{
+        return data_[0];
+      }
+
+      double& first(){
+        return data_[0];
+      }
+
       double last() const{
         return data_[length()-1];
       }
@@ -543,7 +556,7 @@ namespace pml {
         return *this;
       }
 
-      double operator=(double d) override {
+      double operator=(double d){
         data_ = d;
         return d;
       }
@@ -1120,6 +1133,11 @@ namespace pml {
         return *this;
       }
 
+      double operator=(double d){
+        data_ = d;
+        return d;
+      }
+
     public:
 
       static Tensor3D Ones(size_t size0_, size_t size1_, size_t size2_) {
@@ -1206,10 +1224,6 @@ namespace pml {
       }
 
     public:
-      double operator=(double value) override {
-        data_ = value;
-        return value;
-      };
 
       friend bool operator==(const Tensor3D &t1, const Tensor3D &t2) {
         if(t1.shape() == t2.shape()){
@@ -1344,6 +1358,45 @@ namespace pml {
 
     protected:
       size_t size0_, size1_, size2_;
+  };
+
+  class Histogram{
+
+    public:
+      Histogram(){}
+
+      Histogram(const Vector &ranges){
+        set_range(ranges);
+      }
+
+      void set_range(const Vector &ranges){
+        ranges_ = ranges;
+        bins_ = Vector::Zeros(ranges_.length()-1);
+      }
+
+    public:
+      double& operator()(double idx){
+        ASSERT_TRUE( (ranges_.first() <= idx)  &&  (idx < ranges_.last()),
+                     "Histogram request out of bounds.");
+        unsigned low = 0, high = ranges_.length();
+        while( high-low != 1){
+          unsigned mid = (low + high)/2;
+          if(idx < ranges_(mid)){
+            high = mid ;
+          } else {
+            low = mid;
+          }
+        }
+        return bins_(low);
+      }
+
+      size_t num_bins(){
+        return bins_.length();
+      }
+
+    public:
+      Vector bins_;
+      Vector ranges_;
   };
 
 } // namespace pml

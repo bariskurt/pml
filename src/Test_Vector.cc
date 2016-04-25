@@ -13,7 +13,7 @@ std::string test_dir = "/tmp/";
 
 void Test_Object(){
 
-  std::cout << "Test_Vector::Object    ";
+  std::cout << "Test_Vector::Object       ";
   Vector v(3); v(0) = 2; v(1) = 3; v(2) = 4;
   Vector v1 = Uniform::rand(100);
   Vector v2(v1);
@@ -31,7 +31,7 @@ void Test_Object(){
 
 
 void Test_SaveLoad(){
-  std::cout << "Test_Vector::SaveLoad  ";
+  std::cout << "Test_Vector::SaveLoad     ";
 
   Vector v1 = Uniform::rand(1000);
   v1.Save(test_dir + "vector.txt");
@@ -47,7 +47,7 @@ void Test_SaveLoad(){
 
 
 void Test_Sum(){
-  std::cout << "Test_Vector::Sum       ";
+  std::cout << "Test_Vector::Sum          ";
   Vector v1({1, 2, 3, 4, 5});
   assert(v1.sum() == 15);
   std::cout << "OK.\n";
@@ -55,7 +55,7 @@ void Test_Sum(){
 
 
 void Test_LogExp(){
-  std::cout << "Test_Vector::LogExp    ";
+  std::cout << "Test_Vector::LogExp       ";
   Vector v1({1, 2, 3, 4, 5});
   Vector v2({ 0.0, 0.693147, 1.098612, 1.386294, 1.609437});
   Vector v3({2.718281, 7.389056, 20.085536, 54.598150, 148.413159});
@@ -66,7 +66,7 @@ void Test_LogExp(){
 
 
 void Test_Normalize(){
-  std::cout << "Test_Vector::Normalize ";
+  std::cout << "Test_Vector::Normalize    ";
   Vector v1 = Uniform::rand(1000);
   v1 = Normalize(v1);
   assert(fequal(v1.sum(), 1));
@@ -74,21 +74,21 @@ void Test_Normalize(){
 }
 
 void Test_NormalizeExp(){
-  std::cout << "Test_Vector::Normalize Exp";
+  std::cout << "Test_Vector::NormalizeExp ";
   Vector v1({5/10.0, 3/10.0, 2/10.0});
   assert( Normalize(v1) == NormalizeExp(Log(v1)));
   std::cout << "OK.\n";
 }
 
 void Test_LogSumExp(){
-  std::cout << "Test_Vector::LogSumExp ";
+  std::cout << "Test_Vector::LogSumExp    ";
   Vector v({0.1, 0.2, 0.3});
   assert( fequal(LogSumExp(Log(v)), log(v.sum())));
   std::cout << "OK.\n";
 }
 
 void Test_Algebra(){
-  std::cout << "Test_Vector::Algebra   ";
+  std::cout << "Test_Vector::Algebra      ";
   Vector v({1,2,3,});
   Vector v2({4,5,6,});
 
@@ -127,6 +127,16 @@ void Test_Algebra(){
   std::cout << "OK.\n";
 }
 
+void Test_Histogram(){
+
+  std::cout << "Test_Vector::Histogram    ";
+  Histogram hist(Vector({10, 20, 30}));
+  for(int i=10; i<30; ++i){
+    hist(i)++;
+  }
+  assert(hist.bins_ == Vector({10,10}));
+  std::cout << "OK.\n";
+}
 
 int main(){
 
@@ -138,6 +148,7 @@ int main(){
   Test_Normalize();
   Test_NormalizeExp();
   Test_LogSumExp();
+  Test_Histogram();
 
   return 0;
 }
