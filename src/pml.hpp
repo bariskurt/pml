@@ -1206,9 +1206,9 @@ namespace pml {
       friend std::ostream &operator<<(std::ostream &out,
                                       const Tensor3D &tensor) {
         out << std::setprecision(DEFAULT_PRECISION) << std::fixed;
-        for (size_t i = 0; i < tensor.dim0(); ++i) {
-          for (size_t j = 0; j < tensor.dim1() ; ++j) {
-            for (size_t k = 0; k < tensor.dim2(); ++k) {
+        for (size_t k = 0; k < tensor.dim2(); ++k) {
+          for (size_t i = 0; i < tensor.dim0(); ++i) {
+            for (size_t j = 0; j < tensor.dim1() ; ++j) {
               out << tensor(i, j, k) << " ";
             }
             out << std::endl;
@@ -1327,27 +1327,33 @@ namespace pml {
       }
 
     public:
-      Matrix GetMatrixDir0(size_t index) const {
-        double* values = new double[size1_*size2_];
-        std::memcpy(values, &data_[index*size1_*size2_],
-                    sizeof(double)*size1_*size2_);
-        Matrix m(size1_,size2_,values);
+      Matrix GetSlice(size_t index) const {
+        double* values = new double[size0_*size1_];
+        std::memcpy(values, &data_[index*size0_*size1_],
+                    sizeof(double)*size0_*size1_);
+        Matrix m(size0_,size1_,values);
         delete[] values;
         return m;
       }
-      void SetMatrixDir0(size_t index, const Matrix& matr) {
-        std::memcpy(&data_[index*size1_*size2_], matr.data(),
-                    sizeof(double)*size1_*size2_);
+      void SetSlice(size_t index, const Matrix& matr) {
+        if (matr.length() == size0_ * size1_) {
+          std::memcpy(&data_[index * size0_ * size1_], matr.data(),
+                      sizeof(double) * size0_ * size1_);
+        }
+        else {
+          std::cout << "Matrix length does not match with the matrix length"
+          << std::endl;
+        }
       }
 
-      void SetMatrixDir0(size_t index, const Vector& vec){
-        if (vec.length() == size1_*size2_) {
-          std::memcpy(&data_[index*size1_*size2_], vec.data(),
-                      sizeof(double)*size1_*size2_);
+      void SetSlice(size_t index, const Vector& vec){
+        if (vec.length() == size0_*size1_) {
+          std::memcpy(&data_[index*size0_*size1_], vec.data(),
+                      sizeof(double)*size0_*size1_);
         }
         else {
           std::cout << "Vector length does not match with the matrix length"
-                    << std::endl;
+          << std::endl;
         }
       }
 

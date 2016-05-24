@@ -19,19 +19,33 @@ Tensor3D LinearTensor(size_t dim0, size_t dim1, size_t dim2) {
     return tensor;
 }
 
-void TestPrint() {
+void TestBlock() {
+    cout << "TestBlock" << endl;
     Tensor3D tensor = LinearTensor(2,3,4);
+
+    for (size_t k = 0; k < tensor.dim2(); ++k) {
+        for (size_t j = 0; j < tensor.dim1() ; ++j) {
+            for (size_t i = 0; i < tensor.dim0(); ++i) {
+                cout << tensor(i, j, k) << endl;
+            }
+        }
+    }
+}
+
+void TestPrint() {
+    Tensor3D tensor = LinearTensor(4,3,2);
     cout << "TestPrint" << endl << tensor << endl;
+
 }
 
 void TestDirection() {
     cout << "TestDirection" << endl;
-    Tensor3D tensor = LinearTensor(3,5,6);
+    Tensor3D tensor = LinearTensor(5,6,3);
     Matrix m = Matrix::Ones(5,6);
     cout << tensor << endl;
-    tensor.SetMatrixDir0(0,m);
+    tensor.SetSlice(0,m);
     for (size_t i=0; i<3; i++) {
-        cout << tensor.GetMatrixDir0(i) << endl;
+        cout << tensor.GetSlice(i) << endl;
     }
 }
 
@@ -49,6 +63,8 @@ void TestMultiplication() {
 
 int main() {
 
+    TestBlock();
+    cout << "-------------\n" << endl;
     TestPrint();
     cout << "-------------\n" << endl;
     TestDirection();
