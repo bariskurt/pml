@@ -9,7 +9,7 @@
 
 namespace pml {
 
-  namespace Uniform {
+  namespace uniform {
 
     inline gsl_rng *rnd_get_rng() {
       static gsl_rng *rng = NULL;
@@ -23,6 +23,11 @@ namespace pml {
 
     inline double rand() {
       return gsl_rng_uniform(rnd_get_rng());
+    }
+
+    // Returns random integers in [low. high]
+    inline uint64_t randi(int low, int high) {
+      return gsl_rng_uniform_int(rnd_get_rng(), high-low+1) + low;
     }
 
     inline Vector rand(unsigned length) {
@@ -41,21 +46,21 @@ namespace pml {
       return result;
     }
 
-  } // Uniform
+  } // uniform
 
-  namespace Poisson {
+  namespace poisson {
 
     inline unsigned rand(double mu) {
-      return gsl_ran_poisson(Uniform::rnd_get_rng(), mu);
+      return gsl_ran_poisson(uniform::rnd_get_rng(), mu);
     }
 
   } // Poisson
 
-  namespace Categorical {
+  namespace categorial {
 
     inline unsigned rand(const Vector &v) {
       Vector tmp = Normalize(v);
-      double rnd = Uniform::rand();
+      double rnd = uniform::rand();
       double cum_sum = 0;
       unsigned i = 0;
       for (; i < tmp.length(); i++) {
@@ -69,7 +74,7 @@ namespace pml {
 
   } // Categorial
 
-  namespace Gamma {
+  namespace gamma {
     /*
     * a = shape parameter
     * b = scale parameter
@@ -77,13 +82,13 @@ namespace pml {
     */
 
     inline double rand(double a, double b) {
-      return gsl_ran_gamma_knuth(Uniform::rnd_get_rng(), a, b);
+      return gsl_ran_gamma_knuth(uniform::rnd_get_rng(), a, b);
     }
 
     inline Vector rand(double a, double b, unsigned N) {
       Vector v(N);
       for (unsigned i = 0; i < N; ++i) {
-        v(i) = gsl_ran_gamma_knuth(Uniform::rnd_get_rng(), a, b);
+        v(i) = gsl_ran_gamma_knuth(uniform::rnd_get_rng(), a, b);
       }
       return v;
     }
@@ -93,16 +98,16 @@ namespace pml {
       Matrix M(num_rows, num_cols);
       for (unsigned i = 0; i < M.num_rows(); ++i) {
         for (unsigned j = 0; j < M.num_cols(); ++j) {
-          M(i, j) = gsl_ran_gamma_knuth(Uniform::rnd_get_rng(), a, b);
+          M(i, j) = gsl_ran_gamma_knuth(uniform::rnd_get_rng(), a, b);
         }
       }
       return M;
     }
   } // Gamma
 
-  namespace Binomial {
+  namespace binomial {
     inline unsigned rand(unsigned N, double rate) {
-      return gsl_ran_binomial(Uniform::rnd_get_rng(), rate, N);
+      return gsl_ran_binomial(uniform::rnd_get_rng(), rate, N);
     }
 
     inline double pmf(unsigned i, unsigned j, double p) {
@@ -114,12 +119,12 @@ namespace pml {
     }
   } // Binomial
 
-  namespace Multinomial {
+  namespace multinomial {
 
     inline Vector rand(const Vector &p, unsigned N) {
       Vector samples(p.length());
       unsigned buf[p.length()];
-      gsl_ran_multinomial(Uniform::rnd_get_rng(), p.length(), N, p.data(),
+      gsl_ran_multinomial(uniform::rnd_get_rng(), p.length(), N, p.data(),
                           buf);
       for (unsigned i = 0; i < samples.length(); ++i) {
         samples(i) = buf[i];
@@ -141,11 +146,11 @@ namespace pml {
 
   } // Multinomial
 
-  namespace Dirichlet {
+  namespace dirichlet {
 
     inline Vector rand(const Vector &alpha) {
       Vector result(alpha.length());
-      gsl_ran_dirichlet(Uniform::rnd_get_rng(), alpha.length(),
+      gsl_ran_dirichlet(uniform::rnd_get_rng(), alpha.length(),
                         alpha.data(), result.data());
       return result;
     }
@@ -154,7 +159,7 @@ namespace pml {
       Matrix result(alpha.length(), num_cols);
       Vector buf(alpha.length());
       for (unsigned j = 0; j < num_cols; ++j) {
-        gsl_ran_dirichlet(Uniform::rnd_get_rng(), alpha.length(),
+        gsl_ran_dirichlet(uniform::rnd_get_rng(), alpha.length(),
                           alpha.data(), buf.data());
         result.SetColumn(j, buf);
       }
