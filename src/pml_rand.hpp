@@ -21,6 +21,7 @@ namespace pml {
       return rng;
     }
 
+    // Returns a double precision random number in [0,1).
     inline double rand() {
       return gsl_rng_uniform(rnd_get_rng());
     }
