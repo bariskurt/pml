@@ -448,7 +448,7 @@ namespace pml {
                                        const Vector &vector){
         out << std::setprecision(DEFAULT_PRECISION) << std::fixed;
         for(auto &value : vector.data_){
-          out << value << "   ";
+          out << value << std::endl;
         }
         return out;
       }
