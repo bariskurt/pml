@@ -363,6 +363,16 @@ namespace pml {
         }
       }
 
+      Vector slice(size_t start, size_t num_steps, size_t step_size){
+        Vector vec_slice(num_steps);
+        size_t idx = start;
+        for(size_t i = 0; i< num_steps; ++i){
+          vec_slice(i) = data_[idx];
+          idx+=step_size;
+        }
+        return vec_slice;
+      }
+
       // Algebra
     public:
       friend Vector operator+(const Vector &x, const Vector &y) {

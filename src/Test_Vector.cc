@@ -15,7 +15,7 @@ void Test_Object(){
 
   std::cout << "Test_Vector::Object       ";
   Vector v(3); v(0) = 2; v(1) = 3; v(2) = 4;
-  Vector v1 = Uniform::rand(100);
+  Vector v1 = uniform::rand(100);
   Vector v2(v1);
   Vector v3;
   v3 = v2;
@@ -23,7 +23,7 @@ void Test_Object(){
   assert(v == Vector({2,3,4}));
   assert(v1 == v2);
   assert(v1 == v3);
-  assert(Uniform::rand(100) != Uniform::rand(1000));
+  assert(uniform::rand(100) != uniform::rand(1000));
 
   std::cout << "OK.\n";
 
@@ -33,7 +33,7 @@ void Test_Object(){
 void Test_SaveLoad(){
   std::cout << "Test_Vector::SaveLoad     ";
 
-  Vector v1 = Uniform::rand(1000);
+  Vector v1 = uniform::rand(1000);
   v1.Save(test_dir + "vector.txt");
 
   Vector v2 = Vector::Load(test_dir + "vector.txt");
@@ -67,7 +67,7 @@ void Test_LogExp(){
 
 void Test_Normalize(){
   std::cout << "Test_Vector::Normalize    ";
-  Vector v1 = Uniform::rand(1000);
+  Vector v1 = uniform::rand(1000);
   v1 = Normalize(v1);
   assert(fequal(v1.sum(), 1));
   std::cout << "OK.\n";
@@ -127,16 +127,34 @@ void Test_Algebra(){
   std::cout << "OK.\n";
 }
 
-void Test_Histogram(){
+void Test_Resize(){
+  std::cout << "Test_Vector::Resize       ";
+  Vector v1( {1, 2, 3, 4, 5, 6, 7, 8, 9});
 
-  std::cout << "Test_Vector::Histogram    ";
-  Histogram hist(Vector({10, 20, 30}));
-  for(int i=10; i<30; ++i){
-    hist(i)++;
+  // First 5:
+  Vector v2 = v1.slice(0, 5, 1);
+  assert(v2.length() == 5);
+  for(size_t i=0; i< v2.length(); ++i){
+    assert(v2(i) == v1(i));
   }
-  assert(hist.bins_ == Vector({10,10}));
+
+  // Odds:
+  Vector v3 = v1.slice(0, 5, 2);
+  assert(v3.length() == 5);
+  for(size_t i=0; i< v3.length(); ++i){
+    assert(v3(i) == v1(2*i));
+  }
+
+  // Shrink vector itself:
+  v1 = v1.slice(0, 3, 1);
+  assert(v1.length() == 3);
+  assert(v1(0) == 1);
+  assert(v1(1) == 2);
+  assert(v1(2) == 3);
+
   std::cout << "OK.\n";
 }
+
 
 int main(){
 
@@ -148,7 +166,7 @@ int main(){
   Test_Normalize();
   Test_NormalizeExp();
   Test_LogSumExp();
-  Test_Histogram();
+  Test_Resize();
 
   return 0;
 }

@@ -37,6 +37,11 @@ void Test_Sum(){
   assert(b.sum() == 15);
   std::cout << "OK.\n";
 }
+void Test_Slice(){
+  Block b1( {1, 2, 3, 4, 5, 6 ,7 ,8 ,9});
+
+
+}
 
 /*
 void Test_LogExp(){
