@@ -62,8 +62,8 @@ void Test_LogExp(){
 
 void Test_Algebra(){
   std::cout << "Test_Block::Algebra       ";
-  Block b({1,2,3,});
-  Block b2({4,5,6,});
+  Block b({1,2,3});
+  Block b2({4,5,6});
 
   b += 1; assert(b == Block({2,3,4}));
   b -= 1; assert(b == Block({1,2,3}));
@@ -90,12 +90,19 @@ void Test_Nan_Inf() {
   std::cout << "OK.\n";
 }
 
+void Test_TV_Dist(){
+  Block x({0.1, 0.1, 0.3, 0.5});
+  Block y({0.2, 0.2, 0.3, 0.3});
+  std::cout << TV_Dist(x,y) << std::endl;
+}
+
 
 int main(){
 
   Test_Object();
   Test_Algebra();
   Test_Nan_Inf();
+  Test_TV_Dist();
 
   return 0;
 }

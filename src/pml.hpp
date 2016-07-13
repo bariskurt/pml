@@ -206,6 +206,12 @@ namespace pml {
         }
       }
 
+      void abs(){
+        for( double &val : data_){
+          val = fabs(val);
+        }
+      }
+
       void normalize(){
         data_ /= data_.sum();
       }
@@ -238,15 +244,6 @@ namespace pml {
           result += x2(i) * ( std::log(std::fmax(x2(i), 1e-6))
                               - std::log(std::fmax(y2(i), 1e-6)) );
         }
-        return result;
-      }
-
-      friend double TV_Dist(const Block &x, const Block &y){
-        double result = 0;
-        for(unsigned i =0; i < x.length(); ++i){
-          result += fabs(x(i) - y(i));
-        }
-        result /= 2;
         return result;
       }
 
