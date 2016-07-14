@@ -15,14 +15,14 @@ std::string test_dir = "/tmp/";
 void Test_Object() {
   std::cout << "Test_Matrix::Object    ";
 
-  Matrix M1 = Uniform::rand(100, 1000);
+  Matrix M1 = uniform::rand(100, 1000);
   Matrix M2(M1);
   Matrix M3;
   M3 = M2;
 
   assert(M1 == M2);
   assert(M1 == M3);
-  assert(Uniform::rand(3,5) != Uniform::rand(30,50));
+  assert(uniform::rand(3,5) != uniform::rand(30,50));
 
   std::cout << "OK.\n";
 }
@@ -73,7 +73,7 @@ void Test_SpecialMatrices(){
 void Test_SaveLoad(){
   std::cout << "Test_Matrix::SaveLoad  ";
 
-  Matrix M1 = Uniform::rand(100, 1000);
+  Matrix M1 = uniform::rand(100, 1000);
   M1.Save(test_dir + "matrix.txt");
 
   Matrix M2 = Matrix::Load(test_dir + "matrix.txt");
@@ -109,21 +109,21 @@ void Test_Sum(){
   assert(SumRows(M) == Vector({22,26,30}));
 
   // Sum
-  assert(Sum(M) == 78);
+  assert(sum(M) == 78);
 
   // Min
   assert(MinCols(M) == Vector({1,4,7,10}));
 
   assert(MinRows(M) == Vector({1,2,3}));
 
-  assert(Min(M) == 1);
+  assert(min(M) == 1);
 
   // Max
   assert(MaxCols(M) == Vector({3, 6, 9, 12}));
 
   assert(MaxRows(M) == Vector({10,11,12}));
 
-  assert(Max(M) == 12);
+  assert(max(M) == 12);
 
   std::cout << "OK.\n";
 }
@@ -152,7 +152,7 @@ void Test_LogExp(){
 
 void Test_Transpose(){
   std::cout << "Test_Matrix::Transpose ";
-  Matrix m = Uniform::rand(100,1000);
+  Matrix m = uniform::rand(100,1000);
   assert(m == Transpose(Transpose(m)));
   std::cout << "OK.\n";
 }
@@ -162,23 +162,23 @@ void Test_Normalize(){
   std::cout << "Test_Matrix::Normalize ";
 
   // Normalize Columns
-  Matrix M = Normalize(Uniform::rand(100,1000), Matrix::COLS);
+  Matrix M = Normalize(uniform::rand(100,1000), Matrix::COLS);
   assert(SumCols(M) == Vector::Ones(1000));
 
   // Normalize Rows
-  M = Normalize(Uniform::rand(100,1000), Matrix::ROWS);
+  M = Normalize(uniform::rand(100,1000), Matrix::ROWS);
   assert(SumRows(M) == Vector::Ones(100));
 
   // Normalize All
-  M = Normalize(Uniform::rand(100,1000));
-  assert( fabs(Sum(M)-1) < 1e-6);
+  M = Normalize(uniform::rand(100,1000));
+  assert( fabs(sum(M)-1) < 1e-6);
 
   std::cout << "OK.\n";
 }
 
 void Test_Column() {
   std::cout << "Test_Matrix::Column    ";
-  Matrix m = Uniform::rand(3,4);
+  Matrix m = uniform::rand(3,4);
   Vector v1 = m.GetColumn(3);
   Vector v2(m.num_rows());
   v2(0) = m(0,3);
@@ -197,7 +197,7 @@ void Test_Column() {
 
 void Test_Row(){
   std::cout << "Test_Matrix::Row       ";
-  Matrix m = Uniform::rand(3,4);
+  Matrix m = uniform::rand(3,4);
   Vector v1 = m.GetRow(2);
   Vector v2({m(2,0), m(2,1), m(2,2), m(2,3)});
   assert(v1 == v2);
@@ -269,7 +269,7 @@ void Test_Dot(){
 }
 
 void Test_Inverse(){
-  Matrix M = Uniform::rand(2,2);
+  Matrix M = uniform::rand(2,2);
   Matrix M2 = Inv(M);
   std::cout << M ;
   std::cout << "-----------\n" ;

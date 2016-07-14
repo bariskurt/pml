@@ -49,7 +49,7 @@ void Test_SaveLoad(){
 void Test_Sum(){
   std::cout << "Test_Vector::Sum          ";
   Vector v1({1, 2, 3, 4, 5});
-  assert(v1.sum() == 15);
+  assert(sum(v1) == 15);
   std::cout << "OK.\n";
 }
 
@@ -69,7 +69,7 @@ void Test_Normalize(){
   std::cout << "Test_Vector::Normalize    ";
   Vector v1 = uniform::rand(1000);
   v1 = Normalize(v1);
-  assert(fequal(v1.sum(), 1));
+  assert(fequal(sum(v1), 1));
   std::cout << "OK.\n";
 }
 
@@ -83,7 +83,7 @@ void Test_NormalizeExp(){
 void Test_LogSumExp(){
   std::cout << "Test_Vector::LogSumExp    ";
   Vector v({0.1, 0.2, 0.3});
-  assert( fequal(LogSumExp(Log(v)), log(v.sum())));
+  assert( fequal(LogSumExp(Log(v)), log(sum(v))));
   std::cout << "OK.\n";
 }
 

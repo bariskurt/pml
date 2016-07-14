@@ -34,7 +34,7 @@ void Test_Object(){
 void Test_Sum(){
   std::cout << "Test_Block::Sum           ";
   Block b( {1, 2, 3, 4, 5});
-  assert(b.sum() == 15);
+  assert(sum(b) == 15);
   std::cout << "OK.\n";
 }
 void Test_Slice(){
@@ -90,19 +90,10 @@ void Test_Nan_Inf() {
   std::cout << "OK.\n";
 }
 
-void Test_TV_Dist(){
-  Block x({0.1, 0.1, 0.3, 0.5});
-  Block y({0.2, 0.2, 0.3, 0.3});
-  std::cout << TV_Dist(x,y) << std::endl;
-}
-
-
 int main(){
 
   Test_Object();
   Test_Algebra();
   Test_Nan_Inf();
-  Test_TV_Dist();
-
   return 0;
 }

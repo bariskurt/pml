@@ -174,17 +174,9 @@ namespace pml {
       };
 
 
-      // Math
-      double min() const{
-        return data_.min();
-      }
-
-      double max() const{
-        return data_.max();
-      };
-
-      double sum() const{
-        return data_.sum();
+      void round() {
+        for(double &val : data_)
+          val = std::round(val);
       }
 
       // In-place Operations
@@ -226,7 +218,7 @@ namespace pml {
 
       // Friend Functions:
       friend double LogSumExp(const Block &x) {
-        double x_max = x.max();
+        double x_max = max(x);
         double sum = 0;
         for( auto &val : x.data_){
           sum += std::exp(val - x_max);
@@ -247,16 +239,28 @@ namespace pml {
         return result;
       }
 
-      friend double Sum(const Block &b){
-        return b.sum();
+      friend Block abs(const Block &b){
+        Block result(b);
+        result.abs();
+        return result;
       }
 
-      friend double Max(const Block &b){
-        return b.max();
+      friend Block round(const Block &b){
+        Block result(b);
+        result.round();
+        return result;
       }
 
-      friend double Min(const Block &b){
-        return b.min();
+      friend double sum(const Block &b){
+        return b.data_.sum();
+      }
+
+      friend double max(const Block &b){
+        return b.data_.max();
+      }
+
+      friend double min(const Block &b){
+        return b.data_.min();
       }
 
     protected:
@@ -1014,7 +1018,7 @@ namespace pml {
                               Matrix::Axes axis = Matrix::LINEAR) {
         Matrix result(M);
         if (axis == Matrix::LINEAR) {
-          result.data_ = M.data_ / Sum(M);
+          result.data_ = M.data_ / sum(M);
         } else if (axis == Matrix::COLS) {
           Vector col_sums = SumCols(M);
           for (size_t i = 0; i < M.num_rows(); ++i) {
