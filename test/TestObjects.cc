@@ -138,10 +138,19 @@ void test_sum_min_max() {
   assert(min(x) == 0);
   assert(max(x) == 9);
 
-  Matrix M(2, 5, {0, 1, 2, 3, 4, 5, 6, 7, 8, 9});
-  assert(sum(M) == 45);
-  assert(min(M) == 0);
-  assert(max(M) == 9);
+  Matrix m(2, 3, {0, 1, 2, 3, 4, 5});
+  assert(sum(m) == 15);
+  assert(sum(m, Matrix::COLS) == Vector({1, 5, 9}));
+  assert(sum(m, Matrix::ROWS) == Vector({6, 9}));
+
+  assert(min(m) == 0);
+  assert(min(m, Matrix::COLS) == Vector({0, 2, 4}));
+  assert(min(m, Matrix::ROWS) == Vector({0, 1}));
+
+  assert(max(m) == 5);
+  assert(max(m, Matrix::COLS) == Vector({1, 3, 5}));
+  assert(max(m, Matrix::ROWS) == Vector({4, 5}));
+
 
   std::cout << "OK.\n";
 }
@@ -198,6 +207,23 @@ void test_vector_normalize(){
   std::cout << "OK.\n";
 }
 
+void test_tile(){
+
+  Vector v({1,2,3});
+  Matrix m = tile(v, 2, Matrix::ROWS);
+  Matrix n = tile(v, 2);
+
+  std::cout << m << std::endl;
+  std::cout << n << std::endl;
+
+
+  Vector v2({0,1,2,3,4,5,6,7,8,9});
+  assert(slice(v2,0,v2.size()) == v2);
+  assert(slice(v2,0,4) == Vector({0,1,2,3}));
+  assert(slice(v2,5,2) == Vector({5,6}));
+  assert(slice(v2,0,5,2) == Vector({0,2,4,6,8}));
+}
+
 /*
 void test_save_load(){
 
@@ -217,6 +243,7 @@ int main(){
   test_sum_min_max();
   test_vector_normalize();
   test_save_load();
+  test_tile();
   //test_algebra();
   //test_friends();
   //test_save_load();
