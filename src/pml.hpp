@@ -25,38 +25,6 @@ namespace pml {
 
   class Array {
 
-/*
-    public:
-      class Slice{
-        public:
-          Slice(Array &array_, size_t start_ = 0,
-                     size_t step_ = 0, size_t length_ = 0)
-                  : start(start_), step(step_), length(length_){
-            array = &array_;
-          }
-
-          Slice(const Array &array_, size_t start_ = 0,
-                     size_t step_ = 0, size_t length_ = 0)
-                  : start(start_), step(step_), length(length_){
-            array = &array_;
-          }
-
-          Slice &operator=(const Array &other) {
-            assert(other.size() == length);
-            size_t idx = start;
-            for(size_t i=0; i < length; ++i){
-              array->data_[idx] = other(i);
-              idx += step;
-            }
-            return *this;
-          }
-
-        public:
-          Array* array;
-          size_t start, step, length;
-      };
-*/
-
   private:
       static const size_t MAX_DIMENSIONS = 3;
 
@@ -415,6 +383,23 @@ namespace pml {
         return result;
       }
 
+      friend Array sum(const Array &array, size_t dim) {
+        assert(array.ndims() == 2);
+        Array result;
+        if (dim == 0) {
+          result = Array({array.num_cols()}, 0);
+          for (size_t j = 0; j < array.num_cols(); ++j) {
+            result(j) = sum(array.col(j));
+          }
+        } else {
+          result = Array({array.num_rows()}, 0);
+          for (size_t i = 0; i < array.num_rows(); ++i) {
+            result(i) = sum(array.row(i));
+          }
+        }
+        return result;
+      }
+
       friend double max(const Array &array) {
         double result = std::numeric_limits<double>::lowest();
         for (auto &value : array.data_) {
@@ -543,25 +528,6 @@ namespace pml {
       size_t num_rows() const { return dims_[0]; }
 
       size_t num_cols() const {  assert(ndims() > 1); return dims_[1]; }
-
-      friend Array sum(const Array &array, size_t dim) {
-        assert(array.ndims() == 2);
-        Array result;
-        /*
-        if (dim == 0) {
-          result = Array({array.num_cols()}, 0);
-          for (size_t j = 0; j < array.num_cols(); ++j) {
-            result(j) = sum(array.col(j));
-          }
-        } else {
-          result = Array({array.num_rows()}, 0);
-          for (size_t i = 0; i < array.num_rows(); ++i) {
-            result(i) = sum(array.row(i));
-          }
-        }
-         */
-        return result;
-      }
 
 /*
       Slice row(size_t row_id){

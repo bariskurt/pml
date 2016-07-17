@@ -2,7 +2,7 @@
 // Created by bariskurt on 26.03.2016.
 //
 
-#include "pml.hpp"
+#include "pml_new.hpp"
 #include <cassert>
 
 using namespace pml;
@@ -27,9 +27,9 @@ void test_matrix() {
   M1 = Matrix::zeros(4,5);
   assert(M1 == 0);
 
-  Array I = Matrix::identity(4);
-  for(size_t i = 0; i < I.num_rows(); ++i){
-    for(size_t j = 0; j < I.num_rows(); ++j){
+  Matrix I = Matrix::identity(4);
+  for(size_t i = 0; i < I.nrows(); ++i){
+    for(size_t j = 0; j < I.ncols(); ++j){
       if( i == j ){
         assert(I(i,j) == 1);
       } else{
@@ -37,8 +37,6 @@ void test_matrix() {
       }
     }
   }
-
-  sum(I, 1);
 
 /*
   Vector row_sums = sum(I, 1);
@@ -49,7 +47,7 @@ void test_matrix() {
 */
   std::cout << "OK.\n";
 }
-
+/*
 void test_dot(){
   Matrix M (3,4);
   for(size_t i=0; i< M.size(); ++i){
@@ -92,6 +90,7 @@ void test_sum() {
 
   std::cout << "OK.\n";
 }
+*/
 /*
 void Test_Operators(){
   std::cout << "Test_Matrix::Operators ";

@@ -1,7 +1,7 @@
 #ifndef MATLIB_PML_RAND_H
 #define MATLIB_PML_RAND_H
 
-#include "pml_old.hpp"
+#include "pml.hpp"
 
 #include <ctime>
 
@@ -33,7 +33,7 @@ namespace pml {
 
     inline Vector rand(unsigned length) {
       Vector result(length);
-      for (unsigned i = 0; i < result.length(); ++i) {
+      for (unsigned i = 0; i < result.size(); ++i) {
         result(i) = rand();
       }
       return result;
@@ -41,7 +41,7 @@ namespace pml {
 
     inline Matrix rand(unsigned num_rows, unsigned num_cols) {
       Matrix result(num_rows, num_cols);
-      for (unsigned i = 0; i < result.length(); ++i) {
+      for (unsigned i = 0; i < result.size(); ++i) {
         result(i) = rand();
       }
       return result;
@@ -60,11 +60,11 @@ namespace pml {
   namespace categorial {
 
     inline unsigned rand(const Vector &v) {
-      Vector tmp = Normalize(v);
+      Vector tmp = normalize(v);
       double rnd = uniform::rand();
       double cum_sum = 0;
       unsigned i = 0;
-      for (; i < tmp.length(); i++) {
+      for (; i < tmp.size(); i++) {
         cum_sum += tmp(i);
         if (rnd < cum_sum) {
           break;
@@ -123,22 +123,22 @@ namespace pml {
   namespace multinomial {
 
     inline Vector rand(const Vector &p, unsigned N) {
-      Vector samples(p.length());
-      unsigned buf[p.length()];
-      gsl_ran_multinomial(uniform::rnd_get_rng(), p.length(), N, p.data(),
+      Vector samples(p.size());
+      unsigned buf[p.size()];
+      gsl_ran_multinomial(uniform::rnd_get_rng(), p.size(), N, p.data(),
                           buf);
-      for (unsigned i = 0; i < samples.length(); ++i) {
+      for (unsigned i = 0; i < samples.size(); ++i) {
         samples(i) = buf[i];
       }
       return samples;
     }
 
     inline double log_pmf(const Vector &x, const Vector &p) {
-      unsigned counts[x.length()];
-      for (unsigned i = 0; i < x.length(); ++i) {
+      unsigned counts[x.size()];
+      for (unsigned i = 0; i < x.size(); ++i) {
         counts[i] = (unsigned) x(i);
       }
-      return gsl_ran_multinomial_lnpdf(p.length(), p.data(), counts);
+      return gsl_ran_multinomial_lnpdf(p.size(), p.data(), counts);
     }
 
     inline double pmf(Vector &x, Vector &p) {
@@ -150,17 +150,17 @@ namespace pml {
   namespace dirichlet {
 
     inline Vector rand(const Vector &alpha) {
-      Vector result(alpha.length());
-      gsl_ran_dirichlet(uniform::rnd_get_rng(), alpha.length(),
+      Vector result(alpha.size());
+      gsl_ran_dirichlet(uniform::rnd_get_rng(), alpha.size(),
                         alpha.data(), result.data());
       return result;
     }
 
     inline Matrix rand(const Vector &alpha, unsigned num_cols) {
-      Matrix result(alpha.length(), num_cols);
-      Vector buf(alpha.length());
+      Matrix result(alpha.size(), num_cols);
+      Vector buf(alpha.size());
       for (unsigned j = 0; j < num_cols; ++j) {
-        gsl_ran_dirichlet(uniform::rnd_get_rng(), alpha.length(),
+        gsl_ran_dirichlet(uniform::rnd_get_rng(), alpha.size(),
                           alpha.data(), buf.data());
         result.SetColumn(j, buf);
       }
