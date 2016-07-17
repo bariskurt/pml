@@ -9,4 +9,4 @@ add_executable(test_random TestRandom.cc)
 
 add_executable(test_algebra TestAlgebra.cc)
 
-#add_executable(test_tensor ../src/Test_Tensor.cc)
+add_executable(test_tensor TestTensor.cc)

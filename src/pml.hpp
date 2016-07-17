@@ -39,6 +39,11 @@ namespace pml {
       explicit Vector(size_t length, double value = 0)
               : __data__(length, value) {}
 
+      Vector(size_t length, double *values)
+              : __data__(length) {
+        memcpy(this->data(), values, sizeof(double)*length);
+      }
+
       Vector(const std::initializer_list<double> &values)
               : __data__(values) {}
 
@@ -644,6 +649,38 @@ namespace pml {
               : Vector(s0 * s1 * s2, value),
                 size0_(s0), size1_(s1), size2_(s2) {}
 
+      Tensor3D(size_t s0, size_t s1, size_t s2, double *values)
+              : Vector(s0 * s1 * s2, values),
+                size0_(s0), size1_(s1), size2_(s2) {}
+
+      Tensor3D(const Tensor3D &tensor)
+              : Vector(tensor), size0_(tensor.size0_),
+                size1_(tensor.size1_), size2_(tensor.size2_){ }
+
+
+      Tensor3D(Tensor3D &&tensor)
+              : Vector(std::move(tensor)),  size0_(tensor.size0_),
+                size1_(tensor.size1_),  size2_(tensor.size2_) { }
+
+      Tensor3D& operator=(const Tensor3D &other) {
+        if (this != &other) {
+          __data__ = other.__data__;
+          size0_ = other.size0_;
+          size1_ = other.size1_;
+          size2_ = other.size2_;
+        }
+        return *this;
+      }
+
+      Tensor3D& operator=(Tensor3D &&other) {
+        __data__ = std::move(other.__data__);
+        size0_ = other.size0_;
+        size1_ = other.size1_;
+        size2_ = other.size2_;
+        return *this;
+      }
+
+
       static Tensor3D ones(size_t size0_, size_t size1_, size_t size2_) {
         return Tensor3D(size0_, size1_, size2_, 1.0);
       }
@@ -651,6 +688,8 @@ namespace pml {
       static Tensor3D zeros(size_t size0_, size_t size1_, size_t size2_) {
         return Tensor3D(size0_, size1_, size2_, 0.0);
       }
+
+
 
     public:
       size_t dim0() const { return size0_; }
@@ -724,7 +763,7 @@ namespace pml {
 
       friend bool operator==(const Tensor3D &t1, const Tensor3D &t2) {
         if(t1.shape() == t2.shape()){
-          return operator==((Block) t1, (Block) t2);
+          return operator==((Vector) t1, (Vector) t2);
         }
         return false;
       }
@@ -773,7 +812,7 @@ namespace pml {
 
 
       friend Tensor3D operator+(const Tensor3D &x, double value) {
-        Tensor3D result(x.dim0(),x.dim1(),x.dim2());
+        Tensor3D result(x);
         result += value;
         return result;
       }
@@ -783,7 +822,7 @@ namespace pml {
       }
 
       friend Tensor3D operator-(const Tensor3D &x, double value) {
-        Tensor3D result(x.dim0(),x.dim1(),x.dim2());
+        Tensor3D result(x);
         result -= value;
         return result;
       }
@@ -793,7 +832,7 @@ namespace pml {
       }
 
       friend Tensor3D operator*(const Tensor3D &x, double value) {
-        Tensor3D result(x.dim0(),x.dim1(),x.dim2());
+        Tensor3D result(x);
         result *= value;
         return result;
       }
@@ -803,7 +842,7 @@ namespace pml {
       }
 
       friend Tensor3D operator/(const Tensor3D &x, double value) {
-        Tensor3D result(x.dim0(),x.dim1(),x.dim2());
+        Tensor3D result(x);
         result /= value;
         return result;
       }
@@ -865,12 +904,12 @@ namespace pml {
   inline Vector sum(const Matrix &m, int axis) {
     Vector result;
     if(axis == Matrix::COLS){
-      result = Vector(m.ncols(),0);
+      result = Vector::zeros(m.ncols());
       for(size_t i=0; i < m.ncols(); ++i){
         result(i) = sum(m.getColumn(i));
       }
     } else {
-      result = Vector(m.nrows(),0);
+      result = Vector::zeros(m.nrows());
       for(size_t i=0; i < m.nrows(); ++i){
         result(i) = sum(m.getRow(i));
       }
@@ -891,12 +930,12 @@ namespace pml {
   inline Vector max(const Matrix &m, int axis) {
     Vector result;
     if(axis == Matrix::COLS){
-      result = Vector(m.ncols(),0);
+      result = Vector::zeros(m.ncols());
       for(size_t i=0; i < m.ncols(); ++i){
         result(i) = max(m.getColumn(i));
       }
     } else {
-      result = Vector(m.nrows(),0);
+      result = Vector::zeros(m.nrows());
       for(size_t i=0; i < m.nrows(); ++i){
         result(i) = max(m.getRow(i));
       }
@@ -917,12 +956,12 @@ namespace pml {
   inline Vector min(const Matrix &m, int axis) {
     Vector result;
     if(axis == Matrix::COLS){
-      result = Vector(m.ncols(),0);
+      result = Vector::zeros(m.ncols());
       for(size_t i=0; i < m.ncols(); ++i){
         result(i) = min(m.getColumn(i));
       }
     } else {
-      result = Vector(m.nrows(),0);
+      result = Vector::zeros(m.nrows());
       for(size_t i=0; i < m.nrows(); ++i){
         result(i) = min(m.getRow(i));
       }
