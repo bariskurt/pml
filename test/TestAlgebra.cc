@@ -1,6 +1,6 @@
 #include <cassert>
 
-#include "pml_new.hpp"
+#include "pml.hpp"
 
 using namespace pml;
 
@@ -82,9 +82,24 @@ void test_matrix_algebra(){
   std::cout << "OK.\n";
 }
 
+void test_dot(){
+  std::cout << "test_dot...";
+
+  Vector x({1,2,3});
+  Vector y({3,2,1});
+  assert(dot(x,y) == 10);
+
+  Matrix m(2,3,{1,2,3,4,5,6});
+  assert(dot(m,x) == Vector({22, 28}));
+  assert(dot(m,transpose(m)) == Matrix(2,2, {35, 44, 44, 56}));
+
+  std::cout << "OK.\n";
+}
+
 int main(){
 
   test_vector_algebra();
   test_matrix_algebra();
+  test_dot();
   return 0;
 }

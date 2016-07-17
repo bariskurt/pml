@@ -5,9 +5,7 @@ link_libraries(lapack)
 
 add_executable(test_objects TestObjects.cc)
 
-add_executable(test_vector TestVector.cc)
-
-add_executable(test_matrix TestMatrix.cc)
+add_executable(test_random TestRandom.cc)
 
 add_executable(test_algebra TestAlgebra.cc)
 

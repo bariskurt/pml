@@ -4,7 +4,7 @@
 
 #include <cassert>
 
-#include "pml_new.hpp"
+#include "pml.hpp"
 //#include "../src/pml_rand.hpp"
 
 using namespace pml;

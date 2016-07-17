@@ -31,7 +31,7 @@ namespace pml {
       return gsl_rng_uniform_int(rnd_get_rng(), high-low+1) + low;
     }
 
-    inline Vector rand(unsigned length) {
+    inline Vector rand(size_t length) {
       Vector result(length);
       for (unsigned i = 0; i < result.size(); ++i) {
         result(i) = rand();
@@ -39,10 +39,10 @@ namespace pml {
       return result;
     }
 
-    inline Matrix rand(unsigned num_rows, unsigned num_cols) {
+    inline Matrix rand(size_t num_rows, size_t num_cols) {
       Matrix result(num_rows, num_cols);
-      for (unsigned i = 0; i < result.size(); ++i) {
-        result(i) = rand();
+      for(auto &value : result){
+        value = rand();
       }
       return result;
     }
@@ -97,8 +97,8 @@ namespace pml {
     inline Matrix rand(double a, double b,
                        unsigned num_rows, unsigned num_cols) {
       Matrix M(num_rows, num_cols);
-      for (unsigned i = 0; i < M.num_rows(); ++i) {
-        for (unsigned j = 0; j < M.num_cols(); ++j) {
+      for (unsigned i = 0; i < M.nrows(); ++i) {
+        for (unsigned j = 0; j < M.ncols(); ++j) {
           M(i, j) = gsl_ran_gamma_knuth(uniform::rnd_get_rng(), a, b);
         }
       }
@@ -127,7 +127,7 @@ namespace pml {
       unsigned buf[p.size()];
       gsl_ran_multinomial(uniform::rnd_get_rng(), p.size(), N, p.data(),
                           buf);
-      for (unsigned i = 0; i < samples.size(); ++i) {
+      for (size_t i = 0; i < samples.size(); ++i) {
         samples(i) = buf[i];
       }
       return samples;
@@ -135,8 +135,8 @@ namespace pml {
 
     inline double log_pmf(const Vector &x, const Vector &p) {
       unsigned counts[x.size()];
-      for (unsigned i = 0; i < x.size(); ++i) {
-        counts[i] = (unsigned) x(i);
+      for (size_t i = 0; i < x.size(); ++i) {
+        counts[i] = (size_t) x(i);
       }
       return gsl_ran_multinomial_lnpdf(p.size(), p.data(), counts);
     }
@@ -159,10 +159,10 @@ namespace pml {
     inline Matrix rand(const Vector &alpha, unsigned num_cols) {
       Matrix result(alpha.size(), num_cols);
       Vector buf(alpha.size());
-      for (unsigned j = 0; j < num_cols; ++j) {
+      for (size_t j = 0; j < num_cols; ++j) {
         gsl_ran_dirichlet(uniform::rnd_get_rng(), alpha.size(),
                           alpha.data(), buf.data());
-        result.SetColumn(j, buf);
+        result.setColumn(j, buf);
       }
       return result;
     }

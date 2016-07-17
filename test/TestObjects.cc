@@ -8,7 +8,7 @@
 
 #include <cassert>
 
-#include "pml_new.hpp"
+#include "pml.hpp"
 
 using namespace pml;
 
@@ -53,6 +53,23 @@ void test_vector(){
   std::cout << "OK.\n";
 }
 
+void test_save_load(){
+  std::cout << "test_save_load...";
+
+  Vector x = Vector({1,2,3,4,5,6});
+  x.save("/tmp/x.txt");
+  Vector y = Vector::load("/tmp/x.txt");
+  assert(x==y);
+
+
+  Matrix m = Matrix(2,3, {1,2,3,4,5,6});
+  m.save("/tmp/m.txt");
+  Matrix n = Matrix::load("/tmp/m.txt");
+  assert(m==n);
+
+  std::cout << "OK\n";
+}
+
 
 void test_matrix() {
   std::cout << "test_matrix...";
@@ -82,6 +99,33 @@ void test_matrix() {
       }
     }
   }
+
+  // Set & Get Columns
+  Matrix m(3,4, {0,1,2,3,4,5,6,7,8,9,10,11});
+  Vector v1 = m.getColumn(3);
+  Vector v2(m.nrows());
+  v2(0) = m(0,3);
+  v2(1) = m(1,3);
+  v2(2) = m(2,3);
+  assert(v1 == v2);
+
+  m.setColumn(2, Vector::ones(3));
+  assert(m(0,2) == 1);
+  assert(m(1,2) == 1);
+  assert(m(2,2) == 1);
+
+  // Set & Get Rows
+  m = Matrix(3,4, {0,1,2,3,4,5,6,7,8,9,10,11});
+  v1 = m.getRow(2);
+  v2 = Vector({m(2,0), m(2,1), m(2,2), m(2,3)});
+  assert(v1 == v2);
+
+  m.setRow(1, Vector::ones(4));
+  assert(m(1,0) == 1);
+  assert(m(1,1) == 1);
+  assert(m(1,2) == 1);
+  assert(m(1,3) == 1);
+
   std::cout << "OK.\n";
 }
 
@@ -143,7 +187,13 @@ void test_vector_normalize(){
   //KL Divergence
   Vector y = normalize(Vector({1, 2, 3, 4}));
   Vector z = normalize(Vector({2, 2, 2, 2}));
-  assert(fequal(klDiv(y,z), 0.1064401));
+  assert(fequal(kl_div(y,z), 0.1064401));
+
+
+  Matrix m(2,2, {1, 2, 3, 4});
+  assert(normalize(m) == Matrix(2,2, {0.1, 0.2, 0.3, 0.4}));
+  assert(normalize(m, 0) == Matrix(2,2, {1.0/3, 2.0/3, 3.0/7, 4.0/7}));
+  assert(normalize(m, 1) == Matrix(2,2, {1.0/4, 2.0/6, 3.0/4, 4.0/6}));
 
   std::cout << "OK.\n";
 }
@@ -166,6 +216,7 @@ int main(){
   test_matrix();
   test_sum_min_max();
   test_vector_normalize();
+  test_save_load();
   //test_algebra();
   //test_friends();
   //test_save_load();
