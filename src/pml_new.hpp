@@ -398,6 +398,38 @@ namespace pml {
           return (x.nrows() == y.nrows()) && (x.ncols() == y.ncols());
         }
 
+        Vector getColumn(size_t col_num) const {
+          Vector column(__nrows__);
+          memcpy(column.__data__, &__data__[col_num * __nrows__],
+                 sizeof(double) * __nrows__);
+          return column;
+        }
+
+        void setColumn(size_t col_num, const Vector &vector) {
+          memcpy(&__data__[col_num * __nrows__], vector.__data__,
+                 sizeof(double) * __nrows__);
+        }
+
+        Vector getRow(size_t row_num) const {
+          Vector row(__ncols__);
+          size_t idx = row_num;
+          for(size_t i=0; i < __ncols__; ++i){
+            row(i) = __data__[idx];
+            idx += __nrows__;
+          }
+          return row;
+        }
+
+        void setRow(size_t row_num, const Vector &row) {
+          size_t idx = row_num;
+          for(size_t i=0; i < __ncols__; ++i){
+            __data__[idx] = row(x);
+            idx += __nrows__;
+          }
+          return row;
+        }
+
+
       public:
         // returns A + b
         friend Matrix operator+(const Matrix &x, double value) {
