@@ -1,335 +1,536 @@
-//
-// Created by baris on 01.04.2016.
-//
-
 #ifndef MATLIB_PML_H_H
 #define MATLIB_PML_H_H
 
+#include <cassert>
 #include <cmath>
 #include <cstring>
 #include <fstream>
 #include <iostream>
 #include <iomanip>
-#include <valarray>
+#include <limits>
+#include <vector>
 #include <tuple>
 #include <gsl/gsl_cblas.h>
 #include <gsl/gsl_sf_psi.h>
+
 
 #define DEFAULT_PRECISION 6
 
 namespace pml {
 
-  // Helpers:
-  inline bool fequal(double a,double b){
-    return fabs(a-b) < 1e-6;
+// Helpers:
+  inline bool fequal(double a, double b) {
+    return fabs(a - b) < 1e-6;
   }
 
-  inline void ASSERT_TRUE(bool condition, const std::string &message) {
-    if( !condition ) {
-      std::cout << "FATAL ERROR: " << message << std::endl;
-      exit(-1);
-    }
-  }
+  class Array {
 
-  class Block {
+/*
+    public:
+      class Slice{
+        public:
+          Slice(Array &array_, size_t start_ = 0,
+                     size_t step_ = 0, size_t length_ = 0)
+                  : start(start_), step(step_), length(length_){
+            array = &array_;
+          }
+
+          Slice(const Array &array_, size_t start_ = 0,
+                     size_t step_ = 0, size_t length_ = 0)
+                  : start(start_), step(step_), length(length_){
+            array = &array_;
+          }
+
+          Slice &operator=(const Array &other) {
+            assert(other.size() == length);
+            size_t idx = start;
+            for(size_t i=0; i < length; ++i){
+              array->data_[idx] = other(i);
+              idx += step;
+            }
+            return *this;
+          }
+
+        public:
+          Array* array;
+          size_t start, step, length;
+      };
+*/
+
+  private:
+      static const size_t MAX_DIMENSIONS = 3;
 
     public:
-      Block() {}
+      Array(){}
 
-      virtual ~Block() {}
-
-      explicit Block(size_t length) : data_(length) {}
-
-      Block(size_t length, const double *initial_values)
-              : data_(initial_values, length) {}
-
-      explicit Block(std::initializer_list<double> values) : data_(values) {}
-
-      explicit Block(const std::slice_array<double> &slice) : data_(slice) {}
-
-      Block(const Block &other) : data_(other.data_) {}
-
-      Block(Block &&other) : data_(other.data_) {}
-
-
-      Block& operator=(const Block &other) {
-        data_ = other.data_;
-        return *this;
+      explicit Array(const std::vector<size_t> &dims, double value = 0)
+              : dims_(dims) {
+        assert(dims_.size() <= MAX_DIMENSIONS);
+        // resize data vector:
+        size_t new_size = 1;
+        for (auto d : dims_) {
+          new_size *= d;
+        }
+        data_ = std::vector<double>(new_size, value);
       }
 
-      Block& operator=(Block &&other) {
+      Array(const std::vector<size_t> &dims, const std::vector<double> &values)
+              : Array(dims) {
+        assert(size() == values.size());
+        data_ = values;
+      }
+/*
+      Array(const Slice &slice){
+        data_.resize(slice.length);
+        size_t idx = slice.start;
+        for(size_t i=0; i < slice.length; ++i){
+          data_[i] = slice.array->data_[idx];
+          idx += slice.step;
+        }
+      }
+*/
+      Array(const Array &other) : data_(other.data_), dims_(other.dims_) { }
+
+      Array(Array &&other) {
         data_ = std::move(other.data_);
+        dims_ = std::move(other.dims_);
+      }
+
+      Array &operator=(const Array &other) {
+        data_ = other.data_;
+        dims_ = other.dims_;
         return *this;
       }
 
-      double operator=(double d) {
-        data_ = d;
-        return d;
+      Array &operator=(Array &&other) {
+        data_ = std::move(other.data_);
+        dims_ = std::move(other.dims_);
+        return *this;
       }
 
-      void resize(size_t new_size) {
-        data_.resize(new_size);
-      }
-
-      bool ContainsNan() const{
-        for (unsigned i=0; i < data_.size(); ++i) {
-          if (isnan(data_[i])) {
-            return true;
-          }
+      // Shape & Reshape related stuff
+    protected:
+      void reshape(const std::vector<size_t> &new_dims) {
+        size_t new_size = 1;
+        for (auto d : new_dims) {
+          new_size *= d;
         }
-        return false;
+        assert(size() == new_size);
+        dims_ = new_dims;
       }
 
-      bool ContainsInf() const{
-        for (unsigned i=0; i < data_.size(); ++i) {
-          if (isinf(data_[i])) {
-            return true;
-          }
-        }
-        return false;
+      bool shape_equal(const Array &other) const {
+        return dims_ == other.dims_;
       }
 
+    // Size info
     public:
-      double& operator()(const size_t i1) {
-        return data_[i1];
-      }
-
-      double operator()(const size_t i1) const {
-        return data_[i1];
-      }
-
-      size_t length() const {
+      // Total number of values inside the structure.
+      size_t size() const {
         return data_.size();
       }
 
-      bool empty() const{
-        return length() == 0;
+      // Number of dimensions.
+      size_t ndims() const {
+        return dims_.size();
+      }
+
+      // Get whole dimensions.
+      const std::vector<size_t>& dims() const {
+        return dims_;
+      }
+
+      // Dimension along idx.
+      size_t dim(size_t idx) const {
+        assert(idx < ndims());
+        return dims_[idx];
+      }
+
+      bool empty() const {
+        return size() == 0;
+      }
+
+    // Accessors
+    public:
+
+      std::vector<double>::iterator begin(){
+        return data_.begin();
+      }
+
+      std::vector<double>::iterator end(){
+        return data_.end();
+      }
+
+      inline double &operator()(const size_t i0) {
+        return data_[i0];
+      }
+
+      inline double operator()(const size_t i0) const {
+        return data_[i0];
+      }
+
+      inline double &operator()(const size_t i0, const size_t i1) {
+        assert(ndims() == 2);
+        return data_[i0 + dims_[0] * i1];
+      }
+
+      inline double operator()(const size_t i0, const size_t i1) const {
+        assert(ndims() == 2);
+        return data_[i0 + dims_[0] * i1];
+      }
+
+      inline double& operator()(const size_t i0, const size_t i1,
+                                const size_t i2) {
+        assert(ndims() == 3);
+        return data_[i0 + dims_[0] * (i1 + dims_[1] * i2)];
+      }
+
+      inline double operator()(const size_t i0, const size_t i1,
+                               const size_t i2) const{
+        assert(ndims() == 3);
+        return data_[i0 + dims_[0] * (i1 + dims_[1] * i2)];
       }
 
       double *data() {
         return &data_[0];
       }
 
-      const double* data() const {
+      const double *data() const {
         return &data_[0];
       }
 
+      double first() const {
+        return data_[0];
+      }
+
+      double &first() {
+        return data_[0];
+      }
+
+      double last() const {
+        return data_.back();
+      }
+
+      double &last() {
+        return data_.back();
+      }
+
+    // Comparison
     public:
-      void operator+=(double value) {
-        this->data_ += value;
-      }
-
-      void operator-=(double value) {
-        this->data_ -= value;
-      }
-
-      void operator*=(double value) {
-        this->data_ *= value;
-      }
-
-      void operator/=(double value) {
-        this->data_ /= value;
-      }
-
-      void operator+=(const Block &other) {
-        this->data_ += other.data_;
-      }
-
-      void operator-=(const Block &other) {
-        this->data_ -= other.data_;
-      }
-
-      void operator*=(const Block &other) {
-        this->data_ *= other.data_;
-      }
-
-      void operator/=(const Block &other) {
-        this->data_ /= other.data_;
-      }
-
-      // Comparison
-      friend bool operator==(const Block &b1, const Block &b2) {
-        if (b1.length() != b2.length()) {
+      friend bool operator==(const Array &a1, const Array &a2) {
+        if (!a1.shape_equal(a2)) {
           return false;
         }
-        for (size_t i = 0; i < b1.length(); ++i) {
-          if ( !fequal(b1(i), b2(i))) {
+        for (size_t i = 0; i < a1.size(); ++i) {
+          if (!fequal(a1(i), a2(i))) {
             return false;
           }
         }
         return true;
       }
 
-      friend bool operator==(const Block &b1, double d){
-        for( auto &val : b1.data_){
-          if( !fequal(val, d)){
+      friend bool operator==(const Array &array, double d) {
+        for (auto &val : array.data_) {
+          if (!fequal(val, d)) {
             return false;
           }
         }
         return true;
       }
 
-      friend bool operator!=(const Block &b1, const Block &b2) {
-        return !(b1 == b2);
+      friend bool operator!=(const Array &a1, const Array &a2) {
+        return !(a1 == a2);
       };
 
-
-      void round() {
-        for(double &val : data_)
-          val = std::round(val);
-      }
-
-      // In-place Operations
-      void exp(){
-        for( double &val : data_){
-          val = std::exp(val);
+    // Apply function to manipulate array data
+    public:
+      void apply(double (*func)(double)) {
+        for (auto &value : data_) {
+          value = func(value);
         }
       }
 
-      void log(){
-        for( double &val : data_){
-          val = std::log(val);
+      static Array apply(const Array &array, double (*func)(double)) {
+        Array result(array);
+        for (auto &value : result.data_) {
+          value = func(value);
+        }
+        return result;
+      }
+
+    // Unary Operators
+    public:
+
+      // A = A + b
+      void operator+=(double value) {
+        for (auto &d : data_) { d += value; }
+      }
+
+      // A = A - b
+      void operator-=(double value) {
+        for (auto &d : data_) { d -= value; }
+      }
+
+      // A = A * b
+      void operator*=(double value) {
+        for (auto &d : data_) { d *= value; }
+      }
+
+      // A = A / b
+      void operator/=(double value) {
+        for (auto &d : data_) { d /= value; }
+      }
+
+      // A = A + B
+      void operator+=(const Array &other) {
+        assert(shape_equal(other));
+        for (size_t i = 0; i < data_.size(); ++i) {
+          data_[i] += other.data_[i];
         }
       }
 
-      void psi(){
-        for( double &val : data_){
-          val = gsl_sf_psi(val);
+      // A = A - B
+      void operator-=(const Array &other) {
+        assert(shape_equal(other));
+        for (size_t i = 0; i < data_.size(); ++i) {
+          data_[i] -= other.data_[i];
         }
       }
 
-      void abs(){
-        for( double &val : data_){
-          val = fabs(val);
+      // A = A * B (elementwise)
+      void operator*=(const Array &other) {
+        assert(shape_equal(other));
+        for (size_t i = 0; i < data_.size(); ++i) {
+          data_[i] *= other.data_[i];
         }
       }
 
-      void normalize(){
-        data_ /= data_.sum();
-      }
-
-      void normalize_exp(){
-        data_ -= data_.max();
-        for( double &val : data_){
-          val = std::exp(val);
+      // A = A / B (elementwise)
+      void operator/=(const Array &other) {
+        assert(shape_equal(other));
+        for (size_t i = 0; i < data_.size(); ++i) {
+          data_[i] /= other.data_[i];
         }
-        this->normalize();
       }
 
-      // Friend Functions:
-      friend double LogSumExp(const Block &x) {
-        double x_max = max(x);
-        double sum = 0;
-        for( auto &val : x.data_){
-          sum += std::exp(val - x_max);
+    // Friend functions for arithmetic:
+    public:
+      // returns A + b
+      friend Array operator+(const Array &x, double value) {
+        Array result(x);
+        result += value;
+        return result;
+      }
+
+      // returns b + A
+      friend Array operator+(double value, const Array &x) {
+        return x + value;
+      }
+
+      // returns A * b
+      friend Array operator*(const Array &x, double value) {
+        Array result(x);
+        result *= value;
+        return result;
+      }
+
+      // returns b * A
+      friend Array operator*(double value, const Array &x) {
+        return x * value;
+      }
+
+      // returns A - b
+      friend Array operator-(const Array &x, double value) {
+        Array result(x);
+        result -= value;
+        return result;
+      }
+
+      // returns b - A
+      friend Array operator-(double value, const Array &x) {
+        return (-1 * x) + value;
+      }
+
+      // returns A / b
+      friend Array operator/(const Array &x, double value) {
+        Array result(x);
+        result /= value;
+        return result;
+      }
+
+      // returns b / A
+      friend Array operator/(double value, const Array &x) {
+        Array result(x);
+        for (auto &d : result.data_) { d = value / d; }
+        return result;
+      }
+
+      // R = A + B
+      friend Array operator+(const Array &x, const Array &y) {
+        assert(x.shape_equal(y));
+        Array result(x.dims());
+        for (size_t i = 0; i < x.size(); ++i) {
+          result.data_[i] = x.data_[i] + y.data_[i];
         }
-        return x_max + std::log(sum);
+        return result;
       }
 
-      friend double KL_Div(const Block &x, const Block &y){
-        Block x2(x);
-        Block y2(y);
-        x2.normalize();
-        y2.normalize();
+      // R = A - B
+      friend Array operator-(const Array &x, const Array &y) {
+        assert(x.shape_equal(y));
+        Array result(x.dims());
+        for (size_t i = 0; i < x.size(); ++i) {
+          result.data_[i] = x.data_[i] - y.data_[i];
+        }
+        return result;
+      }
+
+      // R = A * B (elementwise)
+      friend Array operator*(const Array &x, const Array &y) {
+        assert(x.shape_equal(y));
+        Array result(x.dims());
+        for (size_t i = 0; i < x.size(); ++i) {
+          result.data_[i] = x.data_[i] * y.data_[i];
+        }
+        return result;
+      }
+
+      // R = A / B (elementwise)
+      friend Array operator/(const Array &x, const Array &y) {
+        assert(x.shape_equal(y));
+        Array result(x.dims());
+        for (size_t i = 0; i < x.size(); ++i) {
+          result.data_[i] = x.data_[i] / y.data_[i];
+        }
+        return result;
+      }
+
+    // Other friend functions
+    public:
+      friend double sum(const Array &array) {
         double result = 0;
-        for(unsigned i = 0; i < x2.length(); ++i){
-          result += x2(i) * ( std::log(std::fmax(x2(i), 1e-6))
-                              - std::log(std::fmax(y2(i), 1e-6)) );
+        for (auto &value: array.data_) {
+          result += value;
         }
         return result;
       }
 
-      friend Block abs(const Block &b){
-        Block result(b);
-        result.abs();
+      friend double max(const Array &array) {
+        double result = std::numeric_limits<double>::lowest();
+        for (auto &value : array.data_) {
+          if (value > result) {
+            result = value;
+          }
+        }
         return result;
       }
 
-      friend Block round(const Block &b){
-        Block result(b);
-        result.round();
+      friend double min(const Array &array) {
+        double result = std::numeric_limits<double>::max();
+        for (auto &value : array.data_) {
+          if (value < result) {
+            result = value;
+          }
+        }
         return result;
       }
 
-      friend double sum(const Block &b){
-        return b.data_.sum();
+      friend Array abs(const Array &array) {
+        return apply(array, fabs);
       }
 
-      friend double max(const Block &b){
-        return b.data_.max();
+      friend Array round(const Array &array) {
+        return apply(array, std::round);
       }
 
-      friend double min(const Block &b){
-        return b.data_.min();
+      friend Array exp(const Array &array) {
+        return apply(array, std::exp);
       }
 
-    protected:
-      std::valarray<double> data_;
-    };
+      friend Array log(const Array &array) {
+        return apply(array, std::log);
+      }
 
-  class Vector : public Block {
+      friend Array psi(const Array &array) {
+        return apply(array, gsl_sf_psi);
+      }
 
-    friend class Matrix;
+      friend Array normalize(const Array &array) {
+        Array result(array);
+        result /= sum(result);
+        return result;
+      }
 
+      friend Array normalizeExp(const Array &array) {
+        return normalize(exp(array - max(array)));
+      }
+
+      friend double logSumExp(const Array &array) {
+        double x_max = max(array);
+        return x_max + log(sum(exp(array - x_max)));
+      }
+
+      friend double klDiv(const Array &x, const Array &y) {
+        assert(x.size() == y.size());
+        double result = 0;
+        for (size_t i = 0; i < x.size(); ++i) {
+          if(x(i) > 0 && y(i) > 0){
+            result += x(i) * (std::log(x(i)) - std::log(y(i))) - x(i) + y(i);
+          } else if(x(i) == 0 && y(i) >= 0){
+            result += y(i);
+          } else {
+            result += std::numeric_limits<double>::infinity();
+            break;
+          }
+        }
+        return result;
+      }
+
+    // Input - Output
     public:
-      Vector() : Block(0) {}
 
-      virtual ~Vector() {}
-
-      explicit Vector(size_t length) : Block(length) {}
-
-      Vector(size_t length, const double *initial_values) :
-              Block(length, initial_values) {}
-
-      Vector(std::initializer_list<double> values) :
-              Block(values) {}
-
-      explicit Vector(const std::slice_array<double> &slice) :
-              Block(slice) {}
-
-      Vector(const Vector &other) : Block(other) {}
-
-      Vector(Vector &&other) : Block(std::move(other)) {}
-
-      Vector& operator=(const Vector &other){
-        data_ = other.data_;
-        return *this;
+      friend std::ostream &operator<<(std::ostream &out,
+                                      const Array &array) {
+        out << std::setprecision(DEFAULT_PRECISION) << std::fixed;
+        for (auto &value : array.data_) {
+          out << value << std::endl;
+        }
+        return out;
       }
 
-      Vector& operator=(Vector &&other) {
-        data_ = other.data_;
-        return *this;
+      friend std::istream &operator>>(std::istream &in, Array &array) {
+        for (auto &value : array.data_) {
+          in >> value;
+        }
+        return in;
       }
 
-      double operator=(double d) {
-        data_ = d;
-        return d;
+      virtual void save(const std::string &filename) const {
+        std::ofstream ofs(filename);
+        if (ofs.is_open()) {
+          ofs << dims_.size() << std::endl;
+          for (auto &d : dims_) {
+            ofs << d << std::endl;
+          }
+          ofs << *this;
+          ofs.close();
+        }
       }
 
-      // Special Vectors
-    public:
-      static Vector Ones(size_t length){
-        Vector result(length);
-        result.data_ = 1.0;
-        return result;
-      }
-
-      static Vector Zeros(size_t length){
-        Vector result(length);
-        result.data_ = 0.0;
-        return result;
-      }
-
-      // I/O
-    public:
-      static Vector Load(const std::string &filename) {
-        Vector result;
+      static Array load(const std::string &filename) {
+        Array result;
         std::ifstream ifs(filename);
         if (ifs.is_open()) {
-          size_t dim, length;
-          ifs >> dim;
-          ASSERT_TRUE(dim == 1, "Vector dimension must be 1");
-          ifs >> length;
+          size_t __ndims__, temp;
+          size_t length = 1;
+          // Read dimension
+          ifs >> __ndims__;
+          for (size_t i = 0; i < __ndims__; ++i) {
+            ifs >> temp;
+            length *= temp;
+            result.dims_.push_back(temp);
+          }
+          // Allocate memory
           result.data_.resize(length);
           ifs >> result;
           ifs.close();
@@ -337,536 +538,158 @@ namespace pml {
         return result;
       }
 
-      // Accessors
-      double first() const{
-        return data_[0];
-      }
-
-      double& first(){
-        return data_[0];
-      }
-
-      double last() const{
-        return data_[length()-1];
-      }
-
-      double& last(){
-        return data_[length()-1];
-      }
-
-      virtual void Save(const std::string &filename) const {
-        std::ofstream ofs(filename);
-        if (ofs.is_open()) {
-          ofs << 1 << std::endl;
-          ofs << length() << std::endl;
-          ofs << *this;
-          ofs.close();
-        }
-      }
-
-      Vector slice(size_t start, size_t num_steps, size_t step_size){
-        Vector vec_slice(num_steps);
-        size_t idx = start;
-        for(size_t i = 0; i< num_steps; ++i){
-          vec_slice(i) = data_[idx];
-          idx+=step_size;
-        }
-        return vec_slice;
-      }
-
-      // Algebra
+    // Matrix related:
     public:
-      friend Vector operator+(const Vector &x, const Vector &y) {
-        Vector result;
-        result.data_ = x.data_ + y.data_;
-        return result;
-      }
+      size_t num_rows() const { return dims_[0]; }
 
-      friend Vector operator-(const Vector &x, const Vector &y) {
-        Vector result;
-        result.data_ = x.data_ - y.data_;
-        return result;
-      }
+      size_t num_cols() const {  assert(ndims() > 1); return dims_[1]; }
 
-      friend Vector operator*(const Vector &x, const Vector &y) {
-        Vector result;
-        result.data_ = x.data_ * y.data_;
-        return result;
-      }
-
-      friend Vector operator/(const Vector &x, const Vector &y) {
-        Vector result;
-        result.data_ = x.data_ / y.data_;
-        return result;
-      }
-
-      friend Vector operator+(const Vector &x, double d) {
-        Vector result;
-        result.data_ = x.data_ + d;
-        return result;
-      }
-
-      friend Vector operator+(double d, const Vector &x) {
-        return x+d;
-      }
-
-      friend Vector operator-(const Vector &x, double d) {
-        Vector result;
-        result.data_ = x.data_ - d;
-        return result;
-      }
-
-      friend Vector operator-(double d, const Vector &x) {
-        return -1*x+d;
-      }
-
-      friend Vector operator*(const Vector &x, double d) {
-        Vector result;
-        result.data_ = x.data_ * d;
-        return result;
-      }
-
-      friend Vector operator*(double d, const Vector &x) {
-        return x*d;
-      }
-
-      friend Vector operator/(const Vector &x, double d) {
-        Vector result;
-        result.data_ = x.data_ / d;
-        return result;
-      }
-
-      friend Vector operator/(double d, const Vector &x) {
-        Vector result;
-        result.data_ = d/x.data_;
-        return result;
-      }
-
-      // Matrix - Vector Product
-      friend double Dot(const Vector &x, const Vector &y){
-        ASSERT_TRUE(x.length() == y.length(),
-                    "Dot: Vector lengths must be the same\n");
-        double res=0;
-        for(size_t i = 0; i < x.length(); ++i){
-          res += x(i) * y(i);
+      friend Array sum(const Array &array, size_t dim) {
+        assert(array.ndims() == 2);
+        Array result;
+        /*
+        if (dim == 0) {
+          result = Array({array.num_cols()}, 0);
+          for (size_t j = 0; j < array.num_cols(); ++j) {
+            result(j) = sum(array.col(j));
+          }
+        } else {
+          result = Array({array.num_rows()}, 0);
+          for (size_t i = 0; i < array.num_rows(); ++i) {
+            result(i) = sum(array.row(i));
+          }
         }
-        return res;
+         */
+        return result;
       }
 
-      // Other Friend Functions
+/*
+      Slice row(size_t row_id){
+        assert(ndims() == 2);
+        return Slice(this, row_id, dim(0), dim(1));
+      }
+
+
+      const Slice row(size_t row_id) const{
+        assert(ndims() == 2);
+        return Slice(this, row_id, dim(0), dim(1));
+      }
+*/
+/*
+      Slice col(size_t  col_id){
+        assert(ndims() == 2);
+        return Slice(this, col_id * dims_[0], 1, dims_[1]);
+      }
+*/
+
     public:
-      friend std::ostream& operator<< (std::ostream &out,
-                                       const Vector &vector){
-        out << std::setprecision(DEFAULT_PRECISION) << std::fixed;
-        for(auto &value : vector.data_){
-          out << value << std::endl;
-        }
-        return out;
-      }
-
-      friend std::istream& operator>> (std::istream &in, Vector &vector){
-        for(auto &value : vector.data_){
-          in >> value;
-        }
-        return in;
-      }
-
-      friend Vector Log(const Vector& v){
-        Vector result(v);
-        result.log();
-        return result;
-      }
-
-      friend Vector Exp(const Vector& v){
-        Vector result(v);
-        result.exp();
-        return result;
-      }
-
-      friend Vector Psi(const Vector& v){
-        Vector result(v);
-        result.psi();
-        return result;
-      }
-
-      friend Vector Normalize(const Vector &v){
-        Vector result(v);
-        result.normalize();
-        return result;
-      }
-
-      friend Vector NormalizeExp(const Vector &v){
-        Vector result(v);
-        result.normalize_exp();
-        return result;
-      }
-
+      std::vector<double> data_;
+      std::vector<size_t> dims_;
   };
 
-  class Matrix : public Block{
-
+  class Vector : public Array {
     public:
-      enum Axes{
-          LINEAR,
-          COLS,
-          ROWS
-      };
+      Vector(){}
 
-    public:
+      Vector(size_t length, double value = 0) : Array({length}, value) { }
 
-      Matrix() : Block(), num_rows_(0), num_cols_(0) {};
+      Vector(const std::initializer_list<double> &values)
+              : Array({values.size()}, values) {}
 
-      Matrix(size_t num_rows, size_t num_cols)
-              : Block(num_rows * num_cols),
-                num_rows_(num_rows),
-                num_cols_(num_cols) {}
-
-      Matrix(std::pair<size_t, size_t> shape):
-              Matrix(shape.first, shape.second){}
-
-      Matrix(size_t num_rows, size_t num_cols, const double *values)
-              : Block(num_rows * num_cols, values),
-                num_rows_(num_rows),
-                num_cols_(num_cols) {}
-
-      Matrix(size_t num_rows, size_t num_cols, double initial_value)
-              : Matrix(num_rows, num_cols) {
-                data_ = initial_value;
+      Vector(const Array &array) {
+        assert(array.ndims() == 1);
+        data_ = array.data_;
+        dims_ = array.dims_;
       }
+
+      Vector(Array &&array) {
+        assert(array.ndims() == 1);
+        data_ = std::move(array.data_);
+        dims_ = std::move(array.dims_);
+      }
+
+      static Vector flatten(const Array& array){
+        Vector result(array.size());
+        result.data_ = array.data_;
+        return result;
+      }
+
+    // Special Vectors
+    public:
+      static Vector ones(size_t length) {
+        return Vector(length, 1.0);
+      }
+
+      static Vector zeros(size_t length) {
+        return Vector(length, 0.0);
+      }
+
+    public:
+      // Matrix - Vector Product
+      friend double dot(const Vector &x, const Vector &y) {
+        assert(x.size() == y.size());
+        return sum(x * y);
+      }
+  };
+
+  class Matrix : public Array {
+    public:
+      Matrix(){}
+
+      Matrix(size_t num_rows, size_t num_cols, double value = 0)
+              : Array({num_rows, num_cols}, value) {}
 
       Matrix(size_t num_rows, size_t num_cols,
-                     std::initializer_list<double> values) :
-              Block(values),
-              num_rows_(num_rows),
-              num_cols_(num_cols) {}
+             const std::initializer_list<double> &values)
+              : Array({num_rows, num_cols}, values) {}
 
-      Matrix(const Matrix &matrix)  : Block(matrix),
-                                      num_rows_(matrix.num_rows_),
-                                      num_cols_(matrix.num_cols_) {}
-
-      Matrix(Matrix &&matrix) : Block(std::move(matrix)),
-                                num_rows_(matrix.num_rows_),
-                                num_cols_(matrix.num_cols_) {}
-
-      Matrix& operator=(const Matrix &other) {
-        if (this != &other) {
-          this->data_ = other.data_;
-          this->num_cols_ = other.num_cols_;
-          this->num_rows_ = other.num_rows_;
-        }
-        return *this;
+      Matrix(const Array &array) {
+        assert(array.ndims() == 2);
+        data_ = array.data_;
+        dims_ = array.dims_;
       }
 
-      Matrix& operator=(Matrix &&other) {
-        if (this != &other) {
-          this->data_ = std::move(other.data_);
-          this->num_rows_ = other.num_rows_;
-          this->num_cols_ = other.num_cols_;
-        }
-        return *this;
-      }
-
-      double operator=(double d){
-        data_ = d;
-        return d;
+      Matrix(Array &&array) {
+        assert(array.ndims() == 2);
+        data_ = std::move(array.data_);
+        dims_ = std::move(array.dims_);
       }
 
     public:
-      static Matrix Identity(size_t size) {
-        Matrix X = Matrix::Zeros(size, size);
+      static Matrix ones(size_t num_rows, size_t num_cols) {
+        return Matrix(num_rows, num_cols, 1.0);
+      }
+
+      static Matrix zeros(size_t num_rows, size_t num_cols) {
+        return Matrix(num_rows, num_cols, 0.0);
+      }
+
+      // ToDo: use slice
+      static Matrix identity(size_t size) {
+        Matrix X = Matrix::zeros(size, size);
         for (size_t i = 0; i < size; ++i) {
           X(i, i) = 1.0;
         }
         return X;
       }
 
-      static Matrix Ones(size_t num_rows, size_t num_cols) {
-        return Matrix(num_rows, num_cols, 1.0);
-      }
-
-      static Matrix Zeros(size_t num_rows, size_t num_cols) {
-        return Matrix(num_rows, num_cols, 0.0);
-      }
-
-      // Size
-    public:
-      size_t num_rows() const { return num_rows_; }
-
-      size_t num_cols() const { return num_cols_; }
-
-      std::pair<size_t, size_t> shape() const {
-        return std::make_pair(num_rows_, num_cols_);
-      };
-
-      void resize(size_t num_rows, size_t num_cols){
-        Block::resize(num_rows * num_cols);
-        num_rows_ = num_rows;
-        num_cols_ = num_cols;
-      }
-
-    public:
-      using Block::operator();
-
-      double& operator()(const size_t i1, const size_t i2) {
-        return data_[i1 + num_rows_ * i2];
-      }
-
-      double operator()(const size_t i1, const size_t i2) const {
-        return data_[i1 + num_rows_ * i2];
-      }
-
-    public:
-      void Save(const std::string &filename) const {
-        std::ofstream ofs(filename);
-        ASSERT_TRUE(ofs.is_open(),
-                    "Matrix::Save cannot open file " + filename);
-        ofs << 2 << std::endl;
-        ofs << num_rows_ << std::endl;
-        ofs << num_cols_ << std::endl;
-        for (size_t i = 0; i < length(); ++i) {
-          ofs << data_[i] << std::endl;
-        }
-        ofs.close();
-      }
-
-      static Matrix Load(const std::string &filename) {
-        std::ifstream ifs(filename);
-        ASSERT_TRUE(ifs.is_open(), "Matrix::Load cannot open file " + filename);
-        size_t dim, num_rows, num_cols;
-        ifs >> dim;
-        ASSERT_TRUE(dim == 2, "Matrix::Load dimension must be 2");
-        ifs >> num_rows >> num_cols;
-        Matrix result(num_rows, num_cols);
-        ifs >> result;
-        ifs.close();
-        return result;
-      }
-
-
-    public:
-      using matrix_slices = std::pair<const Matrix* , Axes>;
-
-      matrix_slices rows() const  {
-        return std::make_pair(this, Matrix::ROWS);
-      }
-
-      matrix_slices cols() const  {
-        return std::make_pair(this, Matrix::COLS);
-      }
-
-      friend Matrix operator+(matrix_slices list, const Vector& v) {
-        const Matrix* mat = list.first;
-        Axes axes = list.second;
-        Matrix result(mat->shape());
-        if (axes == Matrix::ROWS) {
-          for (size_t i=0; i< mat->num_rows(); ++i) {
-            result.SetRow(i, mat->GetRow(i)+v);
-          }
-        }
-        else if (axes == Matrix::COLS) {
-          for (size_t i=0; i< mat->num_cols(); ++i) {
-            result.SetColumn(i, mat->GetColumn(i)+v);
-          }
-        }
-        return result;
-      }
-
-      friend Matrix operator+(const Vector& v, matrix_slices list){
-        return list + v;
-      }
-
-      // Other Friend Functions
-    public:
-      friend std::ostream& operator<< (std::ostream &out, const Matrix &matrix){
-        out << std::setprecision(DEFAULT_PRECISION) << std::fixed;
-        for(size_t i =0; i < matrix.num_rows(); ++i){
-          for(size_t j =0; j < matrix.num_cols(); ++j){
-            out << matrix(i,j) << "    ";
-          }
-          out << std::endl;
-        }
-        out << std::endl;
-        return out;
-      }
-
-      friend std::istream& operator>> (std::istream &in, Matrix &matrix){
-        for(auto &value : matrix.data_){
-          in >> value;
-        }
-        return in;
-      }
-
-
-    public:
-      friend bool operator==(const Matrix &m1, const Matrix &m2) {
-        if ( m1.shape() == m2.shape() ) {
-          return operator==((Block) m1, (Block) m2);
-        }
-        return false;
-      }
-
-      // Algebra
-    public:
-      friend Matrix operator+(const Matrix &x, const Matrix &y) {
-        Matrix result;
-        ASSERT_TRUE(x.shape() == y.shape(),
-                    "Matrix::operator+ matrices must be of similar shape ");
-        result.data_ = x.data_ + y.data_;
-        result.num_rows_ = x.num_rows_;
-        result.num_cols_ = x.num_cols_;
-        return result;
-      }
-
-      friend Matrix operator-(const Matrix &x, const Matrix &y) {
-        Matrix result;
-        ASSERT_TRUE(x.shape() == y.shape(),
-                    "Matrix::operator+ matrices must be of similar shape ");
-        result.data_ = x.data_ - y.data_;
-        result.num_rows_ = x.num_rows_;
-        result.num_cols_ = x.num_cols_;
-        return result;
-      }
-
-      friend Matrix operator*(const Matrix &x, const Matrix &y) {
-        Matrix result;
-        ASSERT_TRUE(x.shape() == y.shape(),
-                    "Matrix::operator+ matrices must be of similar shape ");
-        result.data_ = x.data_ * y.data_;
-        result.num_rows_ = x.num_rows_;
-        result.num_cols_ = x.num_cols_;
-        return result;
-      }
-
-      friend Matrix operator/(const Matrix &x, const Matrix &y) {
-        Matrix result;
-        ASSERT_TRUE(x.shape() == y.shape(),
-                    "Matrix::operator+ matrices must be of similar shape ");
-        result.data_ = x.data_ / y.data_;
-        result.num_rows_ = x.num_rows_;
-        result.num_cols_ = x.num_cols_;
-        return result;
-      }
-
-      friend Matrix operator+(const Matrix &x, double value) {
-        Matrix result;
-        result.data_ = x.data_ + value;
-        result.num_rows_ = x.num_rows_;
-        result.num_cols_ = x.num_cols_;
-        return result;
-      }
-
-      friend Matrix operator+(double value, const Matrix &x) {
-        return x + value;
-      }
-
-      friend Matrix operator-(const Matrix &x, double value) {
-        Matrix result;
-        result.data_ = x.data_ - value;
-        result.num_rows_ = x.num_rows_;
-        result.num_cols_ = x.num_cols_;
-        return result;
-      }
-
-      friend Matrix operator-(double value, const Matrix &x) {
-        return (-1 * x) + value;
-      }
-
-      friend Matrix operator*(const Matrix &x, double value) {
-        Matrix result;
-        result.data_ = x.data_ * value;
-        result.num_rows_ = x.num_rows_;
-        result.num_cols_ = x.num_cols_;
-        return result;
-      }
-      friend Matrix operator*(double value, const Matrix &x) {
-        return x * value;
-      }
-
-      friend Matrix operator/(const Matrix &x, double value) {
-        Matrix result;
-        result.data_ = x.data_ / value;
-        result.num_rows_ = x.num_rows_;
-        result.num_cols_ = x.num_cols_;
-        return result;
-      }
-      friend Matrix operator/(double value, const Matrix &x) {
-        Matrix result;
-        result.data_ = value / x.data_;
-        result.num_rows_ = x.num_rows_;
-        result.num_cols_ = x.num_cols_;
-        return result;
-      }
-
-    public:
-      friend Vector SumRows(const Matrix &M){
-        Vector result = Vector::Zeros(M.num_rows());
-        for(size_t i = 0; i < M.num_rows(); ++i){
-          for(size_t j = 0; j < M.num_cols(); ++j) {
-            result(i) += M(i, j);
-          }
-        }
-        return result;
-      }
-
-      friend Vector SumCols(const Matrix &M){
-        Vector result = Vector::Zeros(M.num_cols());
-        for(size_t i = 0; i < M.num_rows(); ++i){
-          for(size_t j = 0; j < M.num_cols(); ++j) {
-            result(j) += M(i, j);
-          }
-        }
-        return result;
-      }
-
-      friend Vector MinCols(const Matrix &M) {
-        Vector result(M.num_cols());
-        for (unsigned j = 0; j < M.num_cols(); ++j) {
-          result(j) = M(0,j);
-          for (unsigned i = 1; i < M.num_rows(); ++i) {
-            result(j) = std::min(M(i,j), result(j));
-          }
-        }
-        return result;
-      }
-
-      friend Vector MaxCols(const Matrix &M) {
-
-        Vector result(M.num_cols());
-        for (unsigned j = 0; j < M.num_cols(); ++j) {
-          result(j) = M(0,j);
-          for (unsigned i = 1; i < M.num_rows(); ++i) {
-            result(j) = std::max(M(i,j), result(j));
-          }
-        }
-        return result;
-      }
-
-      friend Vector MinRows(const Matrix &M) {
-        Vector result(M.num_rows());
+      friend Matrix transpose(const Array &M) {
+        assert(M.ndims() == 2);
+        Matrix result(M.num_cols(), M.num_rows());
         for (unsigned i = 0; i < M.num_rows(); ++i) {
-          result(i) = M(i,0);
-          for (unsigned j = 1; j < M.num_cols(); ++j) {
-            result(i) = std::min(M(i,j), result(i));
-          }
-        }
-        return result;
-      }
-
-      friend Vector MaxRows(const Matrix &M) {
-        Vector result(M.num_rows());
-        for (unsigned i = 0; i < M.num_rows(); ++i) {
-          result(i) = M(i,0);
-          for (unsigned j = 1; j < M.num_cols(); ++j) {
-            result(i) = std::max(M(i,j), result(i));
+          for (unsigned j = 0; j < M.num_cols(); ++j) {
+            result(j, i) = M(i, j);
           }
         }
         return result;
       }
 
       // Matrix - Matrix Product
-      friend Matrix Dot(const Matrix &x, const Matrix &y,
+      friend Matrix dot(const Matrix &x, const Matrix &y,
                         bool x_transpose = false, bool y_transpose = false){
 
+        assert(x.ndims() == 2);
+        assert(y.ndims() == 2);
         CBLAS_TRANSPOSE x_trans = CblasNoTrans;
         size_t M = x.num_rows();
         size_t K = x.num_cols();
@@ -895,8 +718,10 @@ namespace pml {
       }
 
       // Matrix - Vector Product
-      friend Vector Dot(const Matrix &X, const Vector &y,
+      friend Vector dot(const Matrix &X, const Vector &y,
                         bool x_transpose = false){
+        assert(X.ndims() == 2);
+        assert(y.ndims() == 1);
         size_t M = X.num_rows();
         CBLAS_TRANSPOSE x_trans = CblasNoTrans;
         if (x_transpose) {
@@ -913,503 +738,19 @@ namespace pml {
         return result;
       }
 
-    public:
-      friend Matrix Log(const Matrix &M) {
-        Matrix result(M);
-        result.log();
-        return result;
-      }
-
-      friend Matrix Exp(const Matrix &M) {
-        Matrix result(M);
-        result.exp();
-        return result;
-      }
-
-      friend Matrix Psi(const Matrix &M) {
-        Matrix result(M);
-        result.psi();
-        return result;
-      }
-
-      friend Matrix Transpose(const Matrix &M) {
-        Matrix result(M.num_cols(), M.num_rows());
-        for (unsigned i = 0; i < M.num_rows(); ++i) {
-          for (unsigned j = 0; j < M.num_cols(); ++j) {
-            result(j, i) = M(i, j);
-          }
-        }
-        return result;
-      }
-
-      friend Matrix Multiply(const Matrix &X, const Vector &y, Matrix::Axes axis){
-        Matrix result(X.num_rows(), X.num_cols());
-        if(axis == Matrix::COLS){
-          for (unsigned i = 0; i < X.num_rows(); ++i) {
-            for (unsigned j = 0; j < X.num_cols(); ++j) {
-              result(i, j) = X(i, j) * y(i);
-            }
-          }
-        } else if(axis == Matrix::ROWS){
-          for (unsigned i = 0; i < X.num_rows(); ++i) {
-            for (unsigned j = 0; j < X.num_cols(); ++j) {
-              result(i, j) = X(i, j) * y(j);
-            }
-          }
-        }
-        return result;
-      }
-
-      friend Matrix Add(const Matrix &X, const Vector &y, Matrix::Axes axis){
-        Matrix result(X.num_rows(), X.num_cols());
-        if(axis == Matrix::COLS){
-          for (unsigned i = 0; i < X.num_rows(); ++i) {
-            for (unsigned j = 0; j < X.num_cols(); ++j) {
-              result(i, j) = X(i, j) + y(i);
-            }
-          }
-        } else if(axis == Matrix::ROWS){
-          for (unsigned i = 0; i < X.num_rows(); ++i) {
-            for (unsigned j = 0; j < X.num_cols(); ++j) {
-              result(i, j) = X(i, j) + y(j);
-            }
-          }
-        }
-        return result;
-      }
-
-      friend Matrix Sub(const Matrix &X, const Vector &y, Matrix::Axes axis){
-        Matrix result(X.num_rows(), X.num_cols());
-        if(axis == Matrix::COLS){
-          for (unsigned i = 0; i < X.num_rows(); ++i) {
-            for (unsigned j = 0; j < X.num_cols(); ++j) {
-              result(i, j) = X(i, j) - y(i);
-            }
-          }
-        } else if(axis == Matrix::ROWS){
-          for (unsigned i = 0; i < X.num_rows(); ++i) {
-            for (unsigned j = 0; j < X.num_cols(); ++j) {
-              result(i, j) = X(i, j) - y(j);
-            }
-          }
-        }
-        return result;
-      }
-
-      friend Matrix Divide(const Matrix &X, const Vector &y, Matrix::Axes axis){
-        Matrix result(X.num_rows(), X.num_cols());
-        if(axis == Matrix::COLS){
-          for (unsigned i = 0; i < X.num_rows(); ++i) {
-            for (unsigned j = 0; j < X.num_cols(); ++j) {
-              result(i, j) = X(i, j) / y(i);
-            }
-          }
-        } else if(axis == Matrix::ROWS){
-          for (unsigned i = 0; i < X.num_rows(); ++i) {
-            for (unsigned j = 0; j < X.num_cols(); ++j) {
-              result(i, j) = X(i, j) / y(j);
-            }
-          }
-        }
-        return result;
-      }
-
-      friend Matrix Normalize(const Matrix &M,
-                              Matrix::Axes axis = Matrix::LINEAR) {
-        Matrix result(M);
-        if (axis == Matrix::LINEAR) {
-          result.data_ = M.data_ / sum(M);
-        } else if (axis == Matrix::COLS) {
-          Vector col_sums = SumCols(M);
-          for (size_t i = 0; i < M.num_rows(); ++i) {
-            for (size_t j = 0; j < M.num_cols(); ++j) {
-              result(i,j) /= col_sums(j);
-            }
-          }
-        } else {
-          Vector row_sums = SumRows(M);
-          for (size_t i = 0; i < M.num_rows(); ++i) {
-            for (size_t j = 0; j < M.num_cols(); ++j) {
-              result(i,j) /= row_sums(i);
-            }
-          }
-        }
-        return result;
-      }
-
-      friend Matrix NormalizeExp(const Matrix &M,
-                                 Matrix::Axes axis = Matrix::LINEAR) {
-        Matrix result(M);
-        if (axis == Matrix::LINEAR) {
-          result.normalize_exp();
-        } else if (axis == Matrix::COLS) {
-          for (unsigned j = 0; j < M.num_cols(); ++j) {
-            result.SetColumn(j, NormalizeExp(result.GetColumn(j)));
-          }
-        } else {
-          for (unsigned i = 0; i < M.num_rows(); ++i) {
-            result.SetRow(i, NormalizeExp(result.GetRow(i)));
-          }
-        }
-
-        return result;
-      }
-
-      friend Vector LogSumExp(const Matrix &M, Matrix::Axes axis) {
-        Vector result;
-        if (axis == Matrix::COLS) {
-          result.resize(M.num_cols());
-          for (unsigned j = 0; j < M.num_cols(); ++j) {
-            result(j) = LogSumExp(M.GetColumn(j));
-          }
-        } else if (axis == Matrix::ROWS){
-          result.resize(M.num_rows());
-          for (unsigned i = 0; i < M.num_rows(); ++i) {
-            result(i) = LogSumExp(M.GetRow(i));
-          }
-        }
-        return result;
-      }
-
-    public:
-      Vector GetColumn(size_t col_num) const {
-        Vector column(num_rows_);
-        memcpy(column.data(), &data_[col_num * num_rows()], sizeof(double)
-                                                            * num_rows());
-        return column;
-      }
-
-      void SetColumn(size_t col_num, const Vector &vector) {
-        memcpy(&data_[col_num * num_rows()], vector.data(),
-               sizeof(double) * num_rows());
-      }
-
-      Vector GetRow(size_t row_num) const {
-        Vector row(num_cols_);
-        row.data_ = this->data_[std::slice(row_num, num_cols(), num_rows())];
-        return row;
-      }
-
-      void SetRow(size_t row_num, const Vector &vector) {
-        this->data_[std::slice(row_num, num_cols(), num_rows())] = vector.data_;
-      }
-
-
-  private:
-      size_t num_rows_, num_cols_;
-  };
-
-  class Tensor3D : public Block {
-
-    public:
-      Tensor3D() : Block(), size0_(0), size1_(0), size2_(0) { }
-
-      Tensor3D(size_t s0, size_t s1, size_t s2)
-              : Block(s0 * s1 * s2), size0_(s0), size1_(s1), size2_(s2) { }
-
-      Tensor3D(size_t s0, size_t s1, size_t s2, double* values)
-              : Block(s0 * s1 * s2, values),
-                size0_(s0), size1_(s1), size2_(s2) { }
-
-      Tensor3D(size_t s0, size_t s1, size_t s2, double initial_value)
-              : Block(s0 * s1 * s2), size0_(s0), size1_(s1), size2_(s2) {
-        data_ = initial_value;
-      }
-
-      Tensor3D(const Tensor3D &tensor)
-              : Block(tensor), size0_(tensor.size0_),
-                size1_(tensor.size1_), size2_(tensor.size2_){ }
-
-
-      Tensor3D(Tensor3D &&tensor)
-              : Block(std::move(tensor)),  size0_(tensor.size0_),
-                size1_(tensor.size1_),  size2_(tensor.size2_) { }
-
-      Tensor3D& operator=(const Tensor3D &other) {
-        if (this != &other) {
-          data_ = other.data_;
-          size0_ = other.size0_;
-          size1_ = other.size1_;
-          size2_ = other.size2_;
-        }
-        return *this;
-      }
-
-      Tensor3D& operator=(Tensor3D &&other) {
-        data_ = std::move(other.data_);
-        size0_ = other.size0_;
-        size1_ = other.size1_;
-        size2_ = other.size2_;
-        return *this;
-      }
-
-      double operator=(double d){
-        data_ = d;
-        return d;
-      }
-
-    public:
-
-      static Tensor3D Ones(size_t size0_, size_t size1_, size_t size2_) {
-        return Tensor3D(size0_, size1_, size2_, 1.0);
-      }
-
-      static Tensor3D Zeros(size_t size0_, size_t size1_, size_t size2_) {
-        return Tensor3D(size0_, size1_, size2_, 0.0);
-      }
-
-    public:
-
-      size_t dim0() const { return size0_; }
-
-      size_t dim1() const { return size1_; }
-
-      size_t dim2() const { return size2_; }
-
-      std::tuple<size_t, size_t, size_t> shape() const {
-        return std::make_tuple(size0_, size1_, size2_);
-      }
-
-    public:
-
-      using Block::operator();
-
-      inline double& operator()(const size_t i0, const size_t i1,
-                                const size_t i2) {
-        return data_[i0 + size0_ * (i1 + size1_ * i2)];
-      }
-      inline double operator()(const size_t i0, const size_t i1,
-                                      const size_t i2) const{
-        return data_[i0 + size0_ * (i1 + size1_ * i2)];
-      }
-
-    public:
-      void Save(const std::string &filename) const {
-        std::ofstream ofs(filename);
-        ASSERT_TRUE(ofs.is_open(), "Tensor::Save cannot open file");
-        ofs << 3 << std::endl;
-        ofs << size0_ << std::endl;
-        ofs << size1_ << std::endl;
-        ofs << size2_ << std::endl;
-        for (size_t i = 0; i < length(); ++i) {
-          ofs << data_[i] << std::endl;
-        }
-        ofs.close();
-      }
-
-      static Tensor3D Load(const std::string &filename) {
-        std::ifstream ifs(filename);
-        ASSERT_TRUE(ifs.is_open(), "Tensor::Load cannot open file");
-        size_t dim, s0, s1, s2;
-        ifs >> dim;
-        ASSERT_TRUE(dim==3, "Tensor::Load dimension must be 3");
-        ifs >> s0 >> s1 >> s2;
-        Tensor3D result(s0,s1,s2);
-        for(size_t i= 0; i < result.length(); ++i){
-          ifs >> result(i);
-        }
-        ifs.close();
-        return result;
-      }
-
-    public:
       friend std::ostream &operator<<(std::ostream &out,
-                                      const Tensor3D &tensor) {
+                                      const Matrix &mat) {
         out << std::setprecision(DEFAULT_PRECISION) << std::fixed;
-        for (size_t k = 0; k < tensor.dim2(); ++k) {
-          for (size_t i = 0; i < tensor.dim0(); ++i) {
-            for (size_t j = 0; j < tensor.dim1() ; ++j) {
-              out << tensor(i, j, k) << " ";
-            }
-            out << std::endl;
+        for(size_t i=0; i < mat.num_rows(); ++i) {
+          for(size_t j=0; j < mat.num_cols(); ++j){
+            out << mat(i,j) << " ";
           }
           out << std::endl;
         }
         return out;
       }
-
-    public:
-
-      friend bool operator==(const Tensor3D &t1, const Tensor3D &t2) {
-        if(t1.shape() == t2.shape()){
-          return operator==((Block) t1, (Block) t2);
-        }
-        return false;
-      }
-
-
-  public:
-      friend Tensor3D operator+(const Tensor3D &x, const Tensor3D &y) {
-        Tensor3D result;
-        ASSERT_TRUE(x.shape() == y.shape(),
-                    "Tensor3D::operator+ matrices must be of similar shape ");
-        result.data_ = x.data_ + y.data_;
-        result.size0_ = x.size0_;
-        result.size1_ = x.size1_;
-        result.size2_ = x.size2_;
-        return result;
-      }
-
-      friend Tensor3D operator-(const Tensor3D &x, const Tensor3D &y) {
-        Tensor3D result;
-        ASSERT_TRUE(x.shape() == y.shape(),
-                    "Tensor3D::operator+ matrices must be of similar shape ");
-        result.data_ = x.data_ - y.data_;
-        result.size0_ = x.size0_;
-        result.size1_ = x.size1_;
-        result.size2_ = x.size2_;
-        return result;
-      }
-
-      friend Tensor3D operator*(const Tensor3D &x, const Tensor3D &y) {
-        Tensor3D result;
-        ASSERT_TRUE(x.shape() == y.shape(),
-                    "Tensor3D::operator+ matrices must be of similar shape ");
-        result.data_ = x.data_ * y.data_;
-        result.size0_ = x.size0_;
-        result.size1_ = x.size1_;
-        result.size2_ = x.size2_;
-        return result;
-      }
-
-      friend Tensor3D operator/(const Tensor3D &x, const Tensor3D &y) {
-        Tensor3D result;
-        ASSERT_TRUE(x.shape() == y.shape(),
-                    "Tensor3D::operator+ matrices must be of similar shape ");
-        result.data_ = x.data_ / y.data_;
-        result.size0_ = x.size0_;
-        result.size1_ = x.size1_;
-        result.size2_ = x.size2_;
-        return result;
-      }
-
-
-      friend Tensor3D operator+(const Tensor3D &x, double value) {
-        Tensor3D result;
-        result.data_ = x.data_ * value;
-        result.size0_ = x.size0_;
-        result.size1_ = x.size1_;
-        result.size2_ = x.size2_;
-        return result;
-      }
-
-      friend Tensor3D operator+(double value, const Tensor3D &x) {
-        return x + value;
-      }
-
-      friend Tensor3D operator-(const Tensor3D &x, double value) {
-        Tensor3D result;
-        result.data_ = x.data_ - value;
-        result.size0_ = x.size0_;
-        result.size1_ = x.size1_;
-        result.size2_ = x.size2_;
-        return result;
-      }
-
-      friend Tensor3D operator-(double value, const Tensor3D &x) {
-        return x - value;
-      }
-
-      friend Tensor3D operator*(const Tensor3D &x, double value) {
-        Tensor3D result;
-        result.data_ = x.data_ * value;
-        result.size0_ = x.size0_;
-        result.size1_ = x.size1_;
-        result.size2_ = x.size2_;
-        return result;
-      }
-
-      friend Tensor3D operator*(double value, const Tensor3D &x) {
-        return x * value;
-      }
-
-      friend Tensor3D operator/(const Tensor3D &x, double value) {
-        Tensor3D result;
-        result.data_ = x.data_ / value;
-        result.size0_ = x.size0_;
-        result.size1_ = x.size1_;
-        result.size2_ = x.size2_;
-        return result;
-      }
-
-      friend Tensor3D operator/(double value, const Tensor3D &x) {
-        return x / value;
-      }
-
-    public:
-      Matrix GetSlice(size_t index) const {
-        double* values = new double[size0_*size1_];
-        std::memcpy(values, &data_[index*size0_*size1_],
-                    sizeof(double)*size0_*size1_);
-        Matrix m(size0_,size1_,values);
-        delete[] values;
-        return m;
-      }
-      void SetSlice(size_t index, const Matrix& matr) {
-        if (matr.length() == size0_ * size1_) {
-          std::memcpy(&data_[index * size0_ * size1_], matr.data(),
-                      sizeof(double) * size0_ * size1_);
-        }
-        else {
-          std::cout << "Matrix length does not match with the matrix length"
-          << std::endl;
-        }
-      }
-
-      void SetSlice(size_t index, const Vector& vec){
-        if (vec.length() == size0_*size1_) {
-          std::memcpy(&data_[index*size0_*size1_], vec.data(),
-                      sizeof(double)*size0_*size1_);
-        }
-        else {
-          std::cout << "Vector length does not match with the matrix length"
-          << std::endl;
-        }
-      }
-
-    protected:
-      size_t size0_, size1_, size2_;
   };
 
-  class Histogram{
+}
 
-    public:
-      Histogram(){}
-
-      Histogram(const Vector &ranges){
-        set_range(ranges);
-      }
-
-      void set_range(const Vector &ranges){
-        ranges_ = ranges;
-        bins_ = Vector::Zeros(ranges_.length()-1);
-      }
-
-    public:
-      double& operator()(double idx){
-        ASSERT_TRUE( (ranges_.first() <= idx)  &&  (idx < ranges_.last()),
-                     "Histogram request out of bounds.");
-        unsigned low = 0, high = ranges_.length();
-        while( high-low != 1){
-          unsigned mid = (low + high)/2;
-          if(idx < ranges_(mid)){
-            high = mid ;
-          } else {
-            low = mid;
-          }
-        }
-        return bins_(low);
-      }
-
-      size_t num_bins(){
-        return bins_.length();
-      }
-
-    public:
-      Vector bins_;
-      Vector ranges_;
-  };
-
-} // namespace pml
-
-#endif //MATLIB_VECTOR_H_H
+#endif

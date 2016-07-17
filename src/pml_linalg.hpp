@@ -1,7 +1,7 @@
 #ifndef MATLIB_PML_LINALG_H
 #define MATLIB_PML_LINALG_H
 
-#include "pml.hpp"
+#include "pml_old.hpp"
 
 extern "C" {
 // LU decomoposition of a general matrix

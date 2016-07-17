@@ -3,30 +3,96 @@
 //
 
 #include "pml.hpp"
-#include "pml_linalg.hpp"
-#include "pml_rand.hpp"
-
 #include <cassert>
 
 using namespace pml;
 
 std::string test_dir = "/tmp/";
 
-void Test_Object() {
-  std::cout << "Test_Matrix::Object    ";
+void test_matrix() {
+  std::cout << "test_matrix...";
 
-  Matrix M1 = uniform::rand(100, 1000);
+  // Constructors
+  Matrix M1 = Matrix(3,2, {1,2,3,4,5,6});
   Matrix M2(M1);
   Matrix M3;
   M3 = M2;
 
   assert(M1 == M2);
   assert(M1 == M3);
-  assert(uniform::rand(3,5) != uniform::rand(30,50));
 
+  M1 = Matrix::ones(4,5);
+  assert(M1 == 1);
+
+  M1 = Matrix::zeros(4,5);
+  assert(M1 == 0);
+
+  Array I = Matrix::identity(4);
+  for(size_t i = 0; i < I.num_rows(); ++i){
+    for(size_t j = 0; j < I.num_rows(); ++j){
+      if( i == j ){
+        assert(I(i,j) == 1);
+      } else{
+        assert(I(i,j) == 0);
+      }
+    }
+  }
+
+  sum(I, 1);
+
+/*
+  Vector row_sums = sum(I, 1);
+  assert(row_sums == 1);
+
+  Vector col_sums = sum(I, 0);
+  assert(col_sums == 1);
+*/
   std::cout << "OK.\n";
 }
 
+void test_dot(){
+  Matrix M (3,4);
+  for(size_t i=0; i< M.size(); ++i){
+    M(i) = i;
+  }
+  std::cout << M;
+
+  Matrix M2  = Matrix::ones(4,3);
+  std::cout << dot(M, M2);
+
+  Vector v  = Vector::ones(4);
+  std::cout << dot(M, v);
+}
+
+
+void test_sum() {
+  std::cout << "test_sum...";
+  //
+  //   M = [ 1  4  7  10 ]
+  //       [ 2  5  8  11 ]
+  //       [ 3  6  9  12 ]
+  //
+  //   cs = [6 15 24 33]
+  //   rs = [22 26 30]
+  //   sum = 78
+
+  Matrix M(3, 4);
+  for (unsigned i = 0; i < M.size(); ++i) {
+    M(i) = i + 1;
+  }
+  // Row Sums
+  assert(sum(M, 1) == Vector({22, 26, 30}));
+
+  // Column Sums
+  assert(sum(M, 0) == Vector({6, 15, 24, 33}));
+
+  // Sum
+  assert(sum(M) == 78);
+
+
+  std::cout << "OK.\n";
+}
+/*
 void Test_Operators(){
   std::cout << "Test_Matrix::Operators ";
   Matrix M1(2, 3, {1, 4, 2, 5, 3, 6});
@@ -85,17 +151,16 @@ void Test_SaveLoad(){
 }
 
 
-void Test_Sum(){
-  std::cout << "Test_Matrix::Sum       ";
-  /*
-     M = [ 1  4  7  10 ]
-         [ 2  5  8  11 ]
-         [ 3  6  9  12 ]
-
-     cs = [6 15 24 33]
-     rs = [22 26 30]
-     sum = 78
-  */
+void test_sum(){
+  std::cout << "test_sum...";
+  //
+  //   M = [ 1  4  7  10 ]
+  //       [ 2  5  8  11 ]
+  //       [ 3  6  9  12 ]
+  //
+  //   cs = [6 15 24 33]
+  //   rs = [22 26 30]
+  //   sum = 78
 
   Matrix M(3,4);
   for(unsigned i=0; i<M.length(); ++i){
@@ -103,10 +168,10 @@ void Test_Sum(){
   }
 
   // Column Sums
-  assert(SumCols(M) == Vector({6, 15, 24, 33}));
+  assert(sumCols(M) == Vector({6, 15, 24, 33}));
 
   // Row Sums
-  assert(SumRows(M) == Vector({22,26,30}));
+  assert(sumCols(M) == Vector({22,26,30}));
 
   // Sum
   assert(sum(M) == 78);
@@ -125,28 +190,6 @@ void Test_Sum(){
 
   assert(max(M) == 12);
 
-  std::cout << "OK.\n";
-}
-
-
-
-void Test_LogExp(){
-  std::cout << "Test_Matrix::LogExp    ";
-
-  Matrix M(3,4);
-  for(unsigned i=0; i<M.length(); ++i){
-    M(i) = i+1;
-  }
-
-  Matrix M2 = Log(M);
-  for(unsigned i=0; i<M.length(); ++i){
-    assert(M2(i) == log(M(i)));
-  }
-
-  Matrix M3 = Exp(M);
-  for(unsigned i=0; i<M.length(); ++i){
-    assert(M3(i) == exp(M(i)));
-  }
   std::cout << "OK.\n";
 }
 
@@ -211,7 +254,6 @@ void Test_Row(){
   std::cout << "OK.\n";
 }
 
-
 void Test_Algebra(){
   std::cout << "Test_Matrix::Algebra   ";
 
@@ -275,10 +317,14 @@ void Test_Inverse(){
   std::cout << "-----------\n" ;
   std::cout << M2 ;
 }
+*/
 
 int main(){
 
-  Test_Object();
+  test_matrix();
+  //test_dot();
+  //test_sum();
+  /*
   Test_Operators();
   Test_SpecialMatrices();
   Test_SaveLoad();
@@ -291,6 +337,7 @@ int main(){
   Test_Row();
   Test_Dot();
   Test_Inverse();
+  */
 
   return 0;
 }
