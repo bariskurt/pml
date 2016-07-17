@@ -383,6 +383,12 @@ namespace pml {
               : Vector(num_rows * num_cols, value),
                 __nrows__(num_rows), __ncols__(num_cols) {}
 
+      Matrix(size_t num_rows, size_t num_cols, double *values)
+              : Vector(num_rows * num_cols),
+                __nrows__(num_rows), __ncols__(num_cols) {
+        memcpy(this->data(), values, sizeof(double)*size());
+      }
+
       Matrix(size_t num_rows, size_t num_cols,
              const std::initializer_list<double> &values)
               : Vector(values), __nrows__(num_rows), __ncols__(num_cols) {}
