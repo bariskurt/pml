@@ -47,24 +47,6 @@ namespace pml {
       Vector(const std::initializer_list<double> &values)
               : __data__(values) {}
 
-      Vector(const Vector &other) {
-        __data__ = other.__data__;
-      }
-
-      Vector(Vector &&other) {
-        __data__ = std::move(other.__data__);
-      }
-
-      Vector &operator=(const Vector &other) {
-        __data__ = other.__data__;
-        return *this;
-      }
-
-      Vector &operator=(Vector &&other) {
-        __data__ = std::move(other.__data__);
-        return *this;
-      }
-
     // Special Vectors
     public:
       static Vector ones(size_t length) {
@@ -96,6 +78,12 @@ namespace pml {
       void resize(size_t new_size){
         __data__.resize(new_size);
       }
+
+    public:
+      void append(double value){
+        __data__.push_back(value);
+      }
+
 
     public:
       friend bool operator==(const Vector &x, const Vector &y) {
@@ -393,34 +381,6 @@ namespace pml {
              const std::initializer_list<double> &values)
               : Vector(values), __nrows__(num_rows), __ncols__(num_cols) {}
 
-      Matrix(const Matrix &other) {
-        __data__ = other.__data__;
-        __nrows__ = other.__nrows__;
-        __ncols__ = other.__ncols__;
-      }
-
-      Matrix(Matrix &&other) {
-        __data__ = std::move(other.__data__);
-        __nrows__ = other.__nrows__;
-        __ncols__ = other.__ncols__;
-        other.__nrows__ = other.__ncols__ = 0;
-      }
-
-      Matrix &operator=(const Matrix &other) {
-        __data__ = other.__data__;
-        __nrows__ = other.__nrows__;
-        __ncols__ = other.__ncols__;
-        return *this;
-      }
-
-      Matrix &operator=(Matrix &&other) {
-        __data__ = std::move(other.__data__);
-        __nrows__ = other.__nrows__;
-        __ncols__ = other.__ncols__;
-        other.__nrows__ = other.__ncols__ = 0;
-        return *this;
-      }
-
     public:
       size_t nrows() const{
         return __nrows__;
@@ -659,34 +619,6 @@ namespace pml {
               : Vector(s0 * s1 * s2, values),
                 size0_(s0), size1_(s1), size2_(s2) {}
 
-      Tensor3D(const Tensor3D &tensor)
-              : Vector(tensor), size0_(tensor.size0_),
-                size1_(tensor.size1_), size2_(tensor.size2_){ }
-
-
-      Tensor3D(Tensor3D &&tensor)
-              : Vector(std::move(tensor)),  size0_(tensor.size0_),
-                size1_(tensor.size1_),  size2_(tensor.size2_) { }
-
-      Tensor3D& operator=(const Tensor3D &other) {
-        if (this != &other) {
-          __data__ = other.__data__;
-          size0_ = other.size0_;
-          size1_ = other.size1_;
-          size2_ = other.size2_;
-        }
-        return *this;
-      }
-
-      Tensor3D& operator=(Tensor3D &&other) {
-        __data__ = std::move(other.__data__);
-        size0_ = other.size0_;
-        size1_ = other.size1_;
-        size2_ = other.size2_;
-        return *this;
-      }
-
-
       static Tensor3D ones(size_t size0_, size_t size1_, size_t size2_) {
         return Tensor3D(size0_, size1_, size2_, 1.0);
       }
@@ -694,8 +626,6 @@ namespace pml {
       static Tensor3D zeros(size_t size0_, size_t size1_, size_t size2_) {
         return Tensor3D(size0_, size1_, size2_, 0.0);
       }
-
-
 
     public:
       size_t dim0() const { return size0_; }
@@ -973,6 +903,10 @@ namespace pml {
       }
     }
     return result;
+  }
+
+  inline double mean(const Vector &x){
+    return sum(x) / x.size();
   }
 
   inline Vector abs(const Vector &x){
