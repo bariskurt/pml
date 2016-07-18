@@ -207,7 +207,9 @@ void test_vector_normalize(){
   std::cout << "OK.\n";
 }
 
-void test_tile(){
+void test_tile_and_append(){
+
+  std::cout << "test_tile_and_append...";
 
   Vector v({1,2,3});
   Matrix m = tile(v, 2, Matrix::ROWS);
@@ -222,6 +224,21 @@ void test_tile(){
   assert(slice(v2,0,4) == Vector({0,1,2,3}));
   assert(slice(v2,5,2) == Vector({5,6}));
   assert(slice(v2,0,5,2) == Vector({0,2,4,6,8}));
+
+
+  Matrix z;
+  assert(z.nrows() == 0);
+  assert(z.ncols() == 0);
+
+  z.appendColumn(v);
+  assert(z.nrows() == v.size());
+  assert(z.ncols() == 1);
+
+  z.appendColumn(v);
+  assert(z.nrows() == v.size());
+  assert(z.ncols() == 2);
+
+  std::cout << "OK.\n";
 }
 
 /*
@@ -243,7 +260,7 @@ int main(){
   test_sum_min_max();
   test_vector_normalize();
   test_save_load();
-  test_tile();
+  test_tile_and_append();
   //test_algebra();
   //test_friends();
   //test_save_load();

@@ -365,7 +365,7 @@ namespace pml {
       };
 
     public:
-      Matrix(){}
+      Matrix() : __nrows__(0), __ncols__(0) {}
 
       Matrix(size_t num_rows, size_t num_cols, double value = 0)
               : Vector(num_rows * num_cols, value),
@@ -464,6 +464,15 @@ namespace pml {
         }
       }
 
+      void appendColumn(const Vector &v){
+        if(empty()){
+          __nrows__ = v.size();
+        } else {
+          assert(__nrows__ == v.size());
+        }
+        __data__.insert(__data__.end(), v.begin(), v.end());
+        __ncols__++;
+      }
 
     public:
       // returns A + b
@@ -796,15 +805,6 @@ namespace pml {
                     sizeof(double)*size0_*size1_);
         return m;
       }
-
-      /*
-      void SetSlice(size_t index, const Matrix& m) {
-        ASSERT_TRUE(matr.size() == size0_ * size1_,
-                    "Matrix length does not match with the matrix length");
-        std::memcpy(&__data__[index * size0_ * size1_], m.data(),
-                    sizeof(double) * size0_ * size1_);
-      }
-      */
 
       void SetSlice(size_t index, const Vector& x){
         ASSERT_TRUE(x.size() == size0_ * size1_,
