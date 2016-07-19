@@ -164,6 +164,12 @@ namespace pml {
         }
       }
 
+      friend Vector apply(const Vector &x, double (*func)(double)) {
+        Vector result(x);
+        result.apply(func);
+        return x;
+      }
+
       void operator+=(double value) {
         for (auto &d : __data__) { d += value; }
       }
@@ -324,7 +330,7 @@ namespace pml {
         return in;
       }
 
-      virtual void save(const std::string &filename) const {
+      virtual void saveTxt(const std::string &filename) const {
         std::ofstream ofs(filename);
         if (ofs.is_open()) {
           ofs << 1 << std::endl;
@@ -334,7 +340,7 @@ namespace pml {
         }
       }
 
-      static Vector load(const std::string &filename) {
+      static Vector loadTxt(const std::string &filename) {
         Vector result;
         std::ifstream ifs(filename);
         size_t buffer;
@@ -579,7 +585,7 @@ namespace pml {
         return out;
       }
 
-      virtual void save(const std::string &filename) const {
+      void saveTxt(const std::string &filename) const override  {
         std::ofstream ofs(filename);
         if (ofs.is_open()) {
           ofs << 2 << std::endl;
@@ -591,7 +597,7 @@ namespace pml {
         }
       }
 
-      static Matrix load(const std::string &filename) {
+      static Matrix loadTxt(const std::string &filename) {
         Matrix result;
         std::ifstream ifs(filename);
         size_t buffer;

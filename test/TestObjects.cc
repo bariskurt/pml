@@ -57,14 +57,14 @@ void test_save_load(){
   std::cout << "test_save_load...";
 
   Vector x = Vector({1,2,3,4,5,6});
-  x.save("/tmp/x.txt");
-  Vector y = Vector::load("/tmp/x.txt");
+  x.saveTxt("/tmp/x.txt");
+  Vector y = Vector::loadTxt("/tmp/x.txt");
   assert(x==y);
 
 
   Matrix m = Matrix(2,3, {1,2,3,4,5,6});
-  m.save("/tmp/m.txt");
-  Matrix n = Matrix::load("/tmp/m.txt");
+  m.saveTxt("/tmp/m.txt");
+  Matrix n = Matrix::loadTxt("/tmp/m.txt");
   assert(m==n);
 
   std::cout << "OK\n";
@@ -213,10 +213,16 @@ void test_tile_and_append(){
 
   Vector v({1,2,3});
   Matrix m = tile(v, 2, Matrix::ROWS);
-  Matrix n = tile(v, 2);
+  assert(m.nrows() == 2);
+  assert(m.ncols() == 3);
+  assert(m.getRow(0) == v);
 
-  std::cout << m << std::endl;
-  std::cout << n << std::endl;
+
+  Matrix n = tile(v, 2);
+  assert(n.nrows() == 3);
+  assert(n.ncols() == 2);
+  assert(n.getColumn(0) == v);
+
 
 
   Vector v2({0,1,2,3,4,5,6,7,8,9});
@@ -240,18 +246,6 @@ void test_tile_and_append(){
 
   std::cout << "OK.\n";
 }
-
-/*
-void test_save_load(){
-
-  std::cout << "test_save_load...";
-  Array A({5,2}, {0,1,2,3,4,5,6,7,8,9});
-  A.save("/tmp/a.txt");
-  Array B = Array::load("/tmp/a.txt");
-  assert(A == B);
-  std::cout << "OK.\n";
-}
- */
 
 int main(){
 
