@@ -10,8 +10,9 @@ make
 
 cd ../bin
 
-./test_block
-./test_vector
-./test_matrix
+./test_objects
 ./test_tensor
+./test_algebta
+./test_random
+./test_hmm
 
