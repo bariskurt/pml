@@ -47,24 +47,6 @@ namespace pml {
       Vector(const std::initializer_list<double> &values)
               : __data__(values) {}
 
-      Vector(const Vector &other) {
-        __data__ = other.__data__;
-      }
-
-      Vector(Vector &&other) {
-        __data__ = std::move(other.__data__);
-      }
-
-      Vector &operator=(const Vector &other) {
-        __data__ = other.__data__;
-        return *this;
-      }
-
-      Vector &operator=(Vector &&other) {
-        __data__ = std::move(other.__data__);
-        return *this;
-      }
-
     // Special Vectors
     public:
       static Vector ones(size_t length) {
@@ -96,6 +78,12 @@ namespace pml {
       void resize(size_t new_size){
         __data__.resize(new_size);
       }
+
+    public:
+      void append(double value){
+        __data__.push_back(value);
+      }
+
 
     public:
       friend bool operator==(const Vector &x, const Vector &y) {
@@ -174,6 +162,12 @@ namespace pml {
         for (auto &value : __data__) {
           value = func(value);
         }
+      }
+
+      friend Vector apply(const Vector &x, double (*func)(double)) {
+        Vector result(x);
+        result.apply(func);
+        return x;
       }
 
       void operator+=(double value) {
@@ -336,7 +330,7 @@ namespace pml {
         return in;
       }
 
-      virtual void save(const std::string &filename) const {
+      virtual void saveTxt(const std::string &filename) const {
         std::ofstream ofs(filename);
         if (ofs.is_open()) {
           ofs << 1 << std::endl;
@@ -346,7 +340,7 @@ namespace pml {
         }
       }
 
-      static Vector load(const std::string &filename) {
+      static Vector loadTxt(const std::string &filename) {
         Vector result;
         std::ifstream ifs(filename);
         size_t buffer;
@@ -377,7 +371,7 @@ namespace pml {
       };
 
     public:
-      Matrix(){}
+      Matrix() : __nrows__(0), __ncols__(0) {}
 
       Matrix(size_t num_rows, size_t num_cols, double value = 0)
               : Vector(num_rows * num_cols, value),
@@ -392,34 +386,6 @@ namespace pml {
       Matrix(size_t num_rows, size_t num_cols,
              const std::initializer_list<double> &values)
               : Vector(values), __nrows__(num_rows), __ncols__(num_cols) {}
-
-      Matrix(const Matrix &other) {
-        __data__ = other.__data__;
-        __nrows__ = other.__nrows__;
-        __ncols__ = other.__ncols__;
-      }
-
-      Matrix(Matrix &&other) {
-        __data__ = std::move(other.__data__);
-        __nrows__ = other.__nrows__;
-        __ncols__ = other.__ncols__;
-        other.__nrows__ = other.__ncols__ = 0;
-      }
-
-      Matrix &operator=(const Matrix &other) {
-        __data__ = other.__data__;
-        __nrows__ = other.__nrows__;
-        __ncols__ = other.__ncols__;
-        return *this;
-      }
-
-      Matrix &operator=(Matrix &&other) {
-        __data__ = std::move(other.__data__);
-        __nrows__ = other.__nrows__;
-        __ncols__ = other.__ncols__;
-        other.__nrows__ = other.__ncols__ = 0;
-        return *this;
-      }
 
     public:
       size_t nrows() const{
@@ -504,6 +470,15 @@ namespace pml {
         }
       }
 
+      void appendColumn(const Vector &v){
+        if(empty()){
+          __nrows__ = v.size();
+        } else {
+          assert(__nrows__ == v.size());
+        }
+        __data__.insert(__data__.end(), v.begin(), v.end());
+        __ncols__++;
+      }
 
     public:
       // returns A + b
@@ -610,7 +585,7 @@ namespace pml {
         return out;
       }
 
-      virtual void save(const std::string &filename) const {
+      void saveTxt(const std::string &filename) const override  {
         std::ofstream ofs(filename);
         if (ofs.is_open()) {
           ofs << 2 << std::endl;
@@ -622,7 +597,7 @@ namespace pml {
         }
       }
 
-      static Matrix load(const std::string &filename) {
+      static Matrix loadTxt(const std::string &filename) {
         Matrix result;
         std::ifstream ifs(filename);
         size_t buffer;
@@ -659,34 +634,6 @@ namespace pml {
               : Vector(s0 * s1 * s2, values),
                 size0_(s0), size1_(s1), size2_(s2) {}
 
-      Tensor3D(const Tensor3D &tensor)
-              : Vector(tensor), size0_(tensor.size0_),
-                size1_(tensor.size1_), size2_(tensor.size2_){ }
-
-
-      Tensor3D(Tensor3D &&tensor)
-              : Vector(std::move(tensor)),  size0_(tensor.size0_),
-                size1_(tensor.size1_),  size2_(tensor.size2_) { }
-
-      Tensor3D& operator=(const Tensor3D &other) {
-        if (this != &other) {
-          __data__ = other.__data__;
-          size0_ = other.size0_;
-          size1_ = other.size1_;
-          size2_ = other.size2_;
-        }
-        return *this;
-      }
-
-      Tensor3D& operator=(Tensor3D &&other) {
-        __data__ = std::move(other.__data__);
-        size0_ = other.size0_;
-        size1_ = other.size1_;
-        size2_ = other.size2_;
-        return *this;
-      }
-
-
       static Tensor3D ones(size_t size0_, size_t size1_, size_t size2_) {
         return Tensor3D(size0_, size1_, size2_, 1.0);
       }
@@ -694,8 +641,6 @@ namespace pml {
       static Tensor3D zeros(size_t size0_, size_t size1_, size_t size2_) {
         return Tensor3D(size0_, size1_, size2_, 0.0);
       }
-
-
 
     public:
       size_t dim0() const { return size0_; }
@@ -867,15 +812,6 @@ namespace pml {
         return m;
       }
 
-      /*
-      void SetSlice(size_t index, const Matrix& m) {
-        ASSERT_TRUE(matr.size() == size0_ * size1_,
-                    "Matrix length does not match with the matrix length");
-        std::memcpy(&__data__[index * size0_ * size1_], m.data(),
-                    sizeof(double) * size0_ * size1_);
-      }
-      */
-
       void SetSlice(size_t index, const Vector& x){
         ASSERT_TRUE(x.size() == size0_ * size1_,
                     "Vector length does not match with the matrix length");
@@ -973,6 +909,10 @@ namespace pml {
       }
     }
     return result;
+  }
+
+  inline double mean(const Vector &x){
+    return sum(x) / x.size();
   }
 
   inline Vector abs(const Vector &x){
