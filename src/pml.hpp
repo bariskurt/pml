@@ -666,7 +666,7 @@ namespace pml {
       }
 
     public:
-      void Save(const std::string &filename) const {
+      void saveTxt(const std::string &filename) const {
         std::ofstream ofs(filename);
         ASSERT_TRUE(ofs.is_open(), "Tensor::Save cannot open file");
         ofs << 3 << std::endl;
@@ -679,7 +679,7 @@ namespace pml {
         ofs.close();
       }
 
-      static Tensor3D Load(const std::string &filename) {
+      static Tensor3D loadTxt(const std::string &filename) {
         std::ifstream ifs(filename);
         ASSERT_TRUE(ifs.is_open(), "Tensor::Load cannot open file");
         size_t dim, s0, s1, s2;
@@ -710,7 +710,6 @@ namespace pml {
       }
 
     public:
-  public:
 
       friend bool operator==(const Tensor3D &t1, const Tensor3D &t2) {
         if(t1.shape() == t2.shape()){
@@ -720,7 +719,7 @@ namespace pml {
       }
 
 
-  public:
+    public:
       friend Tensor3D operator+(const Tensor3D &x, const Tensor3D &y) {
         ASSERT_TRUE(x.shape() == y.shape(),
                     "Tensor3D::operator+ matrices must be of similar shape ");
@@ -805,18 +804,30 @@ namespace pml {
 
     public:
 
-      Matrix GetSlice(size_t index) const {
+      Matrix getSlice(size_t index) const {
         Matrix m(size0_,size1_);
         std::memcpy(m.data(), &__data__[index*size0_*size1_],
                     sizeof(double)*size0_*size1_);
         return m;
       }
 
-      void SetSlice(size_t index, const Vector& x){
+      void setSlice(size_t index, const Vector& x){
         ASSERT_TRUE(x.size() == size0_ * size1_,
                     "Vector length does not match with the matrix length");
         std::memcpy(&__data__[index*size0_*size1_], x.data(),
                       sizeof(double)*size0_*size1_);
+      }
+
+      void appendSlice(const Matrix &matrix){
+        if(empty()){
+          size0_ = matrix.nrows();
+          size1_ = matrix.ncols();
+        } else {
+          ASSERT_TRUE((size0_ == matrix.nrows()) && (size1_ == matrix.ncols()),
+                      "Tensor3D::appendSlice(): Slice dimensions mismatch");
+        }
+        __data__.insert(__data__.end(), matrix.begin(), matrix.end());
+        size2_++;
       }
 
     public:

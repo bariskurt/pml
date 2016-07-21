@@ -48,9 +48,9 @@ void TestDirection() {
   Tensor3D tensor = LinearTensor(5,6,3);
   Matrix m = Matrix::ones(5,6);
   cout << tensor << endl;
-  tensor.SetSlice(0,m);
+  tensor.setSlice(0,m);
   for (size_t i=0; i<3; i++) {
-    cout << tensor.GetSlice(i) << endl;
+    cout << tensor.getSlice(i) << endl;
   }
 }
 

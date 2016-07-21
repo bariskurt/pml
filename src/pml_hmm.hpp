@@ -419,14 +419,14 @@ namespace hmm {
                 Tensor3D tens = tensor;
                 Tensor3D result(tensor.dim0(),rhs.ncols(),tensor.dim2());
                 for (size_t i=0; i<tensor.dim2(); i++) {
-                    result.SetSlice(i,dot(tens.GetSlice(i),rhs));
+                    result.setSlice(i,dot(tens.getSlice(i),rhs));
                 }
                 return result;
             }
             Matrix tv_prod(const Tensor3D& tensor, const Vector& vec) {
                 Matrix mat(tensor.dim2(),tensor.dim0());
                 for (size_t i=0; i<tensor.dim2(); i++) {
-                    Matrix tmp = tensor.GetSlice(i);
+                    Matrix tmp = tensor.getSlice(i);
                     mat.setRow(i,dot(tmp,vec));
                 }
                 return mat;
@@ -436,14 +436,14 @@ namespace hmm {
                 for (size_t i=0; i<m.ncols(); i++) {
                     Matrix tmp = Matrix::zeros(m.ncols(),m.ncols());
                     tmp.setColumn(i,m.getColumn(i));
-                    tens.SetSlice(i,tmp);
+                    tens.setSlice(i,tmp);
                 }
                 return tens;
             }
             Tensor3D weight_tensor(const Vector& vec,const Matrix &m) {
                 Tensor3D tens = Tensor3D::zeros(m.nrows(),m.ncols(),vec.size());
                 for (size_t i=0; i<vec.size(); i++) {
-                    tens.SetSlice(i,m*vec(i));
+                    tens.setSlice(i,m*vec(i));
                 }
                 return tens;
             }
