@@ -14,61 +14,7 @@ using namespace pml;
 
 std::string test_dir = "/tmp/";
 
-void test_vector(){
 
-  std::cout << "test_array...";
-
-  // First constructor
-  Vector v({1,2,3,4,5,6});
-  assert(v.size() == 6);
-  assert(v.first() == 1);
-  assert(v.last() == 6);
-
-
-  // Second constructor
-  Vector v2(10, 5);
-  assert(v2.size() == 10);
-  assert(v2 == 5);
-
-  // Copy constructor
-  Vector v3(v2);
-  assert( v2 == v3 );
-
-  // Move-Copy constructor
-  Vector v4(std::move(v2));
-  assert( v3 == v4 );
-  assert( v2.empty() );
-
-  // Assignment
-  Vector y;
-  y = v;
-  assert( y == v );
-
-  // Move-Assignment
-  Vector z;
-  z = std::move(y);
-  assert( z == v );
-  assert( y.empty() );
-
-  std::cout << "OK.\n";
-}
-
-void test_save_load(){
-  std::cout << "test_save_load...";
-
-  Vector x = Vector({1,2,3,4,5,6});
-  x.saveTxt("/tmp/x.txt");
-  Vector y = Vector::loadTxt("/tmp/x.txt");
-  assert(x==y);
-
-
-  Matrix m = Matrix(2,3, {1,2,3,4,5,6});
-  m.saveTxt("/tmp/m.txt");
-  Matrix n = Matrix::loadTxt("/tmp/m.txt");
-  assert(m==n);
-
-  std::cout << "OK\n";
-}
 
 
 void test_matrix() {

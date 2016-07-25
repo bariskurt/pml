@@ -9,17 +9,17 @@
 
 namespace pml {
 
-  namespace uniform {
-
-    inline gsl_rng *rnd_get_rng() {
-      static gsl_rng *rng = NULL;
-      if (rng == NULL) {
-        gsl_rng_env_setup();
-        rng = gsl_rng_alloc(gsl_rng_default);
-        gsl_rng_set(rng, (unsigned long) time(0));
-      }
-      return rng;
+  inline gsl_rng *rnd_get_rng() {
+    static gsl_rng *rng = NULL;
+    if (rng == NULL) {
+      gsl_rng_env_setup();
+      rng = gsl_rng_alloc(gsl_rng_default);
+      gsl_rng_set(rng, (unsigned long) time(0));
     }
+    return rng;
+  }
+
+  namespace uniform {
 
     // Returns a double precision random number in [0,1).
     inline double rand() {
@@ -49,10 +49,75 @@ namespace pml {
 
   } // uniform
 
+  namespace gaussian{
+    inline double rand(double mu, double sigma) {
+      return mu + gsl_ran_gaussian(rnd_get_rng(), sigma);
+    }
+
+    inline Vector rand(double mu, double sigma, size_t length) {
+      Vector result(length);
+      for(auto &item : result){
+        item = gaussian::rand(mu, sigma);
+      }
+      return result;
+    }
+
+    inline Matrix rand(double mu, double sigma, size_t dim1, size_t dim2) {
+      Matrix result(dim1, dim2);
+      for(auto &item : result){
+        item = gaussian::rand(mu, sigma);
+      }
+      return result;
+    }
+
+    // ToDo: implement
+    inline Vector rand(const Vector &mu, const Matrix &sigma){
+      return Vector();
+    }
+
+    // ToDo: implement
+    inline Matrix rand(const Vector &mu, const Matrix &sigma, size_t ncols){
+      return Matrix();
+    }
+
+  }
+
   namespace poisson {
 
     inline unsigned rand(double mu) {
-      return gsl_ran_poisson(uniform::rnd_get_rng(), mu);
+      return gsl_ran_poisson(rnd_get_rng(), mu);
+    }
+
+    inline Vector rand(double mu, size_t length) {
+      Vector result(length);
+      for(auto &item : result){
+        item = poisson::rand(mu);
+      }
+      return result;
+    }
+
+    inline Vector rand(const Vector &mu) {
+      Vector result;
+      for(auto &m : mu){
+        result.append(poisson::rand(m));
+      }
+      return result;
+    }
+
+    inline Matrix rand(double mu, size_t dim1, size_t dim2) {
+      Matrix result(dim1, dim2);
+      for(auto &item : result){
+        item = poisson::rand(mu);
+      }
+      return result;
+    }
+
+    inline Matrix rand(const Matrix &mu) {
+      Matrix result(mu.shape());
+      for(size_t i=0; i<mu.size(); ++i){
+        result(i) = poisson::rand(mu(i));
+      }
+      return result;
     }
 
   } // Poisson
@@ -83,32 +148,46 @@ namespace pml {
     */
 
     inline double rand(double a, double b) {
-      return gsl_ran_gamma_knuth(uniform::rnd_get_rng(), a, b);
+      return gsl_ran_gamma_knuth(rnd_get_rng(), a, b);
     }
 
-    inline Vector rand(double a, double b, unsigned N) {
-      Vector v(N);
-      for (unsigned i = 0; i < N; ++i) {
-        v(i) = gsl_ran_gamma_knuth(uniform::rnd_get_rng(), a, b);
+    inline Vector rand(double a, double b, size_t length) {
+      Vector result(length);
+      for(auto &item : result){
+        item = gamma::rand(a,b);
       }
-      return v;
+      return result;
     }
 
-    inline Matrix rand(double a, double b,
-                       unsigned num_rows, unsigned num_cols) {
-      Matrix M(num_rows, num_cols);
-      for (unsigned i = 0; i < M.nrows(); ++i) {
-        for (unsigned j = 0; j < M.ncols(); ++j) {
-          M(i, j) = gsl_ran_gamma_knuth(uniform::rnd_get_rng(), a, b);
-        }
+    inline Vector rand(const Vector &a, const Vector &b){
+      assert(a.size() == b.size());
+      Vector result;
+      for(size_t i=0; i < a.size(); ++i){
+        result.append(gamma::rand(a(i), b(i)));
       }
-      return M;
+    }
+
+    inline Matrix rand(double a, double b, size_t nrows, size_t ncols) {
+      Matrix result(nrows, ncols);
+      for(auto &item : result){
+        item = gamma::rand(a,b);
+      }
+      return result;
+    }
+
+    inline Matrix rand(const Matrix &a, const Matrix &b) {
+      assert(a.shape() == b.shape());
+      Matrix result(a.shape());
+      for (size_t i = 0; i < a.size(); ++i) {
+        result(i) = gamma::rand(a(i), b(i));
+      }
+      return result;
     }
   } // Gamma
 
   namespace binomial {
     inline unsigned rand(unsigned N, double rate) {
-      return gsl_ran_binomial(uniform::rnd_get_rng(), rate, N);
+      return gsl_ran_binomial(rnd_get_rng(), rate, N);
     }
 
     inline double pmf(unsigned i, unsigned j, double p) {
@@ -125,7 +204,7 @@ namespace pml {
     inline Vector rand(const Vector &p, unsigned N) {
       Vector samples(p.size());
       unsigned buf[p.size()];
-      gsl_ran_multinomial(uniform::rnd_get_rng(), p.size(), N, p.data(),
+      gsl_ran_multinomial(rnd_get_rng(), p.size(), N, p.data(),
                           buf);
       for (size_t i = 0; i < samples.size(); ++i) {
         samples(i) = buf[i];
@@ -151,7 +230,7 @@ namespace pml {
 
     inline Vector rand(const Vector &alpha) {
       Vector result(alpha.size());
-      gsl_ran_dirichlet(uniform::rnd_get_rng(), alpha.size(),
+      gsl_ran_dirichlet(rnd_get_rng(), alpha.size(),
                         alpha.data(), result.data());
       return result;
     }
@@ -160,7 +239,7 @@ namespace pml {
       Matrix result(alpha.size(), num_cols);
       Vector buf(alpha.size());
       for (size_t j = 0; j < num_cols; ++j) {
-        gsl_ran_dirichlet(uniform::rnd_get_rng(), alpha.size(),
+        gsl_ran_dirichlet(rnd_get_rng(), alpha.size(),
                           alpha.data(), buf.data());
         result.setColumn(j, buf);
       }

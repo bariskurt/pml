@@ -47,8 +47,8 @@ void test_vector_algebra(){
 
 void test_matrix_algebra(){
   std::cout << "test_matrix_algebra...";
-  Matrix x(3, 4, 3);
-  Matrix y(3, 4, 5);
+  Matrix x({3, 4}, 3);
+  Matrix y({3, 4}, 5);
 
   // A = A op b
   x += 1; assert(x == 4);
@@ -78,6 +78,16 @@ void test_matrix_algebra(){
   z = x - y; assert(z == -2);
   z = x * y; assert(z == 15);
   z = x / y; assert(z == 3.0/5.0);
+
+
+  // Multiply Matrix columns..
+  Matrix a({3, 4}, 3);
+  Vector b({1, 2, 3});
+  a = a * b;
+  assert(a.getRow(0) == 3);
+  assert(a.getRow(1) == 6);
+  assert(a.getRow(2) == 9);
+
 
   std::cout << "OK.\n";
 }

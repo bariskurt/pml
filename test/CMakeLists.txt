@@ -12,3 +12,5 @@ add_executable(test_algebra TestAlgebra.cc)
 add_executable(test_tensor TestTensor.cc)
 
 add_executable(test_hmm TestHMM.cc)
+
+add_executable(test_nmf TestNMF.cc)

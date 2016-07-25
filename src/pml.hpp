@@ -37,15 +37,15 @@ namespace pml {
       Vector(){}
 
       explicit Vector(size_t length, double value = 0)
-              : __data__(length, value) {}
+              : data_(length, value) {}
 
       Vector(size_t length, double *values)
-              : __data__(length) {
+              : data_(length) {
         memcpy(this->data(), values, sizeof(double)*length);
       }
 
       Vector(const std::initializer_list<double> &values)
-              : __data__(values) {}
+              : data_(values) {}
 
     // Special Vectors
     public:
@@ -60,11 +60,11 @@ namespace pml {
     public:
       // Total number of values inside the structure.
       size_t size() const {
-        return __data__.size();
+        return data_.size();
       }
 
       bool empty() const {
-        return __data__.empty();
+        return data_.empty();
       }
 
       virtual size_t ndims() const {
@@ -76,12 +76,12 @@ namespace pml {
       }
 
       void resize(size_t new_size){
-        __data__.resize(new_size);
+        data_.resize(new_size);
       }
 
     public:
       void append(double value){
-        __data__.push_back(value);
+        data_.push_back(value);
       }
 
 
@@ -110,56 +110,56 @@ namespace pml {
 
     public:
       std::vector<double>::iterator begin(){
-        return __data__.begin();
+        return data_.begin();
       }
 
       std::vector<double>::const_iterator begin() const{
-        return __data__.cbegin();
+        return data_.cbegin();
       }
 
       std::vector<double>::iterator end(){
-        return __data__.end();
+        return data_.end();
       }
 
       std::vector<double>::const_iterator end() const {
-        return __data__.cend();
+        return data_.cend();
       }
 
       inline double &operator()(const size_t i0) {
-        return __data__[i0];
+        return data_[i0];
       }
 
       inline double operator()(const size_t i0) const {
-        return __data__[i0];
+        return data_[i0];
       }
 
       double *data() {
-        return &__data__[0];
+        return &data_[0];
       }
 
       const double *data() const {
-        return &__data__[0];
+        return &data_[0];
       }
 
       double first() const {
-        return __data__.front();
+        return data_.front();
       }
 
       double &first() {
-        return __data__.front();
+        return data_.front();
       }
 
       double last() const {
-        return __data__.back();
+        return data_.back();
       }
 
       double &last() {
-        return __data__.back();
+        return data_.back();
       }
 
     public:
       void apply(double (*func)(double)) {
-        for (auto &value : __data__) {
+        for (auto &value : data_) {
           value = func(value);
         }
       }
@@ -171,53 +171,53 @@ namespace pml {
       }
 
       void operator+=(double value) {
-        for (auto &d : __data__) { d += value; }
+        for (auto &d : data_) { d += value; }
       }
 
       // A = A - b
       void operator-=(double value) {
-        for (auto &d : __data__) { d -= value; }
+        for (auto &d : data_) { d -= value; }
       }
 
       // A = A * b
       void operator*=(double value) {
-        for (auto &d : __data__) { d *= value; }
+        for (auto &d : data_) { d *= value; }
       }
 
       // A = A / b
       void operator/=(double value) {
-        for (auto &d : __data__) { d /= value; }
+        for (auto &d : data_) { d /= value; }
       }
 
       // A = A + B
       void operator+=(const Vector &other) {
         assert(similar(*this, other));
-        for (size_t i = 0; i < __data__.size(); ++i) {
-          __data__[i] += other.__data__[i];
+        for (size_t i = 0; i < data_.size(); ++i) {
+          data_[i] += other.data_[i];
         }
       }
 
       // A = A - B
       void operator-=(const Vector &other) {
         assert(similar(*this, other));
-        for (size_t i = 0; i < __data__.size(); ++i) {
-          __data__[i] -= other.__data__[i];
+        for (size_t i = 0; i < data_.size(); ++i) {
+          data_[i] -= other.data_[i];
         }
       }
 
       // A = A * B (elementwise)
       void operator*=(const Vector &other) {
         assert(similar(*this, other));
-        for (size_t i = 0; i < __data__.size(); ++i) {
-          __data__[i] *= other.__data__[i];
+        for (size_t i = 0; i < data_.size(); ++i) {
+          data_[i] *= other.data_[i];
         }
       }
 
       // A = A / B (elementwise)
       void operator/=(const Vector &other) {
         assert(similar(*this, other));
-        for (size_t i = 0; i < __data__.size(); ++i) {
-          __data__[i] /= other.__data__[i];
+        for (size_t i = 0; i < data_.size(); ++i) {
+          data_[i] /= other.data_[i];
         }
       }
 
@@ -278,7 +278,7 @@ namespace pml {
         assert(similar(x,y));
         Vector result(x.size());
         for (size_t i = 0; i < x.size(); ++i) {
-          result.__data__[i] = x.__data__[i] + y.__data__[i];
+          result.data_[i] = x.data_[i] + y.data_[i];
         }
         return result;
       }
@@ -288,7 +288,7 @@ namespace pml {
         assert(similar(x,y));
         Vector result(x.size());
         for (size_t i = 0; i < x.size(); ++i) {
-          result.__data__[i] = x.__data__[i] - y.__data__[i];
+          result.data_[i] = x.data_[i] - y.data_[i];
         }
         return result;
       }
@@ -298,7 +298,7 @@ namespace pml {
         assert(similar(x,y));
         Vector result(x.size());
         for (size_t i = 0; i < x.size(); ++i) {
-          result.__data__[i] = x.__data__[i] * y.__data__[i];
+          result.data_[i] = x.data_[i] * y.data_[i];
         }
         return result;
       }
@@ -308,7 +308,7 @@ namespace pml {
         assert(similar(x,y));
         Vector result(x.size());
         for (size_t i = 0; i < x.size(); ++i) {
-          result.__data__[i] = x.__data__[i] / y.__data__[i];
+          result.data_[i] = x.data_[i] / y.data_[i];
         }
         return result;
       }
@@ -350,7 +350,7 @@ namespace pml {
           assert(buffer == 1);
           ifs >> buffer;
           // Allocate memory
-          result.__data__.resize(buffer);
+          result.data_.resize(buffer);
           ifs >> result;
           ifs.close();
         }
@@ -358,7 +358,7 @@ namespace pml {
       }
 
     public:
-      std::vector<double> __data__;
+      std::vector<double> data_;
   };
 
   class Matrix : public Vector{
@@ -371,29 +371,40 @@ namespace pml {
       };
 
     public:
-      Matrix() : __nrows__(0), __ncols__(0) {}
+      Matrix() : nrows_(0), ncols_(0) {}
 
       Matrix(size_t num_rows, size_t num_cols, double value = 0)
               : Vector(num_rows * num_cols, value),
-                __nrows__(num_rows), __ncols__(num_cols) {}
+                nrows_(num_rows), ncols_(num_cols) {}
 
       Matrix(size_t num_rows, size_t num_cols, double *values)
               : Vector(num_rows * num_cols),
-                __nrows__(num_rows), __ncols__(num_cols) {
+                nrows_(num_rows), ncols_(num_cols) {
         memcpy(this->data(), values, sizeof(double)*size());
       }
 
       Matrix(size_t num_rows, size_t num_cols,
              const std::initializer_list<double> &values)
-              : Vector(values), __nrows__(num_rows), __ncols__(num_cols) {}
+              : Vector(values), nrows_(num_rows), ncols_(num_cols) {}
+
+
+      Matrix(std::pair<size_t, size_t> shape, double value = 0):
+          Matrix(shape.first, shape.second, value){}
+
+      Matrix(std::pair<size_t, size_t> shape, double* values):
+          Matrix(shape.first, shape.second, values){}
+
+      Matrix(std::pair<size_t, size_t> shape,
+             const std::initializer_list<double> &values):
+          Matrix(shape.first, shape.second, values){}
 
     public:
       size_t nrows() const{
-        return __nrows__;
+        return nrows_;
       }
 
       size_t ncols() const{
-        return __ncols__;
+        return ncols_;
       }
 
       virtual size_t ndims() const {
@@ -401,10 +412,14 @@ namespace pml {
       }
 
       void reshape(size_t new_nrows, size_t new_ncols){
-        __nrows__ = new_nrows;
-        __ncols__ = new_ncols;
-        __data__.resize(__nrows__ * __ncols__);
+        nrows_ = new_nrows;
+        ncols_ = new_ncols;
+        data_.resize(nrows_ * ncols_);
       }
+
+      std::pair<size_t, size_t> shape() const{
+        return {nrows_, ncols_};
+      };
 
     public:
       static Matrix ones(size_t num_rows, size_t num_cols) {
@@ -429,11 +444,11 @@ namespace pml {
       using Vector::operator();
 
       inline double &operator()(const size_t i0, const size_t i1) {
-        return __data__[i0 + __nrows__ * i1];
+        return data_[i0 + nrows_ * i1];
       }
 
       inline double operator()(const size_t i0, const size_t i1) const {
-        return __data__[i0 + __nrows__ * i1];
+        return data_[i0 + nrows_ * i1];
       }
 
       friend bool similar(const Matrix &x, const Matrix &y){
@@ -441,43 +456,43 @@ namespace pml {
       }
 
       Vector getColumn(size_t col_num) const {
-        Vector column(__nrows__);
-        memcpy(column.data(), &__data__[col_num * __nrows__],
-               sizeof(double) * __nrows__);
+        Vector column(nrows_);
+        memcpy(column.data(), &data_[col_num * nrows_],
+               sizeof(double) * nrows_);
         return column;
       }
 
       void setColumn(size_t col_num, const Vector &vector) {
-        memcpy(&__data__[col_num * __nrows__], vector.data(),
-               sizeof(double) * __nrows__);
+        memcpy(&data_[col_num * nrows_], vector.data(),
+               sizeof(double) * nrows_);
       }
 
       Vector getRow(size_t row_num) const {
-        Vector row(__ncols__);
+        Vector row(ncols_);
         size_t idx = row_num;
-        for(size_t i=0; i < __ncols__; ++i){
-          row(i) = __data__[idx];
-          idx += __nrows__;
+        for(size_t i=0; i < ncols_; ++i){
+          row(i) = data_[idx];
+          idx += nrows_;
         }
         return row;
       }
 
       void setRow(size_t row_num, const Vector &row) {
         size_t idx = row_num;
-        for(size_t i=0; i < __ncols__; ++i){
-          __data__[idx] = row(i);
-          idx += __nrows__;
+        for(size_t i=0; i < ncols_; ++i){
+          data_[idx] = row(i);
+          idx += nrows_;
         }
       }
 
       void appendColumn(const Vector &v){
         if(empty()){
-          __nrows__ = v.size();
+          nrows_ = v.size();
         } else {
-          assert(__nrows__ == v.size());
+          assert(nrows_ == v.size());
         }
-        __data__.insert(__data__.end(), v.begin(), v.end());
-        __ncols__++;
+        data_.insert(data_.end(), v.begin(), v.end());
+        ncols_++;
       }
 
     public:
@@ -536,7 +551,7 @@ namespace pml {
         assert(similar(x,y));
         Matrix result(x.nrows(), x.ncols());
         for (size_t i = 0; i < x.size(); ++i) {
-          result.__data__[i] = x.__data__[i] + y.__data__[i];
+          result.data_[i] = x.data_[i] + y.data_[i];
         }
         return result;
       }
@@ -546,7 +561,7 @@ namespace pml {
         assert(similar(x,y));
         Matrix result(x.nrows(), x.ncols());
         for (size_t i = 0; i < x.size(); ++i) {
-          result.__data__[i] = x.__data__[i] - y.__data__[i];
+          result.data_[i] = x.data_[i] - y.data_[i];
         }
         return result;
       }
@@ -556,7 +571,7 @@ namespace pml {
         assert(similar(x,y));
         Matrix result(x.nrows(), x.ncols());
         for (size_t i = 0; i < x.size(); ++i) {
-          result.__data__[i] = x.__data__[i] * y.__data__[i];
+          result.data_[i] = x.data_[i] * y.data_[i];
         }
         return result;
       }
@@ -566,7 +581,19 @@ namespace pml {
         assert(similar(x,y));
         Matrix result(x.nrows(), x.ncols());
         for (size_t i = 0; i < x.size(); ++i) {
-          result.__data__[i] = x.__data__[i] / y.__data__[i];
+          result.data_[i] = x.data_[i] / y.data_[i];
+        }
+        return result;
+      }
+
+
+      friend Matrix operator*(const Matrix &x, const Vector &v) {
+        assert(x.nrows() == v.size());
+        Matrix result(x.shape());
+        for (size_t i = 0; i < x.nrows(); ++i) {
+          for (size_t j = 0; j < x.ncols(); ++j) {
+            result(i,j) = x(i,j) * v(i);
+          }
         }
         return result;
       }
@@ -591,7 +618,7 @@ namespace pml {
           ofs << 2 << std::endl;
           ofs << nrows() << std::endl;
           ofs << ncols() << std::endl;
-          for(auto &value : __data__)
+          for(auto &value : data_)
             ofs << value << std::endl;
           ofs.close();
         }
@@ -605,10 +632,10 @@ namespace pml {
           // Read dimension
           ifs >> buffer;
           assert(buffer == 2);
-          ifs >> result.__nrows__;
-          ifs >> result.__ncols__;
+          ifs >> result.nrows_;
+          ifs >> result.ncols_;
           // Allocate memory
-          result.__data__.resize(result.__nrows__ * result.__ncols__ );
+          result.data_.resize(result.nrows_ * result.ncols_ );
           ifs >> result;
           ifs.close();
         }
@@ -616,11 +643,11 @@ namespace pml {
       }
 
     private:
-      size_t __nrows__;
-      size_t __ncols__;
+      size_t nrows_;
+      size_t ncols_;
   };
 
-  //*************** Tensor3D ***********************
+  // --------------- Tensor3D ---------------
   class Tensor3D : public Vector {
 
     public:
@@ -658,11 +685,11 @@ namespace pml {
 
       inline double& operator()(const size_t i0, const size_t i1,
                                 const size_t i2) {
-        return __data__[i0 + size0_ * (i1 + size1_ * i2)];
+        return data_[i0 + size0_ * (i1 + size1_ * i2)];
       }
       inline double operator()(const size_t i0, const size_t i1,
                                const size_t i2) const{
-        return __data__[i0 + size0_ * (i1 + size1_ * i2)];
+        return data_[i0 + size0_ * (i1 + size1_ * i2)];
       }
 
     public:
@@ -673,7 +700,7 @@ namespace pml {
         ofs << size0_ << std::endl;
         ofs << size1_ << std::endl;
         ofs << size2_ << std::endl;
-        for(auto &value : __data__){
+        for(auto &value : data_){
           ofs << value << std::endl;
         }
         ofs.close();
@@ -806,7 +833,7 @@ namespace pml {
 
       Matrix getSlice(size_t index) const {
         Matrix m(size0_,size1_);
-        std::memcpy(m.data(), &__data__[index*size0_*size1_],
+        std::memcpy(m.data(), &data_[index*size0_*size1_],
                     sizeof(double)*size0_*size1_);
         return m;
       }
@@ -814,7 +841,7 @@ namespace pml {
       void setSlice(size_t index, const Vector& x){
         ASSERT_TRUE(x.size() == size0_ * size1_,
                     "Vector length does not match with the matrix length");
-        std::memcpy(&__data__[index*size0_*size1_], x.data(),
+        std::memcpy(&data_[index*size0_*size1_], x.data(),
                       sizeof(double)*size0_*size1_);
       }
 
@@ -826,7 +853,7 @@ namespace pml {
           ASSERT_TRUE((size0_ == matrix.nrows()) && (size1_ == matrix.ncols()),
                       "Tensor3D::appendSlice(): Slice dimensions mismatch");
         }
-        __data__.insert(__data__.end(), matrix.begin(), matrix.end());
+        data_.insert(data_.end(), matrix.begin(), matrix.end());
         size2_++;
       }
 
@@ -868,6 +895,14 @@ namespace pml {
       }
     }
     return result;
+  }
+
+  Vector sumCols(const Matrix &m){
+    return sum(m, Matrix::COLS);
+  }
+
+  Vector sumRows(const Matrix &m){
+    return sum(m, Matrix::ROWS);
   }
 
   inline double max(const Vector &x) {
@@ -1008,6 +1043,14 @@ namespace pml {
       }
     }
     return result;
+  }
+
+  inline Matrix normalizeCols(const Matrix &m){
+    return normalize(m, Matrix::COLS);
+  }
+
+  inline Matrix normalizeRows(const Matrix &m){
+    return normalize(m, Matrix::ROWS);
   }
 
   inline Vector normalizeExp(const Vector &x) {
