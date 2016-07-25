@@ -75,8 +75,8 @@ namespace pml {
         double at=1, double bt=1, double av=1, double bv=1) {
       At = Matrix (dim1, rank, at);
       Bt = Matrix (dim1, rank, bt);
-      At = Matrix (rank, dim2, av);
-      Bt = Matrix (rank, dim2, bv);
+      Av = Matrix (rank, dim2, av);
+      Bv = Matrix (rank, dim2, bv);
     }
 
     NMF(const Matrix &At_, const Matrix &Bt_,

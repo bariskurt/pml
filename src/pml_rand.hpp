@@ -165,6 +165,7 @@ namespace pml {
       for(size_t i=0; i < a.size(); ++i){
         result.append(gamma::rand(a(i), b(i)));
       }
+      return result;
     }
 
     inline Matrix rand(double a, double b, size_t nrows, size_t ncols) {
