@@ -586,13 +586,49 @@ namespace pml {
         return result;
       }
 
+      // R = A + [b b ... b]
+      friend Matrix operator+(const Matrix &x, const Vector &v) {
+        assert(x.nrows() == v.size());
+        Matrix result(x.shape());
+        for (size_t i = 0; i < x.nrows(); ++i) {
+          for (size_t j = 0; j < x.ncols(); ++j) {
+            result(i,j) = x(i,j) + v(i);
+          }
+        }
+        return result;
+      }
 
+      // R = A - [v v ... v]
+      friend Matrix operator-(const Matrix &x, const Vector &v) {
+        assert(x.nrows() == v.size());
+        Matrix result(x.shape());
+        for (size_t i = 0; i < x.nrows(); ++i) {
+          for (size_t j = 0; j < x.ncols(); ++j) {
+            result(i,j) = x(i,j) - v(i);
+          }
+        }
+        return result;
+      }
+
+      // R = A * [b b ... b]
       friend Matrix operator*(const Matrix &x, const Vector &v) {
         assert(x.nrows() == v.size());
         Matrix result(x.shape());
         for (size_t i = 0; i < x.nrows(); ++i) {
           for (size_t j = 0; j < x.ncols(); ++j) {
             result(i,j) = x(i,j) * v(i);
+          }
+        }
+        return result;
+      }
+
+      // R = A / [v v ... v]
+      friend Matrix operator/(const Matrix &x, const Vector &v) {
+        assert(x.nrows() == v.size());
+        Matrix result(x.shape());
+        for (size_t i = 0; i < x.nrows(); ++i) {
+          for (size_t j = 0; j < x.ncols(); ++j) {
+            result(i,j) = x(i,j) / v(i);
           }
         }
         return result;
