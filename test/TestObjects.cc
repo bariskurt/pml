@@ -195,11 +195,9 @@ void test_tile_and_append(){
 
 int main(){
 
-  test_vector();
   test_matrix();
   test_sum_min_max();
   test_vector_normalize();
-  test_save_load();
   test_tile_and_append();
   //test_algebra();
   //test_friends();

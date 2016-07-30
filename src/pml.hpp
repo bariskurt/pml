@@ -407,7 +407,7 @@ namespace pml {
         return ncols_;
       }
 
-      virtual size_t ndims() const {
+      size_t ndims() const override {
         return 2;
       }
 
