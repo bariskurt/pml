@@ -57,6 +57,15 @@ namespace pml {
         return Vector(length, 0.0);
       }
 
+      // creates a vector in range [start, stop) with step increments
+      static Vector range(double start, double stop, double step = 1){
+        Vector v;
+        for(double d = start; d < stop; d+=step){
+          v.append(d);
+        }
+        return v;
+      }
+
     public:
       // Total number of values inside the structure.
       size_t size() const {
