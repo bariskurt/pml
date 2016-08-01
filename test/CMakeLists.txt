@@ -14,3 +14,5 @@ add_executable(test_tensor TestTensor.cc)
 add_executable(test_hmm TestHMM.cc)
 
 add_executable(test_nmf TestNMF.cc)
+
+add_executable(test_bcpm TestBCPM.cc)

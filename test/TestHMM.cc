@@ -122,9 +122,9 @@ void offlineLearningExample() {
 
     check2SSMethods();
     cout << "We first ensure that recursive smoother and correction smoother converge to the same point" <<
-            " when EM starts at the same point." << endl;
+            " when EM starts at the same point." << endl << endl;
 
-    size_t training_size=10000;
+    size_t training_size=1000;
     size_t test_size=150000;
     unsigned epoch=100;
 
@@ -136,12 +136,12 @@ void offlineLearningExample() {
     vector<double> ll = hmm.learnParameters(train_set, epoch, HMM::SS_METHOD::RECURSIVE_SMOOTHER);
 
     time_t end = time(nullptr);
-    cout << "A new HMM is trained with " << epoch << " epochs, within " << end-beg
-            << " seconds. final ll is: " << ll[ll.size()-1] << endl;
+    cout << "HMM trained with " << training_size << " data points, " << epoch << " epochs, within " << end-beg
+            << " seconds. final ll on the training data is: " << ll[ll.size()-1] << endl;
 
     assert(!checkLLDecrease(ll));
 
-    cout << "log-likelihood on the test set: "<< hmm.evaluateLogLHood(test_set) << endl << endl;
+    cout << "log-likelihood on the test data: "<< hmm.evaluateLogLHood(test_set) << endl << endl;
 
 }
 
