@@ -94,7 +94,6 @@ namespace pml {
         Vector cps = Vector::zeros(T);                  // change points
         Matrix pi = Matrix::zeros(alpha.size(), T);     // parameters that generates data
         Matrix data = Matrix::zeros(alpha.size(), T);   // data
-  
         Vector pi_0 = dirichlet::rand(alpha);
         for (size_t t=0; t<T; t++) {
           // change point
@@ -116,11 +115,12 @@ namespace pml {
         }
         return make_pair(data, cps);
       }
+
       Message* init() {
         Message* ptr = new DirichletMessage(alpha);
         return ptr;
       }
-  
+
       Message* predict(const Message* message) {
         DirichletMessage* dm = new DirichletMessage();
         for (size_t i=0; i<message->components.size(); ++i) {
@@ -165,9 +165,7 @@ namespace pml {
         return make_pair(mean, norm_const.last());
       }
   
-  
       pair<Vector,double> multiply(const Message* forward, const Message* backward) {
-  
         Vector noChangeNormConstant, changeNormConstant;
         Message* smoothed_msg = new DirichletMessage();
         // no change particles
@@ -197,7 +195,6 @@ namespace pml {
         Vector tmp = normalizeExp(Vector{logPChange, logPNoChange});
         return make_pair(mean,tmp(0));
       };
-
 
     private:
       // Elementwise Log Gamma And Sum
@@ -275,12 +272,13 @@ namespace pml {
       double b;  // rate parameter
   };
 
+
   /*****************************
   ****** FORWARD-BACKWARD ******
   *****************************/
   class ForwardBackward{
     public:
-      ForwardBackward(Model *model_, int lag_,
+      ForwardBackward(Model *model_, int lag_=0,
                       int max_components_=100):
               model(model_), lag(lag_),
               max_components(max_components_) { }
@@ -313,7 +311,6 @@ namespace pml {
           Message* new_pred_msg = model->predict(alpha_update.back());
           alpha_predict.push_back(new_pred_msg);
         }
-
         // update step, calculate \alpha_{t+1,t+1}
         Message* new_update_msg = model->update(alpha_predict.back(), obs);
         alpha_update.push_back(new_update_msg);
@@ -345,26 +342,26 @@ namespace pml {
       }
 
       void smoothing(const Matrix &data) {
+        // run recursions
         forwardRecursion(data);
         backwardRecursion(data);
-
+        // init variables to be returned
         pair<Vector,double> res;
         size_t T = data.ncols();
-
+        // t_0
         res = model->eval_mean_cpp(beta_postdict.back());
         mean.appendColumn(res.first);
         cpp.append(res.second);
-
+        // t_1, t_2, ... t_{T-2}
         for (size_t t=1; t<T-1; t++) {
           res = model->multiply(alpha_update[t],beta_postdict[T-t-1]);
           mean.appendColumn(res.first);
           cpp.append(res.second);
         }
-
+        // t_{T-1}
         res = model->eval_mean_cpp(alpha_update.back());
         mean.appendColumn(res.first);
         cpp.append(res.second);
-
       }
 
     // netas-related code
@@ -374,62 +371,68 @@ namespace pml {
       void processObs(const Vector& obs) {
         // predict & update
         oneStepForward(obs);
-
         // parameter updates
         data.appendColumn(obs);
         pair<Vector, double> mean_cpp = model->eval_mean_cpp(alpha_update.back());
         mean.appendColumn(mean_cpp.first);
         cpp.append(mean_cpp.second);
-
         // smoothing
         if (lag>0 && ((int)getTime()) >= lag) {
           fixedLagSmooth();
         }
-
         // pruning
+        if ((int) alpha_update.back()->components.size() > max_components) {
+          prun();
+        }
+      }
+
+      void prun() {
+        vector<Component*> &comps = alpha_update.back()->components;
+        double min_c = comps[0]->log_c;
+        int min_id = 0;
+        for (size_t i=1; i<comps.size(); i++) {
+          if (comps[i]->log_c < min_c) {
+            min_c = comps[i]->log_c;
+            min_id = i;
+          }
+        }
+        comps.erase(comps.begin() + min_id);
       }
 
       void fixedLagSmooth() {
         size_t T = getTime();
-        vector<Message*> _beta_postdict;
-        vector<Message*> _beta_update;
+        Message* _beta_postdict;
+        Message* _beta_update;
+        // lag step backward
+        // TODO: implement below loop via ForwardBackward class and oneStepBackward()
         for (int t=0; t<lag; t++){
           if (t==0) {
-            Message* message = model->init();
-            _beta_postdict.push_back(message);
+            _beta_postdict = model->init();
           }
           else {
-            Message* new_pred_msg = model->predict(_beta_update.back());
-            _beta_postdict.push_back(new_pred_msg);
+            _beta_postdict = model->predict(_beta_update);
           }
-          Message* new_update_msg = model->update(_beta_postdict.back(), data.getColumn(T-1-t));
-          _beta_update.push_back(new_update_msg);
+          _beta_update = model->update(_beta_postdict, data.getColumn(T-1-t));
         }
         // CHECK HERE AGAIN: posterior is calculated for t = T - Lag
         size_t t = T - lag;
-        pair<Vector,double> mean_cpp = model->multiply(alpha_update[t], _beta_postdict[T-1-t]);
+        pair<Vector,double> mean_cpp = model->multiply(alpha_update[t], _beta_postdict);
         mean.setColumn(t, mean_cpp.first);
         cpp(t) = mean_cpp.second;
-
-        for (size_t i=0; i<_beta_postdict.size(); i++) {
-          delete _beta_postdict[i];
-          delete _beta_update[i];
-        }
+        delete _beta_postdict;
+        delete _beta_update;
       }
-      /*
-       * TODO: implement fixedLagSmooth() via ForwardBackward class and oneStepBackward()
-       */
 
     public:
       Model *model;
       int lag;
       int max_components;
-
+      // messages
       vector<Message*> alpha_predict;       // alpha_{t|t-1}
       vector<Message*> alpha_update;        // alpha_{t|t}
       vector<Message*> beta_postdict;       // beta_{t+1|t}
       vector<Message*> beta_update;         // beta_{t|t}
-
+      // results
       Vector cpp;                           // p(r_t=1)
       Matrix mean;                          // for saving results
       Matrix data;                          // for saving results

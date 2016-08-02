@@ -14,5 +14,3 @@ cd ../bin
 ./test_tensor
 ./test_algebta
 ./test_random
-./test_hmm
-
