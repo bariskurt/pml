@@ -32,6 +32,15 @@ namespace pml {
   }
 
 
+  struct Range{
+    Range(int start_, int stop_, int step_=1)
+            : start(start_), stop(stop_), step(step_){}
+    int start;
+    int stop;
+    int step;
+  };
+
+
   class Vector {
     public:
       Vector(){}
@@ -47,6 +56,12 @@ namespace pml {
       Vector(const std::initializer_list<double> &values)
               : data_(values) {}
 
+      explicit Vector(Range range){
+        for(double d = range.start; d < range.stop; d+=range.step){
+          data_.push_back(d);
+        }
+      }
+
     // Special Vectors
     public:
       static Vector ones(size_t length) {
@@ -55,15 +70,6 @@ namespace pml {
 
       static Vector zeros(size_t length) {
         return Vector(length, 0.0);
-      }
-
-      // creates a vector in range [start, stop) with step increments
-      static Vector range(double start, double stop, double step = 1){
-        Vector v;
-        for(double d = start; d < stop; d+=step){
-          v.append(d);
-        }
-        return v;
       }
 
     public:
@@ -469,6 +475,14 @@ namespace pml {
         memcpy(column.data(), &data_[col_num * nrows_],
                sizeof(double) * nrows_);
         return column;
+      }
+
+      Matrix getColumns(Range range) const {
+        Matrix result;
+        for(int i = range.start; i < range.stop; i+=range.step){
+          result.appendColumn(getColumn(i));
+        }
+        return result;
       }
 
       void setColumn(size_t col_num, const Vector &vector) {
