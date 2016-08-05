@@ -1056,6 +1056,22 @@ namespace pml {
     return y;
   }
 
+  inline Vector psi_n(int n, const Vector &x){
+    Vector y(x.size());
+    for(size_t i=0; i<y.size(); i++) {
+      y(i) = gsl_sf_psi_n(n, x(i));
+    }
+    return y;
+  }
+
+  inline Matrix psi_n(int n, const Matrix &x){
+    Matrix y(x.nrows(), x.nrows());
+    for(size_t i=0; i<y.size(); i++) {
+      y(i) = gsl_sf_psi_n(n, x(i));
+    }
+    return y;
+  }
+
   inline Vector exp(const Vector &x){
     Vector y(x);
     y.apply(std::exp);

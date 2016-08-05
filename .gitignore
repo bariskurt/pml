@@ -1,3 +1,4 @@
 .idea
 bin
 build
+run_valgrind.sh

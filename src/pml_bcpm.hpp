@@ -72,11 +72,12 @@ namespace pml {
       }
     public:
       virtual pair<Matrix, Vector> generateData(size_t T) = 0;
-      virtual Message* init() = 0;
+      virtual Message* initForward() = 0;
+      virtual Message* initBackward() = 0;
       virtual Message* predict(const Message* message) = 0;
       virtual Message* update(const Message* message, const Vector& data) = 0;
       virtual pair<Vector,double> eval_mean_cpp(const Message* message) = 0;
-      virtual pair<Vector,double> multiply(const Message* forward, const Message* backward) = 0;
+      virtual tuple<Message*,Vector,double> multiply(const Message* forward, const Message* backward) = 0;
   
     public:
       double p1;           //  probability of change
@@ -116,7 +117,16 @@ namespace pml {
         return make_pair(data, cps);
       }
 
-      Message* init() {
+      Message* initForward() {
+        Message* msg = new DirichletMessage();
+        DirichletComponent* no_change_comp = new DirichletComponent(alpha, log_p0);
+        DirichletComponent* change_comp = new DirichletComponent(alpha, log_p1);
+        msg->components.push_back(no_change_comp);
+        msg->components.push_back(change_comp);
+        return msg;
+      }
+
+      Message* initBackward() {
         Message* ptr = new DirichletMessage(alpha);
         return ptr;
       }
@@ -164,8 +174,8 @@ namespace pml {
         Vector mean = sum(transpose(transpose(norm_params)*norm_const), 1);
         return make_pair(mean, norm_const.last());
       }
-  
-      pair<Vector,double> multiply(const Message* forward, const Message* backward) {
+
+      tuple<Message*,Vector,double> multiply(const Message* forward, const Message* backward) {
         Vector noChangeNormConstant, changeNormConstant;
         Message* smoothed_msg = new DirichletMessage();
         // no change particles
@@ -189,11 +199,10 @@ namespace pml {
           smoothed_msg->components.push_back(new DirichletComponent(alpha,c));
         }
         Vector mean = eval_mean_cpp(smoothed_msg).first;
-        delete smoothed_msg;
         double logPNoChange = logSumExp(noChangeNormConstant);
         double logPChange = logSumExp(changeNormConstant);
         Vector tmp = normalizeExp(Vector{logPChange, logPNoChange});
-        return make_pair(mean,tmp(0));
+        return make_tuple(smoothed_msg,mean,tmp(0));
       };
 
     private:
@@ -243,7 +252,11 @@ namespace pml {
         return make_pair(uniform::rand(20,20),uniform::rand(20));
       }
 
-      Message* init() {
+      Message* initForward() {
+        return new GammaMessage(a,b);
+      }
+
+      Message* initBackward() {
         return new GammaMessage(a,b);
       }
 
@@ -262,8 +275,8 @@ namespace pml {
         // ToDo: Taha'nin ellerinden oper.
       }
 
-      pair<Vector,double> multiply(const Message* forward, const Message* backward) {
-        return make_pair(Vector::ones(10),10);
+      tuple<Message*, Vector,double> multiply(const Message* forward, const Message* backward) {
+        return make_tuple(new GammaMessage(1,2), Vector::ones(10),10);
         // ToDo: Taha'nin ellerinden oper.
       }
   
@@ -296,6 +309,9 @@ namespace pml {
         for(Message* m : beta_update) {
           delete m;
         }
+        for(Message* m : smoothed_msgs) {
+          delete m;
+        }
       }
 
     // forward-backward in general
@@ -303,7 +319,7 @@ namespace pml {
       void oneStepForward(const Vector& obs) {
         // predict step
         if (alpha_predict.size() == 0) {
-          Message* message = model->init();        // start forward recursion
+          Message* message = model->initForward();        // start forward recursion
           alpha_predict.push_back(message);
         }
         else {
@@ -318,7 +334,7 @@ namespace pml {
 
       void oneStepBackward(const Vector& obs) {
         if (beta_postdict.size()==0) {
-          Message* message = model->init();
+          Message* message = model->initBackward();
           beta_postdict.push_back(message);
         }
         else {
@@ -341,27 +357,41 @@ namespace pml {
         }
       }
 
+      static double loglhood(Model* model, const Matrix& data) {
+        ForwardBackward fb(model);
+        fb.forwardRecursion(data);
+        Vector consts;
+        vector<Component*> comps = fb.alpha_update.back()->components;
+        for (size_t i=0; i<comps.size(); i++) {
+          consts.append(comps[i]->log_c);
+        }
+        return logSumExp(consts);
+      }
+
       void smoothing(const Matrix &data) {
         // run recursions
         forwardRecursion(data);
         backwardRecursion(data);
         // init variables to be returned
-        pair<Vector,double> res;
+        tuple<Message*, Vector, double> res;
         size_t T = data.ncols();
-        // t_0
-        res = model->eval_mean_cpp(beta_postdict.back());
-        mean.appendColumn(res.first);
-        cpp.append(res.second);
-        // t_1, t_2, ... t_{T-2}
-        for (size_t t=1; t<T-1; t++) {
+        // t_0, t_1, ... t_{T-2}
+        for (size_t t=0; t<T-1; t++) {
           res = model->multiply(alpha_update[t],beta_postdict[T-t-1]);
-          mean.appendColumn(res.first);
-          cpp.append(res.second);
+          smoothed_msgs.push_back(get<0>(res));
+          mean.appendColumn(get<1>(res));
+          cpp.append(get<2>(res));
         }
         // t_{T-1}
-        res = model->eval_mean_cpp(alpha_update.back());
-        mean.appendColumn(res.first);
-        cpp.append(res.second);
+        pair<Vector,double> mean_cpp = model->eval_mean_cpp(alpha_update.back());
+        mean.appendColumn(mean_cpp.first);
+        cpp.append(mean_cpp.second);
+        Message* msg = new Message();
+        for(Component* comp : alpha_update.back()->components) {
+          DirichletComponent* d = static_cast<DirichletComponent*>(comp);
+          msg->components.push_back(new DirichletComponent(d->alpha, d->log_c));
+        }
+        smoothed_msgs.push_back(msg);
       }
 
     // netas-related code
@@ -407,7 +437,7 @@ namespace pml {
         // TODO: implement below loop via ForwardBackward class and oneStepBackward()
         for (int t=0; t<lag; t++){
           if (t==0) {
-            _beta_postdict = model->init();
+            _beta_postdict = model->initBackward();
           }
           else {
             _beta_postdict = model->predict(_beta_update);
@@ -416,9 +446,10 @@ namespace pml {
         }
         // CHECK HERE AGAIN: posterior is calculated for t = T - Lag
         size_t t = T - lag;
-        pair<Vector,double> mean_cpp = model->multiply(alpha_update[t], _beta_postdict);
-        mean.setColumn(t, mean_cpp.first);
-        cpp(t) = mean_cpp.second;
+        tuple<Message*, Vector,double> res = model->multiply(alpha_update[t], _beta_postdict);
+        delete get<0>(res);
+        mean.setColumn(t, get<1>(res));
+        cpp(t) = get<2>(res);
         delete _beta_postdict;
         delete _beta_update;
       }
@@ -430,12 +461,13 @@ namespace pml {
       // messages
       vector<Message*> alpha_predict;       // alpha_{t|t-1}
       vector<Message*> alpha_update;        // alpha_{t|t}
-      vector<Message*> beta_postdict;       // beta_{t+1|t}
+      vector<Message*> beta_postdict;       // beta_{t|t+1}
       vector<Message*> beta_update;         // beta_{t|t}
       // results
       Vector cpp;                           // p(r_t=1)
       Matrix mean;                          // for saving results
       Matrix data;                          // for saving results
+      vector<Message*> smoothed_msgs;       // alpha_{t|t}*beta_{t|t+1}
     };
 }
 
