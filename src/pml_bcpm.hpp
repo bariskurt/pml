@@ -132,14 +132,11 @@ namespace pml {
       }
 
       Message* predict(const Message* message) {
-        DirichletMessage* dm = new DirichletMessage();
-        for (size_t i=0; i<message->components.size(); ++i) {
-          DirichletComponent* d = static_cast<DirichletComponent*>(message->components[i]);
-          dm->components.push_back(new DirichletComponent(d->alpha, d->log_c));
-        }
+        DirichletMessage* dm = copyMessage(message);
         Vector consts(dm->components.size());
         for (size_t i=0; i<dm->components.size(); i++) {
           consts(i) = dm->components[i]->log_c;
+          dm->components[i]->log_c += log_p0;
         }
         DirichletComponent* dc = new DirichletComponent(alpha, log_p1 + logSumExp(consts));
         dm->components.push_back(dc);
@@ -148,11 +145,7 @@ namespace pml {
   
       // http://stackoverflow.com/questions/332030/when-should-static-cast-dynamic-cast-const-cast-and-reinterpret-cast-be-used
       Message* update(const Message* message, const Vector& data) {
-        DirichletMessage* dm = new DirichletMessage();
-        for (size_t i=0; i<message->components.size(); ++i) {
-          DirichletComponent* d = static_cast<DirichletComponent*>(message->components[i]);
-          dm->components.push_back(new DirichletComponent(d->alpha, d->log_c));
-        }
+        DirichletMessage* dm = copyMessage(message);
         for (size_t i=0; i<dm->components.size(); ++i) {
           DirichletComponent* d = static_cast<DirichletComponent*>(dm->components[i]);
           d->log_c += dirMultNormConsant(data,d->alpha);
@@ -206,9 +199,19 @@ namespace pml {
       };
 
     private:
+
+      DirichletMessage* copyMessage(const Message* message) {
+        DirichletMessage* dm = new DirichletMessage();
+        for (size_t i=0; i<message->components.size(); ++i) {
+            DirichletComponent* d = static_cast<DirichletComponent*>(message->components[i]);
+            dm->components.push_back(new DirichletComponent(d->alpha, d->log_c));
+        }
+        return dm;
+      }
+
       // Elementwise Log Gamma And Sum
       // passing lgamma as parameter to apply function not working -- return value is float, not double. sorry baris.
-      double ELGAS(const Vector& vec) {
+      double sumGammaLog(const Vector &vec) {
         Vector tmp(vec.size());
         for (size_t i=0; i<vec.size(); i++) {
           tmp(i) = lgamma(vec(i));
@@ -218,10 +221,10 @@ namespace pml {
 
       double dirMultNormConsant(const Vector &data, const Vector &params) {
         double term1 = lgamma(sum(data) + 1);
-        double term2 = ELGAS(data+1);
+        double term2 = sumGammaLog(data+1);
         double term3 = lgamma(sum(params));
-        double term4 = ELGAS(params);
-        double term5 = ELGAS(data + params);
+        double term4 = sumGammaLog(params);
+        double term5 = sumGammaLog(data + params);
         double term6 = lgamma(sum(data + params));
         // cout << term1 << endl << term2 << endl << term3 << endl << term4 << endl << term5 << endl << term6 << endl;
         return term1 - term2 + term3 - term4 + term5 - term6;
@@ -229,10 +232,10 @@ namespace pml {
 
       double dirDirNormConsant(const Vector &params1, const Vector &params2){
         double term1 = lgamma(sum(params1));
-        double term2 = ELGAS(params1);
+        double term2 = sumGammaLog(params1);
         double term3 = lgamma(sum(params2));
-        double term4 = ELGAS(params2);
-        double term5 = ELGAS(params1 + params2 -1);
+        double term4 = sumGammaLog(params2);
+        double term5 = sumGammaLog(params1 + params2 -1);
         double term6 = lgamma(sum(params1 + params2 -1));
         // cout << term1 << endl << term2 << endl << term3 << endl << term4 << endl << term5 << endl << term6 << endl;
         return term1 - term2 + term3 - term4 + term5 - term6;
@@ -297,21 +300,11 @@ namespace pml {
               max_components(max_components_) { }
 
       ~ForwardBackward() {
-        for(Message* m : alpha_update) {
-          delete m;
-        }
-        for(Message* m : alpha_predict) {
-          delete m;
-        }
-        for(Message* m : beta_postdict) {
-          delete m;
-        }
-        for(Message* m : beta_update) {
-          delete m;
-        }
-        for(Message* m : smoothed_msgs) {
-          delete m;
-        }
+          freeVec(alpha_predict);
+          freeVec(alpha_update);
+          freeVec(beta_postdict);
+          freeVec(beta_update);
+          freeVec(smoothed_msgs);
       }
 
     // forward-backward in general
@@ -393,7 +386,10 @@ namespace pml {
         }
         smoothed_msgs.push_back(msg);
       }
-
+    private:
+      void freeVec(vector<Message*> vec) {
+          for(Message* m : vec) { delete m; }
+      }
     // netas-related code
     public:
       size_t getTime() { return data.ncols(); }
