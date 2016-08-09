@@ -46,4 +46,4 @@ axarr[1].set_ylabel("Change Point Probability")
 axarr[1].legend(handles=[plt21,plt22])
 
 f.show()
-input("enter a charahter to terminate")
+input("enter a character to continue: ")

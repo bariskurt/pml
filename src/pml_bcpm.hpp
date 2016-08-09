@@ -23,6 +23,40 @@ namespace pml {
       Vector alpha;
       DirichletComponent(const Vector& _alpha_, double _log_c_) : Component(_log_c_), alpha(_alpha_) { }
       ~DirichletComponent() {  }
+      static DirichletComponent* multiply(const DirichletComponent* comp1, const DirichletComponent* comp2) {
+        double c = comp1->log_c  + comp2->log_c + dirDirNormConsant(comp1->alpha, comp2->alpha);
+        Vector alpha = comp1->alpha + comp2->alpha - 1;
+        return new DirichletComponent(alpha,c);
+      }
+      // Elementwise Log Gamma And Sum
+      // passing lgamma as parameter to apply function not working -- return value is float, not double. sorry baris.
+      static double sumGammaLog(const Vector &vec) {
+        Vector tmp(vec.size());
+        for (size_t i=0; i<vec.size(); i++) {
+          tmp(i) = lgamma(vec(i));
+        }
+        return sum(tmp);
+      }
+      static double dirMultNormConsant(const Vector &data, const Vector &params) {
+        double term1 = lgamma(sum(data) + 1);
+        double term2 = sumGammaLog(data+1);
+        double term3 = lgamma(sum(params));
+        double term4 = sumGammaLog(params);
+        double term5 = sumGammaLog(data + params);
+        double term6 = lgamma(sum(data + params));
+        // cout << term1 << endl << term2 << endl << term3 << endl << term4 << endl << term5 << endl << term6 << endl;
+        return term1 - term2 + term3 - term4 + term5 - term6;
+      }
+      static double dirDirNormConsant(const Vector &params1, const Vector &params2){
+        double term1 = lgamma(sum(params1));
+        double term2 = sumGammaLog(params1);
+        double term3 = lgamma(sum(params2));
+        double term4 = sumGammaLog(params2);
+        double term5 = sumGammaLog(params1 + params2 -1);
+        double term6 = lgamma(sum(params1 + params2 -1));
+        // cout << term1 << endl << term2 << endl << term3 << endl << term4 << endl << term5 << endl << term6 << endl;
+        return term1 - term2 + term3 - term4 + term5 - term6;
+      }
     };
 
   class GammaComponent : public Component {
@@ -93,7 +127,7 @@ namespace pml {
     public:
       pair<Matrix, Vector> generateData(size_t T) {
         Vector cps = Vector::zeros(T);                  // change points
-        Matrix pi = Matrix::zeros(alpha.size(), T);     // parameters that generates data
+        Matrix pi = Matrix::zeros(alpha.size(), T);     // parameters that generate data
         Matrix data = Matrix::zeros(alpha.size(), T);   // data
         Vector pi_0 = dirichlet::rand(alpha);
         for (size_t t=0; t<T; t++) {
@@ -105,12 +139,8 @@ namespace pml {
           // not a change point
           else {
             cps(t) = 0;
-            if (t==0) {
-              pi.setColumn(t, pi_0);
-            }
-            else {
-              pi.setColumn(t, pi.getColumn(t-1));
-            }
+            if (t==0) { pi.setColumn(t, pi_0); }
+            else { pi.setColumn(t, pi.getColumn(t-1)); }
           }
           data.setColumn(t, multinomial::rand(pi.getColumn(t),uniform::randi(40,60)));
         }
@@ -127,7 +157,7 @@ namespace pml {
       }
 
       Message* initBackward() {
-        Message* ptr = new DirichletMessage(alpha);
+        Message* ptr = new DirichletMessage(Vector::ones(alpha.size()));
         return ptr;
       }
 
@@ -148,7 +178,7 @@ namespace pml {
         DirichletMessage* dm = copyMessage(message);
         for (size_t i=0; i<dm->components.size(); ++i) {
           DirichletComponent* d = static_cast<DirichletComponent*>(dm->components[i]);
-          d->log_c += dirMultNormConsant(data,d->alpha);
+          d->log_c += DirichletComponent::dirMultNormConsant(data,d->alpha);
           d->alpha += data;
         }
         return dm;
@@ -176,20 +206,18 @@ namespace pml {
           DirichletComponent* fc = static_cast<DirichletComponent*>(forward->components[i]);
           for (size_t j=0; j<backward->components.size(); j++) {
             DirichletComponent* bc = static_cast<DirichletComponent*>(backward->components[j]);
-            double c = fc->log_c  + bc->log_c + dirDirNormConsant(fc->alpha, bc->alpha);
-            noChangeNormConstant.append(c);
-            Vector alpha = fc->alpha + bc->alpha - 1;
-            smoothed_msg->components.push_back(new DirichletComponent(alpha,c));
+            DirichletComponent* newComp = DirichletComponent::multiply(fc,bc);
+            noChangeNormConstant.append(newComp->log_c);
+            smoothed_msg->components.push_back(newComp);
           }
         }
         // change particles
         DirichletComponent* last = static_cast<DirichletComponent*>(forward->components.back());
         for (size_t i=0; i<backward->components.size(); i++) {
           DirichletComponent *bc = static_cast<DirichletComponent *>(backward->components[i]);
-          double c = last->log_c  + bc->log_c + dirDirNormConsant(last->alpha, bc->alpha);
-          changeNormConstant.append(c);
-          Vector alpha = last->alpha + bc->alpha - 1;
-          smoothed_msg->components.push_back(new DirichletComponent(alpha,c));
+          DirichletComponent* newComp = DirichletComponent::multiply(last, bc);
+          changeNormConstant.append(newComp->log_c);
+          smoothed_msg->components.push_back(newComp);
         }
         Vector mean = eval_mean_cpp(smoothed_msg).first;
         double logPNoChange = logSumExp(noChangeNormConstant);
@@ -199,7 +227,6 @@ namespace pml {
       };
 
     private:
-
       DirichletMessage* copyMessage(const Message* message) {
         DirichletMessage* dm = new DirichletMessage();
         for (size_t i=0; i<message->components.size(); ++i) {
@@ -207,38 +234,6 @@ namespace pml {
             dm->components.push_back(new DirichletComponent(d->alpha, d->log_c));
         }
         return dm;
-      }
-
-      // Elementwise Log Gamma And Sum
-      // passing lgamma as parameter to apply function not working -- return value is float, not double. sorry baris.
-      double sumGammaLog(const Vector &vec) {
-        Vector tmp(vec.size());
-        for (size_t i=0; i<vec.size(); i++) {
-          tmp(i) = lgamma(vec(i));
-        }
-        return sum(tmp);
-      }
-
-      double dirMultNormConsant(const Vector &data, const Vector &params) {
-        double term1 = lgamma(sum(data) + 1);
-        double term2 = sumGammaLog(data+1);
-        double term3 = lgamma(sum(params));
-        double term4 = sumGammaLog(params);
-        double term5 = sumGammaLog(data + params);
-        double term6 = lgamma(sum(data + params));
-        // cout << term1 << endl << term2 << endl << term3 << endl << term4 << endl << term5 << endl << term6 << endl;
-        return term1 - term2 + term3 - term4 + term5 - term6;
-      }
-
-      double dirDirNormConsant(const Vector &params1, const Vector &params2){
-        double term1 = lgamma(sum(params1));
-        double term2 = sumGammaLog(params1);
-        double term3 = lgamma(sum(params2));
-        double term4 = sumGammaLog(params2);
-        double term5 = sumGammaLog(params1 + params2 -1);
-        double term6 = lgamma(sum(params1 + params2 -1));
-        // cout << term1 << endl << term2 << endl << term3 << endl << term4 << endl << term5 << endl << term6 << endl;
-        return term1 - term2 + term3 - term4 + term5 - term6;
       }
   
     public:
@@ -300,11 +295,11 @@ namespace pml {
               max_components(max_components_) { }
 
       ~ForwardBackward() {
-          freeVec(alpha_predict);
-          freeVec(alpha_update);
-          freeVec(beta_postdict);
-          freeVec(beta_update);
-          freeVec(smoothed_msgs);
+        for(Message* m : alpha_predict) { delete m; }
+        for(Message* m : alpha_update) { delete m; }
+        for(Message* m : beta_postdict) { delete m; }
+        for(Message* m : beta_update) { delete m; }
+        for(Message* m : smoothed_msgs) { delete m; }
       }
 
     // forward-backward in general
@@ -341,12 +336,18 @@ namespace pml {
       void forwardRecursion(const Matrix& data) {
         for (size_t i=0; i<data.ncols(); i++) {
           oneStepForward(data.getColumn(i));
+          if ((int) alpha_update.back()->components.size() > max_components) {
+            prun(alpha_update.back());
+          }
         }
       }
 
       void backwardRecursion(const Matrix& data) {
         for (size_t i=data.ncols(); i>0; i--) {
           oneStepBackward(data.getColumn(i-1));
+          if ((int) beta_update.back()->components.size() > max_components) {
+            prun(beta_update.back());
+          }
         }
       }
 
@@ -408,46 +409,49 @@ namespace pml {
         }
         // pruning
         if ((int) alpha_update.back()->components.size() > max_components) {
-          prun();
+          prun(alpha_update.back());
         }
       }
 
-      void prun() {
-        vector<Component*> &comps = alpha_update.back()->components;
-        double min_c = comps[0]->log_c;
-        int min_id = 0;
-        for (size_t i=1; i<comps.size(); i++) {
-          if (comps[i]->log_c < min_c) {
-            min_c = comps[i]->log_c;
-            min_id = i;
+      // needs better implementation via heap
+      void prun(Message* msg) {
+        while (msg->components.size() > (unsigned) max_components) {
+          vector<Component*> &comps = msg->components;
+          double min_c = comps[0]->log_c;
+          int min_id = 0;
+          for (size_t i=1; i<comps.size(); i++) {
+            if (comps[i]->log_c < min_c) {
+              min_c = comps[i]->log_c;
+              min_id = i;
+            }
           }
+          comps.erase(comps.begin() + min_id);
         }
-        comps.erase(comps.begin() + min_id);
       }
 
       void fixedLagSmooth() {
         size_t T = getTime();
-        Message* _beta_postdict;
-        Message* _beta_update;
+        vector<Message*> _beta_postdict;
+        vector<Message*> _beta_update;
         // lag step backward
         // TODO: implement below loop via ForwardBackward class and oneStepBackward()
         for (int t=0; t<lag; t++){
           if (t==0) {
-            _beta_postdict = model->initBackward();
+            _beta_postdict.push_back(model->initBackward());
           }
           else {
-            _beta_postdict = model->predict(_beta_update);
+            _beta_postdict.push_back(model->predict(_beta_update.back()));
           }
-          _beta_update = model->update(_beta_postdict, data.getColumn(T-1-t));
+          _beta_update.push_back(model->update(_beta_postdict.back(), data.getColumn(T-1-t)));
         }
         // CHECK HERE AGAIN: posterior is calculated for t = T - Lag
         size_t t = T - lag;
-        tuple<Message*, Vector,double> res = model->multiply(alpha_update[t], _beta_postdict);
+        tuple<Message*, Vector,double> res = model->multiply(alpha_update[t], _beta_postdict.back());
         delete get<0>(res);
         mean.setColumn(t, get<1>(res));
         cpp(t) = get<2>(res);
-        delete _beta_postdict;
-        delete _beta_update;
+        for(Message* m:_beta_postdict) { delete m; }
+        for(Message* m:_beta_update) { delete m; }
       }
 
     public:

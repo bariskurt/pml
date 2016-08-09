@@ -1,22 +1,53 @@
-
+#include <pml_bcpm.hpp>
 #include "pml.hpp"
 #include "pml_bcpm.hpp"
 
 using namespace std;
 using namespace pml;
 
-const int T = 50;
-const int K = 10;
-const int LAG = 0;
+const int LAG = 10;
 
 const int EM_MAX_ITER = 15;
 const int INV_DIG_ITER = 100;
 const double EM_EPS = 1e-5;
 
 const double DIGAMMA_LOWER = 1e-3;
-const double POLYGAMMA_LOWER = 1e-2;
-const double INVERSE_GAMMA_UPPER = 20;
+const double POLYGAMMA_LOWER = 1e-5;
+const double INVERSE_GAMMA_UPPER = 10;
 
+const bool DEBUG = false;
+
+void visualize(const ForwardBackward& fb, const Matrix& obs, Vector cps=Vector::zeros(5), bool draw=true) {
+  obs.saveTxt("/tmp/obs.txt");
+  fb.cpp.saveTxt("/tmp/cpp.txt");
+  fb.mean.saveTxt("/tmp/mean.txt");
+  cps.saveTxt("/tmp/real_cps.txt");
+  if(draw) { cout << system("/home/cagatay/anaconda3/bin/python ../etc/hist_plot.py"); }
+}
+pair<Matrix, Vector> genData(size_t T=100, Vector alpha=Vector::ones(10)*5, double c=0.05) {
+  return DirichletModel(c, alpha).generateData(T);
+}
+pair<Matrix, Vector> readData(const string& obs_path="../etc/simulator_logs/log_low_250.txt",
+                              const string& cps_path="../etc/simulator_logs/log_low_250_cps.txt") {
+  Matrix obs = Matrix::loadTxt(obs_path);
+  // if path contains the word "simulator", take the transpose
+  if (obs_path.find("simulator") != string::npos) { obs = transpose(obs); }
+  Vector cps;
+  if(cps_path=="") { cps = Vector::zeros(obs.ncols()); }
+  else { cps = Vector::loadTxt(cps_path); }
+  return make_pair(obs, cps);
+}
+pair<Matrix, Vector> crop(const pair<Matrix, Vector>& data, size_t start, size_t len) {
+  Matrix obs = data.first;
+  Vector cps = data.second;
+  Matrix retMat;
+  Vector retVec;
+  for(size_t i=0; i<len; i++) {
+    retMat.appendColumn(obs.getColumn(start+i));
+    retVec.append(cps(start+i));
+  }
+  return make_pair(retMat,retVec);
+}
 
 /*
  * checks whether any mean vector in asmoothed message contains
@@ -71,7 +102,7 @@ Vector inv_digamma(Vector y, double THRESHOLD=INVERSE_GAMMA_UPPER, double eps_=1
   // check if params are valid
   for(size_t i=0; i<y.size(); i++) {
     if (y(i) >= THRESHOLD) {
-      throw invalid_argument( "too big for inv_gamma" );
+      throw invalid_argument( "too big for inv_digamma" );
     }
   }
   // find the initial x
@@ -89,8 +120,8 @@ Vector inv_digamma(Vector y, double THRESHOLD=INVERSE_GAMMA_UPPER, double eps_=1
     try {
       x -= (my_digamma(x)-y) / my_polygamma(x);
     }
-    catch (const string msg) {
-      cout << "inv_gamma: newton interations terminated. " << msg << endl;
+    catch(exception& ex) {
+      cout << "inv_digamma: newton interations terminated. " << ex.what() << endl;
       break;
     }
   }
@@ -122,17 +153,36 @@ Vector compute_ss(Message*& msg) {
   return ss / sum(norm_consts);
 }
 
-void EM(const Matrix& data, double c=0.2, Vector alpha=uniform::rand(K)*10) {
-  Vector loglhoods;
-  size_t T = data.ncols();
+Vector compute_p0(Message* beta_0_1, const Vector& alpha) {
+  Message* smoothed_msg = new Message();
+  DirichletComponent* prior = new DirichletComponent(alpha, 0);
+  for (Component* comp: beta_0_1->components) {
+    DirichletComponent* d = static_cast<DirichletComponent*>(comp);
+    smoothed_msg->components.push_back(DirichletComponent::multiply(d, prior));
+  }
+  Vector ss = compute_ss(smoothed_msg);
+  delete prior;
+  delete smoothed_msg;
+  return ss;
+}
 
-  for(size_t epoch=0; epoch<EM_MAX_ITER; epoch++) {
+ForwardBackward EM(ForwardBackward fb, const pair<Matrix, Vector>& data,
+                   double c=0.2, Vector alpha=uniform::rand(10)*10, bool visualize_=false) {
+  Matrix obs = data.first;
+  Vector cps = data.second;
+
+  Vector loglhoods;
+  size_t T = obs.ncols();
+
+
+  size_t epoch=0;
+  for(; epoch<EM_MAX_ITER; epoch++) {
     // init model
-    DirichletModel dirichletModel(c, alpha);
-    ForwardBackward fb(&dirichletModel, LAG);
+    DirichletModel dirichletModel = DirichletModel(c, alpha);
+    fb = ForwardBackward(&dirichletModel, LAG, 50);
 
     ///////////// log-likelihood calculation /////////////
-    fb.smoothing(data);
+    fb.smoothing(obs);
     // double ll = ForwardBackward::loglhood(fb.model, data);
     Vector consts;
     vector<Component*> comps = fb.alpha_update.back()->components;
@@ -142,19 +192,19 @@ void EM(const Matrix& data, double c=0.2, Vector alpha=uniform::rand(K)*10) {
     double ll = logSumExp(consts);
     loglhoods.append(ll);
     cout << "ll is " << ll << endl;
-    cout << "\t\tmax(a) is " << max(alpha) << endl;
 
     //////////////// check convergence //////////////////
     if (epoch>0) {
       if (loglhoods(epoch) - loglhoods(epoch-1) < 0) {
         cout << "*** LIKELIHOOD DECREASED ***" << endl;
         if (smtMsgIsSmall(fb.smoothed_msgs)) {
-          break;
+          return fb;
         }
+        return fb;
       }
       else if (loglhoods(epoch) - loglhoods(epoch-1) < EM_EPS) {
         cout << "*** CONVERGED ***" << endl;
-        break;
+        return fb;
       }
     }
 
@@ -166,84 +216,94 @@ void EM(const Matrix& data, double c=0.2, Vector alpha=uniform::rand(K)*10) {
     }
     Vector ss = sum(E_log_pi_weighted,1) / sum(fb.cpp);
 
-
     ////////////////////// M step ///////////////////////
     int iter=0;
     for(; iter<INV_DIG_ITER; iter++) {
       try {
         my_digamma(sum(alpha));
       }
-      catch (const string msg) {
+      catch (exception& ex) {
         cout << "digamma: Terminated at M step. num steps is " << iter << endl;
         break;
       }
       try {
-        alpha = inv_digamma( ss + my_digamma(sum(alpha)) );
+        inv_digamma( ss + my_digamma(sum(alpha)) );
       }
-      catch (const string msg) {
+      catch (exception& ex) {
         cout << "inv_digamma: Terminated at M step. num steps is " << iter << endl;
-        cout<< "ss: " << ss << endl;
-        cout << "my_digamma(a.sum()): " << my_digamma(sum(alpha)) << endl;
+        if (DEBUG) cout << "ss: " << ss << endl;
+        if (DEBUG) cout << "my_digamma(a.sum()): " << my_digamma(sum(alpha)) << endl;
         break;
       }
+      alpha = inv_digamma( ss + my_digamma(sum(alpha)) );
     }
+    if(visualize_) { visualize(fb, obs, cps); }
     if (iter>0) {
       c = sum(fb.cpp)/T;
     }
   }
+  return fb;
 }
 
-void exampleRun() {
-  DirichletModel dirichletModel(0.05, Vector::ones(K));
-  ForwardBackward fb(&dirichletModel, LAG);
-
-  pair<Matrix, Vector> data = dirichletModel.generateData(T);
+void runExperiment(ForwardBackward& fb, const string& experiment, const pair<Matrix, Vector>& data, bool visualize_=false) {
+  // get data
   Matrix obs = data.first;
+  size_t K = obs.nrows();
+  size_t T = obs.ncols();
   Vector cps = data.second;
-
-  time_t beg = time(nullptr);
-  for (size_t t=0; t<obs.ncols(); t++) {
-    fb.processObs(obs.getColumn(t));
-    if (t % 100 == 0) {
-      cout << t << "obs processed in " << time(nullptr) - beg << " seconds" << endl;
+  // run the experiment
+  if (experiment=="filtering" || experiment=="smoothing") {
+    if (experiment=="filtering" ) {
+      for (size_t t=0; t<obs.ncols(); t++) { fb.processObs(obs.getColumn(t)); }
     }
-  }
-
-  vector<int> diffs;
-  for (size_t t=0; t<T; t++) {
-    if ( abs(cps(t)-fb.cpp(t)) > 1e-1 ) {
-      diffs.push_back(t);
+    else {
+      fb.smoothing(obs);
+      cout << fb.cpp << endl;
     }
+    // update results
+    for(size_t i=5; i<fb.cpp.size(); i++) {
+      for(int j=1; j<5; j++) {
+        if (fb.cpp(i-j)>0.2) {
+          fb.cpp(i) = 0;
+          break;
+        }
+      }
+    }
+    // evaluate and display performance
+    vector<size_t> incorrect;
+    vector<size_t> missed;
+    for (size_t t=0; t<T; t++) {
+      if (fb.cpp(t)>0.9 && cps(t)==0) { incorrect.push_back(t); }
+      else if (fb.cpp(t)<0.9 && cps(t)==1) { missed.push_back(t); }
+    }
+    cout << "Number of incorrect/missed labels: " << incorrect.size() << "/" << missed.size() << endl;
+    if(visualize_) { visualize(fb, obs, cps); }
   }
-
-  cout << "Total elapsed time: " << time(nullptr) - beg << ". Number of incorrect labels: " << diffs.size() << endl;
-
-  cout << fb.cpp << endl;
-
-  obs.saveTxt("/tmp/obs.txt");
-  cps.saveTxt("/tmp/real_cps.txt");
-  fb.cpp.saveTxt("/tmp/cpp.txt");
-  fb.mean.saveTxt("/tmp/mean.txt");
-
-  // cout << system("/home/cagatay/anaconda3/bin/python ../etc/hist_plot.py");
+  else if (experiment == "em") {
+    double c = 0.2;
+    Vector alpha = Vector::ones(K)*10;
+    ForwardBackward res = EM(fb, data, c, alpha, visualize_);
+  }
 }
+
 
 int main() {
 
-  /*
-  DirichletModel dirichletModel(0.05, Vector::ones(K));
+  // pair<Matrix,Vector> data = genData(50,Vector::ones(10),0.05);
+  pair<Matrix, Vector> data = readData();
+
+  data = crop(data, 500, 400);
+  size_t K = data.first.nrows();
+
+  DirichletModel dirichletModel(0.01, Vector::ones(K)*10+uniform::rand(K)*0);
   ForwardBackward fb(&dirichletModel, LAG);
+  runExperiment(fb, "em", data, true);
 
-  pair<Matrix, Vector> data = dirichletModel.generateData(T);
-  Matrix obs = data.first;
-  Vector cps = data.second;
-
-  */
-  Matrix obs = Matrix::loadTxt("/tmp/data.txt");
-  Vector alpha = Vector::loadTxt("/tmp/alpha.txt");
-  double c = 0.2;
-
-  EM(obs, c, alpha);
+  /*
+  dirichletModel = DirichletModel(0.2, Vector::ones(K)*10+uniform::rand(K)*0);
+  fb = ForwardBackward(&dirichletModel, LAG);
+  runExperiment(fb, "smoothing", data, false);
+   */
 
   return 0;
 }
