@@ -17,6 +17,7 @@ const double INVERSE_GAMMA_UPPER = 10;
 
 const bool DEBUG = false;
 
+////////////////////// HELPERS //////////////////////
 void visualize(const ForwardBackward& fb, const Matrix& obs, Vector cps=Vector::zeros(5), bool draw=true) {
   obs.saveTxt("/tmp/obs.txt");
   fb.cpp.saveTxt("/tmp/cpp.txt");
@@ -37,17 +38,18 @@ pair<Matrix, Vector> readData(const string& obs_path="../etc/simulator_logs/log_
   else { cps = Vector::loadTxt(cps_path); }
   return make_pair(obs, cps);
 }
-pair<Matrix, Vector> crop(const pair<Matrix, Vector>& data, size_t start, size_t len) {
+pair<Matrix, Vector> crop(const pair<Matrix, Vector>& data, size_t start, size_t end) {
   Matrix obs = data.first;
   Vector cps = data.second;
   Matrix retMat;
   Vector retVec;
-  for(size_t i=0; i<len; i++) {
-    retMat.appendColumn(obs.getColumn(start+i));
-    retVec.append(cps(start+i));
+  for(size_t i=start; i<end; i++) {
+    retMat.appendColumn(obs.getColumn(i));
+    retVec.append(cps(i));
   }
   return make_pair(retMat,retVec);
 }
+////////////////////// HELPERS //////////////////////
 
 /*
  * checks whether any mean vector in asmoothed message contains
@@ -68,13 +70,14 @@ bool smtMsgIsSmall(const vector<Message*>& smoothed_messages) {
   return false;
 }
 
+
+////////////////////// FUNCTIONS WITH NUMERICAL THRESHOLDS //////////////////////
 double my_digamma(double x, double THRESHOLD=DIGAMMA_LOWER) {
   if (abs(x) <= THRESHOLD) {
     throw invalid_argument( "too small for digamma" );
   }
   return gsl_sf_psi(x);
 }
-
 Vector my_digamma(Vector vec, double THRESHOLD=DIGAMMA_LOWER) {
   Vector y;
   for(size_t i=0; i<vec.size(); i++) {
@@ -82,14 +85,12 @@ Vector my_digamma(Vector vec, double THRESHOLD=DIGAMMA_LOWER) {
   }
   return y;
 }
-
 double my_polygamma(double x, double THRESHOLD=POLYGAMMA_LOWER) {
   if (x <= THRESHOLD) {
     throw invalid_argument( "too small for polygamma" );
   }
   return gsl_sf_psi_1(x);
 }
-
 Vector my_polygamma(Vector vec, double THRESHOLD=POLYGAMMA_LOWER) {
   Vector y;
   for(size_t i=0; i<vec.size(); i++) {
@@ -97,7 +98,6 @@ Vector my_polygamma(Vector vec, double THRESHOLD=POLYGAMMA_LOWER) {
   }
   return y;
 }
-
 Vector inv_digamma(Vector y, double THRESHOLD=INVERSE_GAMMA_UPPER, double eps_=1e-5) {
   // check if params are valid
   for(size_t i=0; i<y.size(); i++) {
@@ -127,6 +127,7 @@ Vector inv_digamma(Vector y, double THRESHOLD=INVERSE_GAMMA_UPPER, double eps_=1
   }
   return x;
 }
+////////////////////// FUNCTIONS WITH NUMERICAL THRESHOLDS //////////////////////
 
 /*
  * takes a smoothed message, p(\pi_t | x_{1:T},\theta), and
@@ -153,6 +154,7 @@ Vector compute_ss(Message*& msg) {
   return ss / sum(norm_consts);
 }
 
+// not being used
 Vector compute_p0(Message* beta_0_1, const Vector& alpha) {
   Message* smoothed_msg = new Message();
   DirichletComponent* prior = new DirichletComponent(alpha, 0);
@@ -173,7 +175,6 @@ ForwardBackward EM(ForwardBackward fb, const pair<Matrix, Vector>& data,
 
   Vector loglhoods;
   size_t T = obs.ncols();
-
 
   size_t epoch=0;
   for(; epoch<EM_MAX_ITER; epoch++) {
@@ -245,6 +246,7 @@ ForwardBackward EM(ForwardBackward fb, const pair<Matrix, Vector>& data,
   return fb;
 }
 
+// can run filtering, smoothing or em. see main function for usage
 void runExperiment(ForwardBackward& fb, const string& experiment, const pair<Matrix, Vector>& data, bool visualize_=false) {
   // get data
   Matrix obs = data.first;
@@ -292,7 +294,7 @@ int main() {
   // pair<Matrix,Vector> data = genData(50,Vector::ones(10),0.05);
   pair<Matrix, Vector> data = readData();
 
-  data = crop(data, 500, 400);
+  data = crop(data, 500, 900);
   size_t K = data.first.nrows();
 
   DirichletModel dirichletModel(0.01, Vector::ones(K)*10+uniform::rand(K)*0);
