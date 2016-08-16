@@ -291,6 +291,7 @@ void runExperiment(ForwardBackward& fb, const string& experiment, const pair<Mat
 
 int main() {
 
+
   // pair<Matrix,Vector> data = genData(50,Vector::ones(10),0.05);
   pair<Matrix, Vector> data = readData();
 
