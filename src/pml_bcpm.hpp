@@ -4,18 +4,15 @@
 #include "pml.hpp"
 #include "pml_rand.hpp"
 
-using namespace std;
-
 namespace pml {
 
-  /*****************************
-  ********* COMPONENT **********
-  *****************************/
+  // -------- COMPONENT -----------
   class Component {
     public:
-      double log_c;
-      virtual ~Component() {} // bu ve child destructor'lar olmadıgında leak veriyor...
       Component(double _log_c_) : log_c(_log_c_) {}
+      virtual ~Component() {}
+    public:
+      double log_c;
     };
 
   class DirichletComponent : public Component {
@@ -75,7 +72,7 @@ namespace pml {
       ~Message() { for (Component* c : components) delete c;  }
       size_t size() { return components.size(); }
     public:
-      vector<Component*> components;
+      std::vector<Component*> components;
     };
 
   class DirichletMessage : public Message {
@@ -105,13 +102,13 @@ namespace pml {
         log_p0 = std::log(1-p1);
       }
     public:
-      virtual pair<Matrix, Vector> generateData(size_t T) = 0;
+      virtual std::pair<Matrix, Vector> generateData(size_t T) = 0;
       virtual Message* initForward() = 0;
       virtual Message* initBackward() = 0;
       virtual Message* predict(const Message* message) = 0;
       virtual Message* update(const Message* message, const Vector& data) = 0;
-      virtual pair<Vector,double> eval_mean_cpp(const Message* message) = 0;
-      virtual tuple<Message*,Vector,double> multiply(const Message* forward, const Message* backward) = 0;
+      virtual std::pair<Vector,double> eval_mean_cpp(const Message* message) = 0;
+      virtual std::tuple<Message*,Vector,double> multiply(const Message* forward, const Message* backward) = 0;
   
     public:
       double p1;           //  probability of change
@@ -125,7 +122,7 @@ namespace pml {
             : Model(_p1_), alpha(_alpha_){}
   
     public:
-      pair<Matrix, Vector> generateData(size_t T) {
+      std::pair<Matrix, Vector> generateData(size_t T) {
         Vector cps = Vector::zeros(T);                  // change points
         Matrix pi = Matrix::zeros(alpha.size(), T);     // parameters that generate data
         Matrix data = Matrix::zeros(alpha.size(), T);   // data
@@ -144,7 +141,7 @@ namespace pml {
           }
           data.setColumn(t, multinomial::rand(pi.getColumn(t),uniform::randi(40,60)));
         }
-        return make_pair(data, cps);
+        return std::make_pair(data, cps);
       }
 
       Message* initForward() {
@@ -183,8 +180,8 @@ namespace pml {
         }
         return dm;
       }
-    
-      pair<Vector,double> eval_mean_cpp(const Message* message) {
+
+      std::pair<Vector,double> eval_mean_cpp(const Message* message) {
         Vector consts;
         Matrix norm_params;
         for(size_t i=0; i < message->components.size(); ++i) {
@@ -195,10 +192,10 @@ namespace pml {
         Vector exp_consts = exp(consts - max(consts));
         Vector norm_const = normalize(exp_consts);
         Vector mean = sum(transpose(transpose(norm_params)*norm_const), 1);
-        return make_pair(mean, norm_const.last());
+        return std::make_pair(mean, norm_const.last());
       }
 
-      tuple<Message*,Vector,double> multiply(const Message* forward, const Message* backward) {
+      std::tuple<Message*,Vector,double> multiply(const Message* forward, const Message* backward) {
         Vector noChangeNormConstant, changeNormConstant;
         Message* smoothed_msg = new DirichletMessage();
         // no change particles
@@ -223,7 +220,7 @@ namespace pml {
         double logPNoChange = logSumExp(noChangeNormConstant);
         double logPChange = logSumExp(changeNormConstant);
         Vector tmp = normalizeExp(Vector{logPChange, logPNoChange});
-        return make_tuple(smoothed_msg,mean,tmp(0));
+        return std::make_tuple(smoothed_msg,mean,tmp(0));
       };
 
     private:
@@ -246,8 +243,8 @@ namespace pml {
             : Model(_p1_), a(a_), b(b_){}
   
     public:
-      pair<Matrix, Vector> generateData(size_t T) {
-        return make_pair(uniform::rand(20,20),uniform::rand(20));
+      std::pair<Matrix, Vector> generateData(size_t T) {
+        return std::make_pair(uniform::rand(20,20),uniform::rand(20));
       }
 
       Message* initForward() {
@@ -268,13 +265,13 @@ namespace pml {
         // ToDo: Taha'nin ellerinden oper.
       }
 
-      pair<Vector,double> eval_mean_cpp(const Message* message) {
-        return make_pair(Vector::ones(10),10);
+      std::pair<Vector,double> eval_mean_cpp(const Message* message) {
+        return std::make_pair(Vector::ones(10),10);
         // ToDo: Taha'nin ellerinden oper.
       }
 
-      tuple<Message*, Vector,double> multiply(const Message* forward, const Message* backward) {
-        return make_tuple(new GammaMessage(1,2), Vector::ones(10),10);
+      std::tuple<Message*, Vector,double> multiply(const Message* forward, const Message* backward) {
+        return std::make_tuple(new GammaMessage(1,2), Vector::ones(10),10);
         // ToDo: Taha'nin ellerinden oper.
       }
   
@@ -355,7 +352,7 @@ namespace pml {
         ForwardBackward fb(model);
         fb.forwardRecursion(data);
         Vector consts;
-        vector<Component*> comps = fb.alpha_update.back()->components;
+        std::vector<Component*> comps = fb.alpha_update.back()->components;
         for (size_t i=0; i<comps.size(); i++) {
           consts.append(comps[i]->log_c);
         }
@@ -367,17 +364,17 @@ namespace pml {
         forwardRecursion(data);
         backwardRecursion(data);
         // init variables to be returned
-        tuple<Message*, Vector, double> res;
+        std::tuple<Message*, Vector, double> res;
         size_t T = data.ncols();
         // t_0, t_1, ... t_{T-2}
         for (size_t t=0; t<T-1; t++) {
           res = model->multiply(alpha_update[t],beta_postdict[T-t-1]);
-          smoothed_msgs.push_back(get<0>(res));
-          mean.appendColumn(get<1>(res));
-          cpp.append(get<2>(res));
+          smoothed_msgs.push_back(std::get<0>(res));
+          mean.appendColumn(std::get<1>(res));
+          cpp.append(std::get<2>(res));
         }
         // t_{T-1}
-        pair<Vector,double> mean_cpp = model->eval_mean_cpp(alpha_update.back());
+        std::pair<Vector,double> mean_cpp = model->eval_mean_cpp(alpha_update.back());
         mean.appendColumn(mean_cpp.first);
         cpp.append(mean_cpp.second);
         Message* msg = new Message();
@@ -388,7 +385,8 @@ namespace pml {
         smoothed_msgs.push_back(msg);
       }
     private:
-      void freeVec(vector<Message*> vec) {
+      //ToDO: Burada kocaman bir leak var
+      void freeVec(std::vector<Message*> vec) {
           for(Message* m : vec) { delete m; }
       }
     // netas-related code
@@ -400,7 +398,7 @@ namespace pml {
         oneStepForward(obs);
         // parameter updates
         data.appendColumn(obs);
-        pair<Vector, double> mean_cpp = model->eval_mean_cpp(alpha_update.back());
+        std::pair<Vector, double> mean_cpp = model->eval_mean_cpp(alpha_update.back());
         mean.appendColumn(mean_cpp.first);
         cpp.append(mean_cpp.second);
         // smoothing
@@ -416,7 +414,7 @@ namespace pml {
       // needs better implementation via heap
       void prun(Message* msg) {
         while (msg->components.size() > (unsigned) max_components) {
-          vector<Component*> &comps = msg->components;
+          std::vector<Component*> &comps = msg->components;
           double min_c = comps[0]->log_c;
           int min_id = 0;
           for (size_t i=1; i<comps.size(); i++) {
@@ -431,8 +429,8 @@ namespace pml {
 
       void fixedLagSmooth() {
         size_t T = getTime();
-        vector<Message*> _beta_postdict;
-        vector<Message*> _beta_update;
+        std::vector<Message*> _beta_postdict;
+        std::vector<Message*> _beta_update;
         // lag step backward
         // TODO: implement below loop via ForwardBackward class and oneStepBackward()
         for (int t=0; t<lag; t++){
@@ -446,10 +444,10 @@ namespace pml {
         }
         // CHECK HERE AGAIN: posterior is calculated for t = T - Lag
         size_t t = T - lag;
-        tuple<Message*, Vector,double> res = model->multiply(alpha_update[t], _beta_postdict.back());
-        delete get<0>(res);
-        mean.setColumn(t, get<1>(res));
-        cpp(t) = get<2>(res);
+        std::tuple<Message*, Vector,double> res = model->multiply(alpha_update[t], _beta_postdict.back());
+        delete std::get<0>(res);
+        mean.setColumn(t, std::get<1>(res));
+        cpp(t) = std::get<2>(res);
         for(Message* m:_beta_postdict) { delete m; }
         for(Message* m:_beta_update) { delete m; }
       }
@@ -459,15 +457,15 @@ namespace pml {
       int lag;
       int max_components;
       // messages
-      vector<Message*> alpha_predict;       // alpha_{t|t-1}
-      vector<Message*> alpha_update;        // alpha_{t|t}
-      vector<Message*> beta_postdict;       // beta_{t|t+1}
-      vector<Message*> beta_update;         // beta_{t|t}
+      std::vector<Message*> alpha_predict;       // alpha_{t|t-1}
+      std::vector<Message*> alpha_update;        // alpha_{t|t}
+      std::vector<Message*> beta_postdict;       // beta_{t|t+1}
+      std::vector<Message*> beta_update;         // beta_{t|t}
       // results
-      Vector cpp;                           // p(r_t=1)
-      Matrix mean;                          // for saving results
-      Matrix data;                          // for saving results
-      vector<Message*> smoothed_msgs;       // alpha_{t|t}*beta_{t|t+1}
+      Vector cpp;                                // p(r_t=1)
+      Matrix mean;                               // for saving results
+      Matrix data;                               // for saving results
+      std::vector<Message*> smoothed_msgs;       // alpha_{t|t}*beta_{t|t+1}
     };
 }
 
