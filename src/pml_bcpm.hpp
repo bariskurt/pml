@@ -333,8 +333,8 @@ namespace pml {
       }
 
       void backwardRecursion(const Matrix& data) {
-        for (size_t i=data.ncols()-1; i>=0; i--) {
-          oneStepBackward(data.getColumn(i));
+        for (size_t i=data.ncols(); i>0; i--) {
+          oneStepBackward(data.getColumn(i-1));
           if ((int) beta_update.back()->components.size() > max_components) {
             prun(beta_update.back());
           }
