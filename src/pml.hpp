@@ -1096,6 +1096,12 @@ namespace pml {
     return y;
   }
 
+  inline Vector lgamma(const Vector &x){
+    Vector y(x);
+    y.apply(std::lgamma);
+    return y;
+  }
+
   inline Vector normalize(const Vector &x) {
     Vector result(x);
     result /= sum(x);

@@ -6,8 +6,9 @@
 
 namespace pml {
 
-  // -------- COMPONENT -----------
-  class Component {
+  // ----------- COMPONENTS ----------- //
+
+    class Component {
     public:
       Component(double _log_c_) : log_c(_log_c_) {}
       virtual ~Component() {}
@@ -16,91 +17,99 @@ namespace pml {
     };
 
   class DirichletComponent : public Component {
+
     public:
-      Vector alpha;
-      DirichletComponent(const Vector& _alpha_, double _log_c_) : Component(_log_c_), alpha(_alpha_) { }
-      ~DirichletComponent() {  }
-      static DirichletComponent* multiply(const DirichletComponent* comp1, const DirichletComponent* comp2) {
-        double c = comp1->log_c  + comp2->log_c + dirDirNormConsant(comp1->alpha, comp2->alpha);
+      DirichletComponent(const Vector& _alpha_, double _log_c_) :
+          Component(_log_c_), alpha(_alpha_) {}
+
+      ~DirichletComponent() {}
+
+    public:
+      static DirichletComponent* multiply(const DirichletComponent* comp1,
+                                          const DirichletComponent* comp2) {
+        double c = comp1->log_c  + comp2->log_c +
+                    dirDirNormConsant(comp1->alpha, comp2->alpha);
         Vector alpha = comp1->alpha + comp2->alpha - 1;
         return new DirichletComponent(alpha,c);
       }
-      // Elementwise Log Gamma And Sum
-      // passing lgamma as parameter to apply function not working -- return value is float, not double. sorry baris.
-      static double sumGammaLog(const Vector &vec) {
-        Vector tmp(vec.size());
-        for (size_t i=0; i<vec.size(); i++) {
-          tmp(i) = lgamma(vec(i));
-        }
-        return sum(tmp);
+
+      static double dirMultNormConsant(const Vector &data,
+                                       const Vector &params) {
+        return  std::lgamma(sum(data) + 1) - sum(lgamma(data+1)) +
+                std::lgamma(sum(params)) - sum(lgamma(params)) +
+                sum(lgamma(data + params)) - std::lgamma(sum(data + params));
       }
-      static double dirMultNormConsant(const Vector &data, const Vector &params) {
-        double term1 = lgamma(sum(data) + 1);
-        double term2 = sumGammaLog(data+1);
-        double term3 = lgamma(sum(params));
-        double term4 = sumGammaLog(params);
-        double term5 = sumGammaLog(data + params);
-        double term6 = lgamma(sum(data + params));
-        // cout << term1 << endl << term2 << endl << term3 << endl << term4 << endl << term5 << endl << term6 << endl;
-        return term1 - term2 + term3 - term4 + term5 - term6;
+
+      static double dirDirNormConsant(const Vector &params1,
+                                      const Vector &params2){
+        return  std::lgamma(sum(params1)) - sum(lgamma(params1)) +
+                std::lgamma(sum(params2)) - sum(lgamma(params2)) +
+                sum(lgamma(params1 + params2 -1)) -
+                std::lgamma(sum(params1 + params2 -1));
       }
-      static double dirDirNormConsant(const Vector &params1, const Vector &params2){
-        double term1 = lgamma(sum(params1));
-        double term2 = sumGammaLog(params1);
-        double term3 = lgamma(sum(params2));
-        double term4 = sumGammaLog(params2);
-        double term5 = sumGammaLog(params1 + params2 -1);
-        double term6 = lgamma(sum(params1 + params2 -1));
-        // cout << term1 << endl << term2 << endl << term3 << endl << term4 << endl << term5 << endl << term6 << endl;
-        return term1 - term2 + term3 - term4 + term5 - term6;
-      }
-    };
+
+    public:
+      Vector alpha;
+  };
 
   class GammaComponent : public Component {
     public:
+      GammaComponent(double _a_, double _b_, double _log_c_)
+          : Component(_log_c_), a(_a_), b(_b_) {}
+      ~GammaComponent() {}
+
+    public:
       double a;
       double b;
-      GammaComponent(double _a_, double _b_, double _log_c_) : Component(_log_c_), a(_a_), b(_b_) {}
-      ~GammaComponent() {}
-    };
+  };
 
-  /*****************************
-  ********** MESSAGE ***********
-  *****************************/
+  // ----------- MESSAGES----------- //
+
   class Message {
     public:
-      ~Message() { for (Component* c : components) delete c;  }
-      size_t size() { return components.size(); }
+      virtual ~Message() {
+        for (Component* c : components) delete c;
+      }
+
+      size_t size() {
+        return components.size();
+      }
+
+      void add_component(Component* component){
+        components.push_back(component);
+      }
+
     public:
       std::vector<Component*> components;
-    };
+  };
 
   class DirichletMessage : public Message {
     public:
       DirichletMessage() {}
+
       DirichletMessage(const Vector &param) {
-        DirichletComponent* dc = new DirichletComponent(param, 0);
-        components.push_back(dc);
+        add_component(new DirichletComponent(param, 0));
       }
-    };
+  };
 
   class GammaMessage : public Message {
     public:
       GammaMessage(double a, double b) {
-        GammaComponent* gc = new GammaComponent(a,b,0);
-        components.push_back(gc);
+        add_component(new GammaComponent(a,b,0));
       }
-    };
+  };
 
-  /*****************************
-  *********** MODEL ************
-  *****************************/
+  // ----------- MODELS----------- //
+
   class Model{
     public:
       Model(double _p1_) : p1(_p1_){
         log_p1 = std::log(p1);
         log_p0 = std::log(1-p1);
       }
+
+      virtual ~Model(){}
+
     public:
       virtual std::pair<Matrix, Vector> generateData(size_t T) = 0;
       virtual Message* initForward() = 0;
@@ -122,70 +131,61 @@ namespace pml {
             : Model(_p1_), alpha(_alpha_){}
   
     public:
-      std::pair<Matrix, Vector> generateData(size_t T) {
-        Vector cps = Vector::zeros(T);                  // change points
-        Matrix pi = Matrix::zeros(alpha.size(), T);     // parameters that generate data
-        Matrix data = Matrix::zeros(alpha.size(), T);   // data
-        Vector pi_0 = dirichlet::rand(alpha);
-        for (size_t t=0; t<T; t++) {
-          // change point
-          if (uniform::rand() < p1) {
+      std::pair<Matrix, Vector> generateData(size_t T) override{
+        Vector cps = Vector::zeros(T);
+        Matrix obs;
+        Vector theta = dirichlet::rand(alpha);
+        for (size_t t=0; t<T; ++t) {
+          if (t > 0 && uniform::rand() < p1) {
             cps(t) = 1;
-            pi.setColumn(t, dirichlet::rand(alpha));
+            theta = dirichlet::rand(alpha);
           }
-          // not a change point
-          else {
-            cps(t) = 0;
-            if (t==0) { pi.setColumn(t, pi_0); }
-            else { pi.setColumn(t, pi.getColumn(t-1)); }
-          }
-          data.setColumn(t, multinomial::rand(pi.getColumn(t),uniform::randi(40,60)));
+          obs.appendColumn(multinomial::rand(theta,uniform::randi(40,60)));
         }
-        return std::make_pair(data, cps);
+        return {obs, cps};
       }
 
-      Message* initForward() {
+      Message* initForward() override{
         Message* msg = new DirichletMessage();
-        DirichletComponent* no_change_comp = new DirichletComponent(alpha, log_p0);
-        DirichletComponent* change_comp = new DirichletComponent(alpha, log_p1);
-        msg->components.push_back(no_change_comp);
-        msg->components.push_back(change_comp);
+        // Append no change component.
+        msg->add_component(new DirichletComponent(alpha, log_p0));
+        // Append change component.
+        msg->add_component(new DirichletComponent(alpha, log_p1));
         return msg;
       }
 
-      Message* initBackward() {
-        Message* ptr = new DirichletMessage(Vector::ones(alpha.size()));
-        return ptr;
+      Message* initBackward() override{
+        return new DirichletMessage(Vector::ones(alpha.size()));
       }
 
-      Message* predict(const Message* message) {
+      Message* predict(const Message* message) override{
         DirichletMessage* dm = copyMessage(message);
-        Vector consts(dm->components.size());
-        for (size_t i=0; i<dm->components.size(); i++) {
+        Vector consts(dm->size());
+        for (size_t i=0; i<dm->size(); i++) {
           consts(i) = dm->components[i]->log_c;
           dm->components[i]->log_c += log_p0;
         }
-        DirichletComponent* dc = new DirichletComponent(alpha, log_p1 + logSumExp(consts));
-        dm->components.push_back(dc);
+        dm->add_component(new DirichletComponent(alpha,
+                                                 log_p1 + logSumExp(consts)));
         return dm;
       };
-  
-      // http://stackoverflow.com/questions/332030/when-should-static-cast-dynamic-cast-const-cast-and-reinterpret-cast-be-used
-      Message* update(const Message* message, const Vector& data) {
+
+
+      Message* update(const Message* message, const Vector& data) override{
         DirichletMessage* dm = copyMessage(message);
-        for (size_t i=0; i<dm->components.size(); ++i) {
-          DirichletComponent* d = static_cast<DirichletComponent*>(dm->components[i]);
-          d->log_c += DirichletComponent::dirMultNormConsant(data,d->alpha);
+        for(Component *c : dm->components){
+          DirichletComponent* d = static_cast<DirichletComponent*>(c);
+          d->log_c += DirichletComponent::dirMultNormConsant(data, d->alpha);
           d->alpha += data;
         }
         return dm;
       }
 
-      std::pair<Vector,double> eval_mean_cpp(const Message* message) {
+      std::pair<Vector,double> eval_mean_cpp(const Message* message) override{
         Vector consts;
         Matrix norm_params;
-        for(size_t i=0; i < message->components.size(); ++i) {
-          DirichletComponent* d = static_cast<DirichletComponent*>(message->components[i]);
+        for(Component *c : message->components) {
+          DirichletComponent *d = static_cast<DirichletComponent *>(c);
           consts.append(d->log_c);
           norm_params.appendColumn(normalize(d->alpha));
         }
@@ -195,7 +195,8 @@ namespace pml {
         return std::make_pair(mean, norm_const.last());
       }
 
-      std::tuple<Message*,Vector,double> multiply(const Message* forward, const Message* backward) {
+      std::tuple<Message*,Vector,double> multiply(const Message* forward,
+                                                  const Message* backward) override {
         Vector noChangeNormConstant, changeNormConstant;
         Message* smoothed_msg = new DirichletMessage();
         // no change particles
@@ -203,7 +204,7 @@ namespace pml {
           DirichletComponent* fc = static_cast<DirichletComponent*>(forward->components[i]);
           for (size_t j=0; j<backward->components.size(); j++) {
             DirichletComponent* bc = static_cast<DirichletComponent*>(backward->components[j]);
-            DirichletComponent* newComp = DirichletComponent::multiply(fc,bc);
+            DirichletComponent* newComp = DirichletComponent::multiply(fc, bc);
             noChangeNormConstant.append(newComp->log_c);
             smoothed_msg->components.push_back(newComp);
           }
@@ -226,9 +227,9 @@ namespace pml {
     private:
       DirichletMessage* copyMessage(const Message* message) {
         DirichletMessage* dm = new DirichletMessage();
-        for (size_t i=0; i<message->components.size(); ++i) {
-            DirichletComponent* d = static_cast<DirichletComponent*>(message->components[i]);
-            dm->components.push_back(new DirichletComponent(d->alpha, d->log_c));
+        for(Component *c : message->components){
+          DirichletComponent* d = static_cast<DirichletComponent*>(c);
+          dm->add_component(new DirichletComponent(d->alpha,d->log_c));
         }
         return dm;
       }
@@ -281,22 +282,19 @@ namespace pml {
   };
 
 
-  /*****************************
-  ****** FORWARD-BACKWARD ******
-  *****************************/
+  // ----------- FORWARD-BACKWARD ----------- //
+
   class ForwardBackward{
     public:
-      ForwardBackward(Model *model_, int lag_=0,
-                      int max_components_=100):
-              model(model_), lag(lag_),
-              max_components(max_components_) { }
+      ForwardBackward(Model *model_, int lag_=0, int max_components_=100):
+              model(model_), lag(lag_), max_components(max_components_) {}
 
       ~ForwardBackward() {
-        for(Message* m : alpha_predict) { delete m; }
-        for(Message* m : alpha_update) { delete m; }
-        for(Message* m : beta_postdict) { delete m; }
-        for(Message* m : beta_update) { delete m; }
-        for(Message* m : smoothed_msgs) { delete m; }
+        freeVec(alpha_predict);
+        freeVec(alpha_update);
+        freeVec(beta_postdict);
+        freeVec(beta_update);
+        freeVec(smoothed_msgs);
       }
 
     // forward-backward in general
@@ -304,30 +302,25 @@ namespace pml {
       void oneStepForward(const Vector& obs) {
         // predict step
         if (alpha_predict.size() == 0) {
-          Message* message = model->initForward();        // start forward recursion
-          alpha_predict.push_back(message);
+          // start forward recursion
+          alpha_predict.push_back(model->initForward());
         }
         else {
           // calculate \alpha_{t+1,t}
-          Message* new_pred_msg = model->predict(alpha_update.back());
-          alpha_predict.push_back(new_pred_msg);
+          alpha_predict.push_back(model->predict(alpha_update.back()));
         }
         // update step, calculate \alpha_{t+1,t+1}
-        Message* new_update_msg = model->update(alpha_predict.back(), obs);
-        alpha_update.push_back(new_update_msg);
+        alpha_update.push_back(model->update(alpha_predict.back(), obs));
       }
 
       void oneStepBackward(const Vector& obs) {
         if (beta_postdict.size()==0) {
-          Message* message = model->initBackward();
-          beta_postdict.push_back(message);
+          beta_postdict.push_back(model->initBackward());
         }
         else {
-          Message* new_pred_msg = model->predict(beta_update.back());
-          beta_postdict.push_back(new_pred_msg);
+          beta_postdict.push_back(model->predict(beta_update.back()));
         }
-        Message* new_update_msg = model->update(beta_postdict.back(), obs);
-        beta_update.push_back(new_update_msg);
+        beta_update.push_back(model->update(beta_postdict.back(), obs));
       }
 
       void forwardRecursion(const Matrix& data) {
@@ -340,8 +333,8 @@ namespace pml {
       }
 
       void backwardRecursion(const Matrix& data) {
-        for (size_t i=data.ncols(); i>0; i--) {
-          oneStepBackward(data.getColumn(i-1));
+        for (size_t i=data.ncols()-1; i>=0; i--) {
+          oneStepBackward(data.getColumn(i));
           if ((int) beta_update.back()->components.size() > max_components) {
             prun(beta_update.back());
           }
@@ -352,9 +345,8 @@ namespace pml {
         ForwardBackward fb(model);
         fb.forwardRecursion(data);
         Vector consts;
-        std::vector<Component*> comps = fb.alpha_update.back()->components;
-        for (size_t i=0; i<comps.size(); i++) {
-          consts.append(comps[i]->log_c);
+        for(Component* component: fb.alpha_update.back()->components){
+          consts.append(component->log_c);
         }
         return logSumExp(consts);
       }
@@ -363,12 +355,10 @@ namespace pml {
         // run recursions
         forwardRecursion(data);
         backwardRecursion(data);
-        // init variables to be returned
-        std::tuple<Message*, Vector, double> res;
         size_t T = data.ncols();
         // t_0, t_1, ... t_{T-2}
         for (size_t t=0; t<T-1; t++) {
-          res = model->multiply(alpha_update[t],beta_postdict[T-t-1]);
+          auto res = model->multiply(alpha_update[t],beta_postdict[T-t-1]);
           smoothed_msgs.push_back(std::get<0>(res));
           mean.appendColumn(std::get<1>(res));
           cpp.append(std::get<2>(res));
@@ -380,15 +370,19 @@ namespace pml {
         Message* msg = new Message();
         for(Component* comp : alpha_update.back()->components) {
           DirichletComponent* d = static_cast<DirichletComponent*>(comp);
-          msg->components.push_back(new DirichletComponent(d->alpha, d->log_c));
+          msg->add_component(new DirichletComponent(d->alpha, d->log_c));
         }
         smoothed_msgs.push_back(msg);
       }
+
     private:
-      //ToDO: Burada kocaman bir leak var
-      void freeVec(std::vector<Message*> vec) {
-          for(Message* m : vec) { delete m; }
+      void freeVec(std::vector<Message*> &vec) {
+        for(Message* m : vec) {
+          delete m;
+        }
+        vec.clear();
       }
+
     // netas-related code
     public:
       size_t getTime() { return data.ncols(); }
@@ -444,12 +438,12 @@ namespace pml {
         }
         // CHECK HERE AGAIN: posterior is calculated for t = T - Lag
         size_t t = T - lag;
-        std::tuple<Message*, Vector,double> res = model->multiply(alpha_update[t], _beta_postdict.back());
+        auto res = model->multiply(alpha_update[t], _beta_postdict.back());
         delete std::get<0>(res);
         mean.setColumn(t, std::get<1>(res));
         cpp(t) = std::get<2>(res);
-        for(Message* m:_beta_postdict) { delete m; }
-        for(Message* m:_beta_update) { delete m; }
+        freeVec(_beta_postdict);
+        freeVec(_beta_update);
       }
 
     public:

@@ -9,7 +9,8 @@ const int T = 100;
 const int LAG = 10;
 
 // path to python3 binaries
-const string PYTHON_PATH = "/home/cagatay/anaconda3/bin/python";
+//const string PYTHON_PATH = "/home/cagatay/anaconda3/bin/python";
+const string PYTHON_PATH = "python";
 
 pair<Matrix,Vector> genData() {
   double c = 0.05;
@@ -22,7 +23,7 @@ void visualize(const Matrix& obs, const Vector& cps, ForwardBackward& fb) {
   fb.cpp.saveTxt("/tmp/cpp.txt");
   fb.mean.saveTxt("/tmp/mean.txt");
   cps.saveTxt("/tmp/real_cps.txt");
-  cout << system( (PYTHON_PATH + " ../etc/hist_plot.py").c_str() );
+  //cout << system( (PYTHON_PATH + " ../etc/hist_plot.py").c_str() );
 }
 
 void offline(const Matrix& obs, ForwardBackward& fb) {
