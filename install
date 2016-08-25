@@ -8,3 +8,4 @@ cp src/pml_bcpm.hpp /usr/local/include/pml
 cp src/pml_linalg.hpp /usr/local/include/pml
 cp src/pml_nmf.hpp /usr/local/include/pml
 cp src/pml_rand.hpp /usr/local/include/pml
+cp src/pml_utils.hpp /usr/local/include/pml
