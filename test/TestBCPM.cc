@@ -8,10 +8,6 @@ const int K = 10;
 const int T = 100;
 const int LAG = 10;
 
-// path to python3 binaries
-//const string PYTHON_PATH = "/home/cagatay/anaconda3/bin/python";
-const string PYTHON_PATH = "python";
-
 pair<Matrix,Vector> genData() {
   double c = 0.05;
   Vector alpha = Vector::ones(K);
@@ -23,7 +19,7 @@ void visualize(const Matrix& obs, const Vector& cps, ForwardBackward& fb) {
   fb.cpp.saveTxt("/tmp/cpp.txt");
   fb.mean.saveTxt("/tmp/mean.txt");
   cps.saveTxt("/tmp/real_cps.txt");
-  //cout << system( (PYTHON_PATH + " ../etc/hist_plot.py").c_str() );
+  cout << system("python3 ../etc/hist_plot.py");
 }
 
 void offline(const Matrix& obs, ForwardBackward& fb) {
@@ -47,18 +43,15 @@ int main() {
   DirichletModel dirichletModel(0.01, uniform::rand(K));
   ForwardBackward fb(&dirichletModel, LAG);
 
-  /*
-   * you can analyze the data either in offline mode
-   * or on streaming data. if you use the latter,
-   * you need to set the LAG field (to an integer)
-   * in ForwardBackward object for fixed lag smoothing.
-   */
+  // You can analyze the data either in offline mode or on streaming data.
+  // If you use the latter, you need to set the LAG field (to an integer)
+  // in ForwardBackward object for fixed lag smoothing.
 
   // offline
-  offline(obs, fb);
+  offline(obs, fb);      // Runs forward - backward
 
   // on streaming data
-  // streaming(obs,fb);
+  // streaming(obs,fb);  // Runs forward - fixed lag smoothing
 
   // visualization
   visualize(obs, cps, fb);
