@@ -1,11 +1,17 @@
 #ifndef MATLIB_PML_BCPM_H
 #define MATLIB_PML_BCPM_H
+#define DECLARE_TYPE_NAME(x) template<> const char *type_name<x>::name = #x;
+#define GET_TYPE_NAME(x) (type_name<typeof(x)>::name)
 
 #include "pml.hpp"
 #include "pml_rand.hpp"
+#include <typeinfo>
 
 namespace pml {
-
+    template <typename T> class type_name {
+      public:
+        static const char *name;
+    };
   // ----------- COMPONENTS ----------- //
 
     class Component {
@@ -59,6 +65,27 @@ namespace pml {
       ~GammaComponent() {}
 
     public:
+      static GammaComponent* multiply(const GammaComponent* comp1,
+                                      const GammaComponent* comp2) {
+          double c = comp1->log_c  + comp2->log_c +
+                     gamGamNormConsant(comp1->a, comp1->b, comp2->a, comp2->b);
+          double a = comp1->a + comp2->a - 1;
+          double b = comp1->b + comp2->b;
+          return new GammaComponent(a, b, c);
+      }
+
+      static double gamPoNormConsant(const Vector &data,
+                                     const double a, const double b) {
+          return  gamGamNormConsant(data.first()+1, 1, a, b);
+      }
+
+      static double gamGamNormConsant(const double a1, const double b1, const double a2, const double b2){
+          return  std::lgamma(a1+a2-1) - std::lgamma(a1) +
+                  a1 * std::log(b1/(b1+b2)) - std::lgamma(a2) +
+                  a2 * std::log(b2/(b1+b2)) + std::log(b1+b2);
+      }
+
+    public:
       double a;
       double b;
   };
@@ -93,6 +120,9 @@ namespace pml {
   };
 
   class GammaMessage : public Message {
+    public:
+      GammaMessage() {}
+
     public:
       GammaMessage(double a, double b) {
         add_component(new GammaComponent(a,b,0));
@@ -242,38 +272,109 @@ namespace pml {
     public:
       GammaModel(double _p1_, double a_, double b_)
             : Model(_p1_), a(a_), b(b_){}
-  
+
     public:
-      std::pair<Matrix, Vector> generateData(size_t T) {
-        return std::make_pair(uniform::rand(20,20),uniform::rand(20));
+      std::pair<Matrix, Vector> generateData(size_t T) override{
+          Vector cps = Vector::zeros(T);
+          Matrix obs;
+          double theta = gamma::rand(a, b);
+          for (size_t t=0; t<T; ++t) {
+              if (t > 0 && uniform::rand() < p1) {
+                  cps(t) = 1;
+                  theta = gamma::rand(a, b);
+              }
+              obs.appendColumn(poisson::rand(theta, 1));
+          }
+          return {obs, cps};
       }
 
-      Message* initForward() {
-        return new GammaMessage(a,b);
+      Message* initForward() override{
+          Message* msg = new GammaMessage();
+          // Append no change component.
+          msg->add_component(new GammaComponent(a, b, log_p0));
+          // Append change component.
+          msg->add_component(new GammaComponent(a, b, log_p1));
+          return msg;
       }
 
-      Message* initBackward() {
-        return new GammaMessage(a,b);
+      Message* initBackward() override{
+          return new GammaMessage(a, b);
       }
 
-      Message* predict(const Message* message) {
-        return new GammaMessage(a,b);
-        // ToDo: Taha'nin ellerinden oper.
+      Message* predict(const Message* message) override{
+          GammaMessage* gm = copyMessage(message);
+          Vector consts(gm->size());
+          for (size_t i=0; i<gm->size(); i++) {
+              consts(i) = gm->components[i]->log_c;
+              gm->components[i]->log_c += log_p0;
+          }
+          gm->add_component(new GammaComponent(a, b, log_p1 + logSumExp(consts)));
+          return gm;
+      };
+
+      Message* update(const Message* message, const Vector& data) override{
+          GammaMessage* gm = copyMessage(message);
+          for(Component *c : gm->components){
+              GammaComponent* g = static_cast<GammaComponent*>(c);
+              g->log_c += GammaComponent::gamPoNormConsant(data, g->a, g->b);
+              g->a += data.first();
+              g->b += 1;
+          }
+          return gm;
       }
 
-      Message* update(const Message* message, const Vector& data) {
-        return new GammaMessage(a,b);
-        // ToDo: Taha'nin ellerinden oper.
+      std::pair<Vector,double> eval_mean_cpp(const Message* message) override{
+          Vector consts;
+          Vector norm_params;
+          for(Component *c : message->components) {
+              GammaComponent *g = static_cast<GammaComponent *>(c);
+              consts.append(g->log_c);
+              norm_params.append(g->a/g->b);
+          }
+          Vector exp_consts = exp(consts - max(consts));
+          Vector norm_const = normalize(exp_consts);
+          Vector mean;
+          mean.append(dot(norm_const,norm_params));
+          return std::make_pair(mean, norm_const.last());
       }
 
-      std::pair<Vector,double> eval_mean_cpp(const Message* message) {
-        return std::make_pair(Vector::ones(10),10);
-        // ToDo: Taha'nin ellerinden oper.
-      }
+      std::tuple<Message*,Vector,double> multiply(const Message* forward,
+                                                  const Message* backward) override {
+          Vector noChangeNormConstant, changeNormConstant;
+          Message* smoothed_msg = new GammaMessage();
+          // no change particles
+          for (size_t i=0; i<forward->components.size()-1; i++) {
+              GammaComponent* fc = static_cast<GammaComponent*>(forward->components[i]);
+              for (size_t j=0; j<backward->components.size(); j++) {
+                  GammaComponent* bc = static_cast<GammaComponent*>(backward->components[j]);
+                  GammaComponent* newComp = GammaComponent::multiply(fc, bc);
+                  noChangeNormConstant.append(newComp->log_c);
+                  smoothed_msg->components.push_back(newComp);
+              }
+          }
+          // change particles
+          GammaComponent* last = static_cast<GammaComponent*>(forward->components.back());
+          for (size_t i=0; i<backward->components.size(); i++) {
+              GammaComponent *bc = static_cast<GammaComponent *>(backward->components[i]);
+              GammaComponent* newComp = GammaComponent::multiply(last, bc);
+              changeNormConstant.append(newComp->log_c);
+              smoothed_msg->components.push_back(newComp);
+          }
+          Vector mean = eval_mean_cpp(smoothed_msg).first;
+          double logPNoChange = logSumExp(noChangeNormConstant);
+          double logPChange = logSumExp(changeNormConstant);
+          Vector tmp = normalizeExp(Vector{logPChange, logPNoChange});
+          return std::make_tuple(smoothed_msg,mean,tmp(0));
+      };
 
-      std::tuple<Message*, Vector,double> multiply(const Message* forward, const Message* backward) {
-        return std::make_tuple(new GammaMessage(1,2), Vector::ones(10),10);
-        // ToDo: Taha'nin ellerinden oper.
+    private:
+      GammaMessage* copyMessage(const Message* message) {
+          GammaMessage* gm = new GammaMessage();
+          for(Component *c : message->components){
+              GammaComponent* g = static_cast<GammaComponent*>(c);
+              gm->add_component(new GammaComponent(g->a,g->b,g->log_c));
+          }
+          return gm;
       }
   
     public:
@@ -368,9 +469,19 @@ namespace pml {
         mean.appendColumn(mean_cpp.first);
         cpp.append(mean_cpp.second);
         Message* msg = new Message();
-        for(Component* comp : alpha_update.back()->components) {
-          DirichletComponent* d = static_cast<DirichletComponent*>(comp);
-          msg->add_component(new DirichletComponent(d->alpha, d->log_c));
+
+        if(dynamic_cast<DirichletModel*>(model) != 0x0){
+          for(Component* comp : alpha_update.back()->components) {
+            DirichletComponent* d = static_cast<DirichletComponent*>(comp);
+            msg->add_component(new DirichletComponent(d->alpha, d->log_c));
+          }
+        }else if(dynamic_cast<GammaModel*>(model) != 0x0){
+          for(Component* comp : alpha_update.back()->components) {
+            GammaComponent* d = static_cast<GammaComponent*>(comp);
+            msg->add_component(new GammaComponent(d->a, d->b, d->log_c));
+        }
+        }else{
+            std::cout << "Given Model Type is not known." << std::endl;
         }
         smoothed_msgs.push_back(msg);
       }

@@ -14,12 +14,17 @@ pair<Matrix,Vector> genData() {
   return  DirichletModel(c, alpha).generateData(T);
 }
 
+pair<Matrix,Vector> genDataPoisson() {
+  double c = 0.05;
+  return  GammaModel(c, 10.0, 1.0).generateData(T);
+}
+
 void visualize(const Matrix& obs, const Vector& cps, ForwardBackward& fb) {
   obs.saveTxt("/tmp/obs.txt");
   fb.cpp.saveTxt("/tmp/cpp.txt");
   fb.mean.saveTxt("/tmp/mean.txt");
   cps.saveTxt("/tmp/real_cps.txt");
-  cout << system("python3 ../etc/hist_plot.py");
+//  cout << system("python ../etc/hist_plot.py");
 }
 
 void offline(const Matrix& obs, ForwardBackward& fb) {
@@ -35,13 +40,14 @@ void streaming(const Matrix& obs, ForwardBackward& fb)  {
 int main() {
   // data generation
   // feature vectors stay in columns
-  pair<Matrix,Vector> data = genData();
+  pair<Matrix,Vector> data = genDataPoisson();
   Matrix obs = data.first;
   Vector cps = data.second;
 
   // model
-  DirichletModel dirichletModel(0.01, uniform::rand(K));
-  ForwardBackward fb(&dirichletModel, LAG);
+//  DirichletModel model(0.01, uniform::rand(K));
+  GammaModel model(0.2, 1.0, 1.0);
+  ForwardBackward fb(&model, LAG);
 
   // You can analyze the data either in offline mode or on streaming data.
   // If you use the latter, you need to set the LAG field (to an integer)
