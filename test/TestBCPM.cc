@@ -61,7 +61,7 @@ void test_gp_model(){
   Matrix obs;
   Vector cps;
   double c = 0.05;
-  double a = 10.0;
+  double a = 1.0;
   double b = 1.0;
   Vector alpha = Vector::ones(K);
   std::tie(obs, cps) =  GammaModel(c, a, b).generateData(T);
