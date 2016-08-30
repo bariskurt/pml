@@ -19,12 +19,11 @@ pair<Matrix,Vector> genDataPoisson() {
   return  GammaModel(c, 10.0, 1.0).generateData(T);
 }
 
-void visualize(const Matrix& obs, const Vector& cps, ForwardBackward& fb) {
+void save(const Matrix& obs, const Vector& cps, ForwardBackward& fb) {
   obs.saveTxt("/tmp/obs.txt");
   fb.cpp.saveTxt("/tmp/cpp.txt");
   fb.mean.saveTxt("/tmp/mean.txt");
   cps.saveTxt("/tmp/real_cps.txt");
-//  cout << system("python ../etc/hist_plot.py");
 }
 
 void offline(const Matrix& obs, ForwardBackward& fb) {
@@ -37,30 +36,52 @@ void streaming(const Matrix& obs, ForwardBackward& fb)  {
   }
 }
 
-int main() {
-  // data generation
-  // feature vectors stay in columns
-  pair<Matrix,Vector> data = genDataPoisson();
-  Matrix obs = data.first;
-  Vector cps = data.second;
+void test_dm_model(){
 
-  // model
-//  DirichletModel model(0.01, uniform::rand(K));
-  GammaModel model(0.2, 1.0, 1.0);
+  // Generate data:
+  Matrix obs;
+  Vector cps;
+  double c = 0.05;
+  Vector alpha = Vector::ones(K);
+  std::tie(obs, cps) =  DirichletModel(c, alpha).generateData(T);
+
+  // Estimate
+  DirichletModel model(c, uniform::rand(K));
   ForwardBackward fb(&model, LAG);
+  streaming(obs,fb);  // Runs forward - fixed lag smoothing
 
-  // You can analyze the data either in offline mode or on streaming data.
-  // If you use the latter, you need to set the LAG field (to an integer)
-  // in ForwardBackward object for fixed lag smoothing.
+  // Visualize
+  save(obs, cps, fb);
+  cout << system("python3 ../etc/plot_dm_bcpm.py");
+}
 
-  // offline
-  offline(obs, fb);      // Runs forward - backward
+void test_gp_model(){
 
-  // on streaming data
-  // streaming(obs,fb);  // Runs forward - fixed lag smoothing
+  // Generate data:
+  Matrix obs;
+  Vector cps;
+  double c = 0.05;
+  double a = 10.0;
+  double b = 1.0;
+  Vector alpha = Vector::ones(K);
+  std::tie(obs, cps) =  GammaModel(c, a, b).generateData(T);
 
-  // visualization
-  visualize(obs, cps, fb);
+  // Estimate
+  GammaModel model(c, a, b);
+  ForwardBackward fb(&model, LAG);
+  streaming(obs,fb);  // Runs forward - fixed lag smoothing
+
+  // Visualize
+  save(obs, cps, fb);
+  cout << system("python3 ../etc/plot_gp_bcpm.py");
+}
+
+
+int main() {
+
+  //test_dm_model();
+
+  test_gp_model();
 
   return 0;
 }
