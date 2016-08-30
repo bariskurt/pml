@@ -8,17 +8,6 @@ const int K = 10;
 const int T = 100;
 const int LAG = 10;
 
-pair<Matrix,Vector> genData() {
-  double c = 0.05;
-  Vector alpha = Vector::ones(K);
-  return  DirichletModel(c, alpha).generateData(T);
-}
-
-pair<Matrix,Vector> genDataPoisson() {
-  double c = 0.05;
-  return  GammaModel(c, 10.0, 1.0).generateData(T);
-}
-
 void save(const Matrix& obs, const Vector& cps, ForwardBackward& fb) {
   obs.saveTxt("/tmp/obs.txt");
   fb.cpp.saveTxt("/tmp/cpp.txt");
