@@ -17,3 +17,4 @@ def saveTxt(filename, X, format = '%.6f'):
             f.write('%d\n' % X.shape[i])
         temp = X.reshape(np.product(X.shape), order='F')
         np.savetxt(f, temp, fmt = format)
+
