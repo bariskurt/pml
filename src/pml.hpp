@@ -932,6 +932,14 @@ namespace pml {
     return result;
   }
 
+  inline Matrix fliplr(const Matrix &m){
+    Matrix result(m.nrows(), m.ncols());
+    for(size_t i=0; i < m.ncols(); ++i){
+      result.setColumn(result.ncols()-i-1, m.getColumn(i));
+    }
+    return result;
+  }
+
   inline double sum(const Vector &x){
     double result = 0;
     for (auto &value: x) {
