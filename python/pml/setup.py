@@ -2,8 +2,9 @@ from distutils.core import setup
 
 setup(
     name='pml', 
-    version='0.1', 
+    version='1.0', 
     author='Baris Kurt', 
     author_email='bariskurt@gmail.com', 
-    url='www.bariskurt.com'
+    url='www.bariskurt.com',
+    py_modules=['pml']
 )

@@ -122,7 +122,7 @@ namespace pml {
 
   } // Poisson
 
-  namespace categorial {
+  namespace categorical {
 
     inline unsigned rand(const Vector &v) {
       Vector tmp = normalize(v);

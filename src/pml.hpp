@@ -23,14 +23,12 @@ namespace pml {
     return fabs(a - b) < 1e-6;
   }
 
-
   inline void ASSERT_TRUE(bool condition, const std::string &message) {
     if( !condition ) {
       std::cout << "FATAL ERROR: " << message << std::endl;
       exit(-1);
     }
   }
-
 
   struct Range{
     Range(int start_, int stop_, int step_=1)
@@ -39,7 +37,6 @@ namespace pml {
     int stop;
     int step;
   };
-
 
   class Vector {
     public:

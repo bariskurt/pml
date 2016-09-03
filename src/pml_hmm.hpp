@@ -103,19 +103,19 @@ namespace hmm {
       }
 
       // Generates a sequence of length T.
-      DiscreteHMMSequence generateSequence(size_t T) {
-        DiscreteHMMSequence seq(T);
+      std::pair<Vector, Vector> generateSequence(size_t T) {
+        Vector states, obs;
         unsigned current_state;
         for (size_t t=0; t<T; t++) {
           if( t == 0){
-            current_state = categorial::rand(pi);
+            current_state = categorical::rand(pi);
           } else {
-            current_state = categorial::rand(A.getColumn(current_state));
+            current_state = categorical::rand(A.getColumn(current_state));
           }
-          seq.states(t) = current_state;
-          seq.obs(t) = categorial::rand(B.getColumn(current_state));
+          states.append(current_state);
+          obs.append(categorical::rand(B.getColumn(current_state)));
         }
-        return seq;
+        return {states, obs};
       }
 
       // Returns log of alpha messages
