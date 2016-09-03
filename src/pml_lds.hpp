@@ -6,30 +6,30 @@
 
 namespace pml {
 
+  struct GammaPotential{
+    GammaPotential(double a_, double b_, double l_ = 0)
+            : a(a_), b(b_), l(l_) {}
+
+    void operator*=(const GammaPotential &other){
+      *this = this->operator*(other);
+    }
+
+    GammaPotential operator*(const GammaPotential &other){
+      double l2 = std::lgamma(a + other.a - 1)
+                  - std::lgamma(a) - std::lgamma(other.a)
+                  + std::log(b + other.b)
+                  + a * std::log(b/(b + other.b))
+                  + other.a * std::log(other.b/(b + other.b));
+      return GammaPotential(a + other.a - 1,
+                            b + other.b,
+                            l + other.l + l2);
+    }
+    double a;
+    double b;
+    double l;   //log of normalizing constant
+  };
+
   class PoissonResetModel {
-
-    struct GammaPotential{
-        GammaPotential(double a_, double b_, double l_ = 0)
-                : a(a_), b(b_), l(l_) {}
-
-        void operator*=(const GammaPotential &other){
-          *this = this->operator*(other);
-        }
-
-        GammaPotential operator*(const GammaPotential &other){
-          double l2 = std::lgamma(a + other.a - 1)
-                      - std::lgamma(a) - std::lgamma(other.a)
-                      + std::log(b + other.b)
-                      + a * std::log(b/(b + other.b))
-                      + other.a * std::log(other.b/(b + other.b));
-          return GammaPotential(a + other.a - 1,
-                                b + other.b,
-                                l + other.l + l2);
-        }
-        double a;
-        double b;
-        double l;   //log of normalizing constant
-    };
 
     public:
       PoissonResetModel(double p1_ = 0.01, double a0_ = 1, double b0_ = 1)
@@ -106,6 +106,33 @@ namespace pml {
         //double log_p1 = std::log(p1);
         //double log_p0 = std::log(1-p1);
         return estimates;
+      }
+
+    private:
+      double p1;  // probability of change
+      double a0;  // gamma prior
+      double b0;  // gamma prior
+  };
+
+
+  class CoupledPoissonResetModel {
+
+    public:
+      CoupledPoissonResetModel(double p1_=0.01, double a0_=1, double b0_=1)
+              : p1(p1_), a0(a0_), b0(b0_){}
+
+      // Generate a sequence of length T
+      std::pair<Matrix, Matrix> generateSequence(size_t T){
+        Matrix states, obs;
+        Vector lambda = gamma::rand(a0, b0, 2);
+        for (size_t t=0; t<T; t++) {
+          if (t > 0 && uniform::rand() < p1) {
+            lambda = gamma::rand(a0, b0, 2);
+          }
+          states.appendColumn(lambda);
+          obs.appendColumn(poisson::rand(lambda));
+        }
+        return {states, obs};
       }
 
     private:

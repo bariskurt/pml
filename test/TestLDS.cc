@@ -27,7 +27,17 @@ void testPoissonResetModel(){
   std::cout << system("python3 ../test/python/visualizePoissonReset.py");
 }
 
+void testCoupledPoissonResetModel(){
+  CoupledPoissonResetModel m(0.05, 10, 1);
+  auto seq = m.generateSequence(250);
+  seq.first.saveTxt("/tmp/states.txt");
+  seq.second.saveTxt("/tmp/obs.txt");
+
+  std::cout << system("python3 ../test/python/visualizeCoupledPoissonReset.py");
+}
+
 int main(){
-  testPoissonResetModel();
+  //testPoissonResetModel();
+  testCoupledPoissonResetModel();
   return 0;
 }
