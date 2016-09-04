@@ -8,6 +8,7 @@ const int K = 10;
 const int T = 100;
 const int LAG = 10;
 
+/*
 void save(const Matrix& obs, const Vector& cps, ForwardBackward& fb) {
   obs.saveTxt("/tmp/obs.txt");
   fb.cpp.saveTxt("/tmp/cpp.txt");
@@ -49,6 +50,7 @@ void test_dm_model(){
   cout << system("python3 ../etc/plot_dm_bcpm.py");
 }
 
+
 void test_gp_model(){
 
   double c = 0.05;
@@ -76,12 +78,40 @@ void test_gp_model(){
   cout << system("python3 ../etc/plot_gp_bcpm.py");
 }
 
+ */
+
+void test_gp_new(){
+
+  // Generate Model
+  Model<GammaPotential, PoissonRandom> model(GammaPotential(10, 1), 0.02);
+
+  // Generate Sequence
+  Matrix states, obs;
+  std::tie(states, obs) = model.generateData(100);
+
+  // Filtering
+  Matrix mean;
+  Vector cpp;
+  ForwardBackward<GammaPotential, PoissonRandom> fb(model);
+  std::tie(mean, cpp) = fb.smooth(obs);
+
+  // Save Results
+  states.saveTxt("/tmp/states.txt");
+  obs.saveTxt("/tmp/obs.txt");
+  mean.saveTxt("/tmp/mean.txt");
+  cpp.saveTxt("/tmp/cpp.txt");
+
+  //Visualize
+  cout << system("python3 ../test/python/visualizePoissonReset.py");
+}
 
 int main() {
 
   //test_dm_model();
 
-  test_gp_model();
+  //test_gp_model();
+
+  test_gp_new();
 
   return 0;
 }

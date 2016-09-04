@@ -1,159 +1,321 @@
 #ifndef MATLIB_PML_BCPM_H
 #define MATLIB_PML_BCPM_H
-#define DECLARE_TYPE_NAME(x) template<> const char *type_name<x>::name = #x;
-#define GET_TYPE_NAME(x) (type_name<typeof(x)>::name)
 
 #include "pml.hpp"
 #include "pml_rand.hpp"
-#include <typeinfo>
+
+#include <algorithm>
 
 namespace pml {
-    template <typename T> class type_name {
-      public:
-        static const char *name;
-    };
   // ----------- COMPONENTS ----------- //
 
-    class Component {
-    public:
-      Component(double _log_c_) : log_c(_log_c_) {}
-      virtual ~Component() {}
-    public:
-      double log_c;
-    };
-
-  class DirichletComponent : public Component {
+  class DirichletPotential{
 
     public:
-      DirichletComponent(const Vector& _alpha_, double _log_c_) :
-          Component(_log_c_), alpha(_alpha_) {}
-
-      ~DirichletComponent() {}
+      DirichletPotential(const Vector& alpha_, double log_c_) :
+              alpha(alpha_), log_c(log_c_) {}
 
     public:
-      static DirichletComponent* multiply(const DirichletComponent* comp1,
-                                          const DirichletComponent* comp2) {
-        double c = comp1->log_c  + comp2->log_c +
-                    dirDirNormConsant(comp1->alpha, comp2->alpha);
-        Vector alpha = comp1->alpha + comp2->alpha - 1;
-        return new DirichletComponent(alpha,c);
+      void operator*=(const DirichletPotential &p){
+        *this = this->operator*(p);
       }
 
-      static double dirMultNormConsant(const Vector &data,
-                                       const Vector &params) {
-        return  std::lgamma(sum(data) + 1) - sum(lgamma(data+1)) +
-                std::lgamma(sum(params)) - sum(lgamma(params)) +
-                sum(lgamma(data + params)) - std::lgamma(sum(data + params));
+      DirichletPotential operator*(const DirichletPotential &p){
+
+        double delta = std::lgamma(sum(alpha)) - sum(lgamma(alpha)) +
+                       std::lgamma(sum(p.alpha)) - sum(lgamma(p.alpha)) +
+                       sum(lgamma(alpha + p.alpha-1)) -
+                       std::lgamma(sum(alpha + p.alpha -1));
+
+        return DirichletPotential(alpha + p.alpha - 1,
+                                  log_c + p.log_c + delta);
       }
 
-      static double dirDirNormConsant(const Vector &params1,
-                                      const Vector &params2){
-        return  std::lgamma(sum(params1)) - sum(lgamma(params1)) +
-                std::lgamma(sum(params2)) - sum(lgamma(params2)) +
-                sum(lgamma(params1 + params2 -1)) -
-                std::lgamma(sum(params1 + params2 -1));
+      Vector rand() const{
+        return dirichlet::rand(alpha);
+      }
+
+      Vector mean() const{
+        return alpha;
       }
 
     public:
       Vector alpha;
+      double log_c;   //log of normalizing constant
   };
 
-  class GammaComponent : public Component {
+  class GammaPotential{
     public:
-      GammaComponent(double _a_, double _b_, double _log_c_)
-          : Component(_log_c_), a(_a_), b(_b_) {}
-      ~GammaComponent() {}
+      GammaPotential(double a_, double b_, double log_c_ = 0)
+              : a(a_), b(b_), log_c(log_c_) {}
 
     public:
-      static GammaComponent* multiply(const GammaComponent* comp1,
-                                      const GammaComponent* comp2) {
-          double c = comp1->log_c  + comp2->log_c +
-                     gamGamNormConsant(comp1->a, comp1->b, comp2->a, comp2->b);
-          double a = comp1->a + comp2->a - 1;
-          double b = comp1->b + comp2->b;
-          return new GammaComponent(a, b, c);
+      void operator*=(const GammaPotential &other){
+        *this = this->operator*(other);
       }
 
-      static double gamPoNormConsant(const Vector &data,
-                                     const double a, const double b) {
-          return  gamGamNormConsant(data.first()+1, 1, a, b);
+      GammaPotential operator*(const GammaPotential &other){
+        double delta = std::lgamma(a + other.a - 1)
+                       - std::lgamma(a) - std::lgamma(other.a)
+                       + std::log(b + other.b)
+                       + a * std::log(b/(b + other.b))
+                       + other.a * std::log(other.b/(b + other.b));
+        return GammaPotential(a + other.a - 1,
+                              b + other.b,
+                              log_c + other.log_c + delta);
       }
 
-      static double gamGamNormConsant(const double a1, const double b1, const double a2, const double b2){
-          return  std::lgamma(a1+a2-1) - std::lgamma(a1) +
-                  a1 * std::log(b1/(b1+b2)) - std::lgamma(a2) +
-                  a2 * std::log(b2/(b1+b2)) + std::log(b1+b2);
+      Vector rand() const{
+        return gamma::rand(a, b, 1);
+      }
+
+      Vector mean() const{
+        return Vector(1, a / b);
+      }
+
+      void update(const Vector &obs){
+        this->operator*=(GammaPotential(obs.first()+1, 1));
       }
 
     public:
       double a;
       double b;
+      double log_c;   //log of normalizing constant
   };
-
   // ----------- MESSAGES----------- //
 
+  template <class P>
   class Message {
-    public:
-      virtual ~Message() {
-        for (Component* c : components) delete c;
-      }
 
+    public:
       size_t size() {
         return components.size();
       }
 
-      void add_component(Component* component){
-        components.push_back(component);
+      void add_component(const P &potential){
+        components.push_back(potential);
+      }
+
+      void add_component(const P &potential, double log_c){
+        components.push_back(potential);
+        components.back().log_c = log_c;
+      }
+
+      Message<P> operator*(const Message<P> m1, const Message<P> m2){
+        Message<P> msg;
+        // no change particles
+        for (size_t i=0; i < m1.size()-1; ++i) {
+          for (size_t j=0; j < m2.size(); ++j) {
+            msg.add_component(m1.components[i] * m2.components[j]);
+          }
+        }
+
+        // change particles
+        for (size_t j=0; j < m2.size(); ++j) {
+          msg.add_component(m1.components.back() * m2.components[j]);
+        }
+
+        Vector noChangeNormConstant, changeNormConstant;
+        Message* smoothed_msg = new DirichletMessage();
+        // no change particles
+        for (size_t i=0; i<forward->components.size()-1; i++) {
+          DirichletComponent* fc = static_cast<DirichletComponent*>(forward->components[i]);
+          for (size_t j=0; j<backward->components.size(); j++) {
+            DirichletComponent* bc = static_cast<DirichletComponent*>(backward->components[j]);
+            DirichletComponent* newComp = DirichletComponent::multiply(fc, bc);
+            noChangeNormConstant.append(newComp->log_c);
+            smoothed_msg->components.push_back(newComp);
+          }
+        }
+        // change particles
+        DirichletComponent* last = static_cast<DirichletComponent*>(forward->components.back());
+        for (size_t i=0; i<backward->components.size(); i++) {
+          DirichletComponent *bc = static_cast<DirichletComponent *>(backward->components[i]);
+          DirichletComponent* newComp = DirichletComponent::multiply(last, bc);
+          changeNormConstant.append(newComp->log_c);
+          smoothed_msg->components.push_back(newComp);
+        }
+        Vector mean = eval_mean_cpp(smoothed_msg).first;
+        double logPNoChange = logSumExp(noChangeNormConstant);
+        double logPChange = logSumExp(changeNormConstant);
+        Vector tmp = normalizeExp(Vector{logPChange, logPNoChange});
+        return std::make_tuple(smoothed_msg,mean,tmp(0));
       }
 
     public:
-      std::vector<Component*> components;
+      std::vector<P> components;
   };
 
-  class DirichletMessage : public Message {
-    public:
-      DirichletMessage() {}
 
-      DirichletMessage(const Vector &param) {
-        add_component(new DirichletComponent(param, 0));
-      }
-  };
-
-  class GammaMessage : public Message {
-    public:
-      GammaMessage() {}
-
-    public:
-      GammaMessage(double a, double b) {
-        add_component(new GammaComponent(a,b,0));
-      }
+  struct PoissonRandom{
+    Vector operator()(const Vector &param) const {
+      return poisson::rand(param.first(), 1);
+    }
   };
 
   // ----------- MODELS----------- //
-
+  template <class P, class Obs>
   class Model{
     public:
-      Model(double _p1_) : p1(_p1_){
+      Model(const P &prior_, double p1_) : prior(prior_), p1(p1_){
         log_p1 = std::log(p1);
         log_p0 = std::log(1-p1);
       }
 
-      virtual ~Model(){}
+    public:
+      // returns  "states" as first matrix and "obervations" as second
+      std::pair<Matrix, Matrix> generateData(size_t T){
+        Matrix states, obs;
+
+        Vector state = prior.rand();
+        for (size_t t=0; t<T; t++) {
+          if (t > 0 && uniform::rand() < p1) {
+            state = prior.rand();
+          }
+          states.appendColumn(state);
+          obs.appendColumn(observation(state));
+        }
+        return {states, obs};
+      }
+
+      Message<P> initForward(){
+        Message<P> first_message;
+        first_message.add_component(prior, log_p0);
+        first_message.add_component(prior, log_p1);
+        return first_message;
+      }
+
+      Message<P> initBackward(){
+        Message<P> first_message;
+        first_message.add_component(prior);
+        return first_message;
+      }
+
+      Message<P> predict(const Message<P> &prev){
+        Message<P> message = prev;
+        Vector consts;
+        for(auto &component : message.components){
+          consts.append(component.log_c);
+          component.log_c += log_p0;
+        }
+        message.add_component(prior, log_p1 + logSumExp(consts));
+        return message;
+      }
+
+      Message<P> update(const Message<P> &prev, const Vector& obs) {
+        Message<P> message = prev;
+        for(auto &component : message.components){
+          component.update(obs);
+        }
+        return message;
+      }
+
+      std::pair<Vector, double> eval_mean_cpp(const Message<P> &message){
+        Vector consts;
+        Matrix params;
+        for(auto &potential: message.components){
+          consts.append(potential.log_c);
+          params.appendColumn(potential.mean());
+        }
+        consts = normalizeExp(consts);
+        Vector mean = sum(transpose(transpose(params)*consts), 1);
+        return {mean, consts.last()};
+      }
+
+/*
+      virtual std::tuple<Message*,Vector,double> multiply(const Message* forward, const Message* backward) = 0;
+*/
+    private:
+      P prior;
+      Obs observation;
+      double p1;                //  probability of change
+      double log_p1, log_p0;
+
+
+  };
+
+  template <class P, class Obs>
+  class ForwardBackward {
+    public:
+      ForwardBackward(const Model<P, Obs> &model_,
+                      int lag_ = 0, int max_components_ = 100)
+              : model(model_), lag(lag_), max_components(max_components_) {}
+
 
     public:
-      virtual std::pair<Matrix, Vector> generateData(size_t T) = 0;
-      virtual Message* initForward() = 0;
-      virtual Message* initBackward() = 0;
-      virtual Message* predict(const Message* message) = 0;
-      virtual Message* update(const Message* message, const Vector& data) = 0;
-      virtual std::pair<Vector,double> eval_mean_cpp(const Message* message) = 0;
-      virtual std::tuple<Message*,Vector,double> multiply(const Message* forward, const Message* backward) = 0;
-  
+      void oneStepForward(const Vector& obs) {
+        // predict step
+        if (alpha_predict.size() == 0) {
+          alpha_predict.push_back(model.initForward());
+        }
+        else {
+          // calculate \alpha_{t+1,t}
+          alpha_predict.push_back(model.predict(alpha_update.back()));
+        }
+        // update step, calculate \alpha_{t+1,t+1}
+        alpha_update.push_back(model.update(alpha_predict.back(), obs));
+      }
+
+      void oneStepBackward(const Vector& obs) {
+        if (beta_postdict.size()==0) {
+          beta_postdict.push_back(model.initBackward());
+        }
+        else {
+          beta_postdict.push_back(model.predict(beta_update.back()));
+        }
+        beta_update.push_back(model.update(beta_postdict.back(), obs));
+      }
+
+      void forward(const Matrix& obs){
+        for (size_t i=0; i<obs.ncols(); i++) {
+          oneStepForward(obs.getColumn(i));
+        }
+      }
+
+      void backward(const Matrix& obs){
+        for (size_t i=obs.ncols(); i>0; i--) {
+          oneStepBackward(obs.getColumn(i-1));
+        }
+      }
+
+      std::pair<Matrix, Vector> mean_and_cpp(
+              const std::vector<Message<P>> &messages){
+        Matrix mean;
+        Vector cpp;
+        for(auto &message : messages){
+          auto result = model.eval_mean_cpp(message);
+          mean.appendColumn(result.first);
+          cpp.append(result.second);
+        }
+        return {mean, cpp};
+      }
+
+      // Returns mean and cpp
+      std::pair<Matrix, Vector> filter(const Matrix& obs) {
+        forward(obs);
+        return mean_and_cpp(alpha_update);
+      }
+
+      // Returns mean and cpp
+      std::pair<Matrix, Vector> smooth(const Matrix& obs) {
+        forward(obs);
+        backward(obs);
+        // multiply
+        return mean_and_cpp(beta_update);
+      }
+
     public:
-      double p1;           //  probability of change
-      double log_p1;       //  log probability of change
-      double log_p0;       //  log probability of no change
+      Model<P, Obs> model;
+      int lag;
+      int max_components;
+
+      // messages
+      std::vector<Message<P>> alpha_predict;       // alpha_{t|t-1}
+      std::vector<Message<P>> alpha_update;        // alpha_{t|t}
+      std::vector<Message<P>> beta_postdict;       // beta_{t|t+1}
+      std::vector<Message<P>> beta_update;         // beta_{t|t}
   };
+    /*
 
   class DirichletModel : public Model{
     public:
@@ -572,6 +734,7 @@ namespace pml {
       Matrix data;                               // for saving results
       std::vector<Message*> smoothed_msgs;       // alpha_{t|t}*beta_{t|t+1}
     };
+*/
 }
 
 #endif //MATLIB_PML_BCPM_H

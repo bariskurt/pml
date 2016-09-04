@@ -30,8 +30,18 @@ void testPoissonResetModel(){
 void testCoupledPoissonResetModel(){
   CoupledPoissonResetModel m(0.05, 10, 1);
   auto seq = m.generateSequence(250);
-  seq.first.saveTxt("/tmp/states.txt");
-  seq.second.saveTxt("/tmp/obs.txt");
+  Matrix &states= seq.first;
+  Matrix &obs = seq.second;
+
+  states.saveTxt("/tmp/states.txt");
+  obs.saveTxt("/tmp/obs.txt");
+
+  Matrix mean;
+  Vector cpp;
+  std::tie(mean, cpp) = m.forward_filter(obs);
+
+  mean.saveTxt("/tmp/mean.txt");
+  cpp.saveTxt("/tmp/cpp.txt");
 
   std::cout << system("python3 ../test/python/visualizeCoupledPoissonReset.py");
 }
