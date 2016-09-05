@@ -7,12 +7,12 @@
 #include <algorithm>
 
 namespace pml {
-  // ----------- COMPONENTS ----------- //
+  // ----------- POTENTIALS ----------- //
 
   class DirichletPotential{
 
     public:
-      DirichletPotential(const Vector& alpha_, double log_c_) :
+      DirichletPotential(const Vector& alpha_, double log_c_ = 0) :
               alpha(alpha_), log_c(log_c_) {}
 
     public:
@@ -20,7 +20,7 @@ namespace pml {
         *this = this->operator*(p);
       }
 
-      DirichletPotential operator*(const DirichletPotential &p){
+      DirichletPotential operator*(const DirichletPotential &p) const{
 
         double delta = std::lgamma(sum(alpha)) - sum(lgamma(alpha)) +
                        std::lgamma(sum(p.alpha)) - sum(lgamma(p.alpha)) +
@@ -31,12 +31,17 @@ namespace pml {
                                   log_c + p.log_c + delta);
       }
 
+      void update(const Vector &obs){
+        double log_c = std::lgamma(sum(obs)+1) - std::lgamma(sum(obs+1));
+        this->operator*=(DirichletPotential(obs+1, log_c));
+      }
+
       Vector rand() const{
         return dirichlet::rand(alpha);
       }
 
       Vector mean() const{
-        return alpha;
+        return normalize(alpha);
       }
 
     public:
@@ -54,7 +59,7 @@ namespace pml {
         *this = this->operator*(other);
       }
 
-      GammaPotential operator*(const GammaPotential &other){
+      GammaPotential operator*(const GammaPotential &other) const{
         double delta = std::lgamma(a + other.a - 1)
                        - std::lgamma(a) - std::lgamma(other.a)
                        + std::log(b + other.b)
@@ -82,13 +87,28 @@ namespace pml {
       double b;
       double log_c;   //log of normalizing constant
   };
-  // ----------- MESSAGES----------- //
+
+  // ----------- OBSERVATION MODELS ----------- //
+
+  struct PoissonRandom{
+    Vector operator()(const Vector &param) const {
+      return poisson::rand(param.first(), 1);
+    }
+  };
+
+  struct MultinomialRandom{
+    Vector operator()(const Vector &param) const {
+      return multinomial::rand(param, 100);
+    }
+  };
+
+  // ----------- MESSAGE----------- //
 
   template <class P>
   class Message {
 
     public:
-      size_t size() {
+      size_t size() const {
         return components.size();
       }
 
@@ -101,45 +121,40 @@ namespace pml {
         components.back().log_c = log_c;
       }
 
-      Message<P> operator*(const Message<P> m1, const Message<P> m2){
+      friend Message<P> operator*(const Message<P> &m1, const Message<P> &m2){
         Message<P> msg;
-        // no change particles
-        for (size_t i=0; i < m1.size()-1; ++i) {
-          for (size_t j=0; j < m2.size(); ++j) {
-            msg.add_component(m1.components[i] * m2.components[j]);
-          }
-        }
+        for(auto &component1 : m1.components)
+          for(auto &component2 : m2.components)
+            msg.add_component(component1 * component2);
+        return msg;
+      }
 
-        // change particles
-        for (size_t j=0; j < m2.size(); ++j) {
-          msg.add_component(m1.components.back() * m2.components[j]);
+      void update(const Vector& obs) {
+        for(auto &component : components){
+          component.update(obs);
         }
+      }
 
-        Vector noChangeNormConstant, changeNormConstant;
-        Message* smoothed_msg = new DirichletMessage();
-        // no change particles
-        for (size_t i=0; i<forward->components.size()-1; i++) {
-          DirichletComponent* fc = static_cast<DirichletComponent*>(forward->components[i]);
-          for (size_t j=0; j<backward->components.size(); j++) {
-            DirichletComponent* bc = static_cast<DirichletComponent*>(backward->components[j]);
-            DirichletComponent* newComp = DirichletComponent::multiply(fc, bc);
-            noChangeNormConstant.append(newComp->log_c);
-            smoothed_msg->components.push_back(newComp);
-          }
+      // Returns mean and cpp (Maybe renamed)
+      std::pair<Vector, double> evaluate(int N = 1){
+        Vector consts;
+        Matrix params;
+        for(auto &potential: components){
+          consts.append(potential.log_c);
+          params.appendColumn(potential.mean());
         }
-        // change particles
-        DirichletComponent* last = static_cast<DirichletComponent*>(forward->components.back());
-        for (size_t i=0; i<backward->components.size(); i++) {
-          DirichletComponent *bc = static_cast<DirichletComponent *>(backward->components[i]);
-          DirichletComponent* newComp = DirichletComponent::multiply(last, bc);
-          changeNormConstant.append(newComp->log_c);
-          smoothed_msg->components.push_back(newComp);
-        }
-        Vector mean = eval_mean_cpp(smoothed_msg).first;
-        double logPNoChange = logSumExp(noChangeNormConstant);
-        double logPChange = logSumExp(changeNormConstant);
-        Vector tmp = normalizeExp(Vector{logPChange, logPNoChange});
-        return std::make_tuple(smoothed_msg,mean,tmp(0));
+        consts = normalizeExp(consts);
+        // Calculate mean
+        Vector mean = sumRows(transpose(transpose(params)*consts));
+        // Calculate cpp as the sum of last N probabilities
+        double cpp = 0;
+        for(int i=0; i < N; ++i)
+          cpp += consts(consts.size() -i - 1);
+        return {mean, cpp};
+      };
+
+      void prune(int max_components){
+        //ToDo: implement prune
       }
 
     public:
@@ -147,13 +162,7 @@ namespace pml {
   };
 
 
-  struct PoissonRandom{
-    Vector operator()(const Vector &param) const {
-      return poisson::rand(param.first(), 1);
-    }
-  };
-
-  // ----------- MODELS----------- //
+  // ----------- MODEL----------- //
   template <class P, class Obs>
   class Model{
     public:
@@ -187,7 +196,8 @@ namespace pml {
 
       Message<P> initBackward(){
         Message<P> first_message;
-        first_message.add_component(prior);
+        first_message.add_component(prior, log_p0);
+        first_message.add_component(prior, log_p1);
         return first_message;
       }
 
@@ -202,36 +212,11 @@ namespace pml {
         return message;
       }
 
-      Message<P> update(const Message<P> &prev, const Vector& obs) {
-        Message<P> message = prev;
-        for(auto &component : message.components){
-          component.update(obs);
-        }
-        return message;
-      }
-
-      std::pair<Vector, double> eval_mean_cpp(const Message<P> &message){
-        Vector consts;
-        Matrix params;
-        for(auto &potential: message.components){
-          consts.append(potential.log_c);
-          params.appendColumn(potential.mean());
-        }
-        consts = normalizeExp(consts);
-        Vector mean = sum(transpose(transpose(params)*consts), 1);
-        return {mean, consts.last()};
-      }
-
-/*
-      virtual std::tuple<Message*,Vector,double> multiply(const Message* forward, const Message* backward) = 0;
-*/
     private:
       P prior;
       Obs observation;
       double p1;                //  probability of change
       double log_p1, log_p0;
-
-
   };
 
   template <class P, class Obs>
@@ -243,47 +228,59 @@ namespace pml {
 
 
     public:
-      void oneStepForward(const Vector& obs) {
+      void oneStepForward(std::vector<Message<P>> &alpha, const Vector& obs) {
         // predict step
-        if (alpha_predict.size() == 0) {
-          alpha_predict.push_back(model.initForward());
+        if (alpha.size() == 0) {
+          alpha.push_back(model.initForward());
         }
         else {
-          // calculate \alpha_{t+1,t}
-          alpha_predict.push_back(model.predict(alpha_update.back()));
+          alpha.push_back(model.predict(alpha.back()));
         }
-        // update step, calculate \alpha_{t+1,t+1}
-        alpha_update.push_back(model.update(alpha_predict.back(), obs));
+        // update step
+        alpha.back().update(obs);
       }
 
-      void oneStepBackward(const Vector& obs) {
-        if (beta_postdict.size()==0) {
-          beta_postdict.push_back(model.initBackward());
+      void oneStepBackward(std::vector<Message<P>> &beta, const Vector& obs) {
+        // predict step
+        if (beta.size()==0) {
+          beta.push_back(model.initBackward());
         }
         else {
-          beta_postdict.push_back(model.predict(beta_update.back()));
+          beta.push_back(model.predict(beta.back()));
         }
-        beta_update.push_back(model.update(beta_postdict.back(), obs));
+        // update step
+        beta.back().update(obs);
       }
 
-      void forward(const Matrix& obs){
+      std::vector<Message<P>> forward(const Matrix& obs){
+        std::vector<Message<P>> alpha;
         for (size_t i=0; i<obs.ncols(); i++) {
-          oneStepForward(obs.getColumn(i));
+          oneStepForward(alpha, obs.getColumn(i));
+          alpha.back().prune(max_components);
         }
+        return alpha;
       }
 
-      void backward(const Matrix& obs){
+      std::vector<Message<P>> backward(const Matrix& obs){
+        std::vector<Message<P>> beta;
         for (size_t i=obs.ncols(); i>0; i--) {
-          oneStepBackward(obs.getColumn(i-1));
+          oneStepBackward(beta, obs.getColumn(i-1));
+          beta.back().prune(max_components);
         }
+        std::reverse(beta.begin(), beta.end());
+        return beta;
       }
 
-      std::pair<Matrix, Vector> mean_and_cpp(
-              const std::vector<Message<P>> &messages){
+      // Returns mean and cpp
+      std::pair<Matrix, Vector> filtering(const Matrix& obs) {
+        // Run forward
+        auto alpha = forward(obs);
+
+        // Calculate mean and cpp
         Matrix mean;
         Vector cpp;
-        for(auto &message : messages){
-          auto result = model.eval_mean_cpp(message);
+        for(auto &message : alpha){
+          auto result = message.evaluate();
           mean.appendColumn(result.first);
           cpp.append(result.second);
         }
@@ -291,318 +288,65 @@ namespace pml {
       }
 
       // Returns mean and cpp
-      std::pair<Matrix, Vector> filter(const Matrix& obs) {
-        forward(obs);
-        return mean_and_cpp(alpha_update);
+      std::pair<Matrix, Vector> smoothing(const Matrix& obs) {
+        Matrix mean;
+        Vector cpp;
+        // Run Forward and Backward
+        auto alpha = forward(obs);
+        auto beta = backward(obs);
+
+        // Calculate Smoothed density
+        std::vector<Message<P>> gamma;
+        for(size_t i=0; i < obs.ncols(); ++i) {
+          gamma.push_back(alpha[i] * beta[i]);
+          // evaluate mean and cpp
+          auto result = gamma[i].evaluate(beta[i].size());
+          mean.appendColumn(result.first);
+          cpp.append(result.second);
+        }
+        return {mean, cpp};
       }
 
-      // Returns mean and cpp
-      std::pair<Matrix, Vector> smooth(const Matrix& obs) {
-        forward(obs);
-        backward(obs);
-        // multiply
-        return mean_and_cpp(beta_update);
+      // a.k.a. fixed-lag smoothing
+      std::pair<Matrix, Vector> online_smoothing(const Matrix& obs) {
+        if( lag == 0){
+          return filtering(obs);
+        }
+        Matrix mean;
+        Vector cpp;
+        std::vector<Message<P>> alpha = forward(obs);
+        std::vector<Message<P>> gamma;
+        for (size_t t=0; t<obs.ncols()-lag+1; t++) {
+          auto beta = backward(obs.getColumns(Range(t, t+lag)));
+          gamma.push_back(alpha[t] * beta[0]);
+          auto result = gamma.back().evaluate(beta[0].size());
+          mean.appendColumn(result.first);
+          cpp.append(result.second);
+          // if T-lag is reached, smooth the rest
+          if(t == obs.ncols()-lag){
+            for(int i = 1; i < lag; ++i){
+              gamma.push_back(alpha[t+i] * beta[i]);
+              auto result = gamma.back().evaluate(beta[i].size());
+              mean.appendColumn(result.first);
+              cpp.append(result.second);
+            }
+          }
+        }
+        return {mean, cpp};
       }
+
 
     public:
       Model<P, Obs> model;
       int lag;
       int max_components;
-
-      // messages
-      std::vector<Message<P>> alpha_predict;       // alpha_{t|t-1}
-      std::vector<Message<P>> alpha_update;        // alpha_{t|t}
-      std::vector<Message<P>> beta_postdict;       // beta_{t|t+1}
-      std::vector<Message<P>> beta_update;         // beta_{t|t}
   };
     /*
-
-  class DirichletModel : public Model{
-    public:
-      DirichletModel(double _p1_, const Vector &_alpha_)
-            : Model(_p1_), alpha(_alpha_){}
-  
-    public:
-      std::pair<Matrix, Vector> generateData(size_t T) override{
-        Vector cps = Vector::zeros(T);
-        Matrix obs;
-        Vector theta = dirichlet::rand(alpha);
-        for (size_t t=0; t<T; ++t) {
-          if (t > 0 && uniform::rand() < p1) {
-            cps(t) = 1;
-            theta = dirichlet::rand(alpha);
-          }
-          obs.appendColumn(multinomial::rand(theta,uniform::randi(40,60)));
-        }
-        return {obs, cps};
-      }
-
-      Message* initForward() override{
-        Message* msg = new DirichletMessage();
-        // Append no change component.
-        msg->add_component(new DirichletComponent(alpha, log_p0));
-        // Append change component.
-        msg->add_component(new DirichletComponent(alpha, log_p1));
-        return msg;
-      }
-
-      Message* initBackward() override{
-        return new DirichletMessage(Vector::ones(alpha.size()));
-      }
-
-      Message* predict(const Message* message) override{
-        DirichletMessage* dm = copyMessage(message);
-        Vector consts(dm->size());
-        for (size_t i=0; i<dm->size(); i++) {
-          consts(i) = dm->components[i]->log_c;
-          dm->components[i]->log_c += log_p0;
-        }
-        dm->add_component(new DirichletComponent(alpha,
-                                                 log_p1 + logSumExp(consts)));
-        return dm;
-      };
-
-
-      Message* update(const Message* message, const Vector& data) override{
-        DirichletMessage* dm = copyMessage(message);
-        for(Component *c : dm->components){
-          DirichletComponent* d = static_cast<DirichletComponent*>(c);
-          d->log_c += DirichletComponent::dirMultNormConsant(data, d->alpha);
-          d->alpha += data;
-        }
-        return dm;
-      }
-
-      std::pair<Vector,double> eval_mean_cpp(const Message* message) override{
-        Vector consts;
-        Matrix norm_params;
-        for(Component *c : message->components) {
-          DirichletComponent *d = static_cast<DirichletComponent *>(c);
-          consts.append(d->log_c);
-          norm_params.appendColumn(normalize(d->alpha));
-        }
-        Vector exp_consts = exp(consts - max(consts));
-        Vector norm_const = normalize(exp_consts);
-        Vector mean = sum(transpose(transpose(norm_params)*norm_const), 1);
-        return std::make_pair(mean, norm_const.last());
-      }
-
-      std::tuple<Message*,Vector,double> multiply(const Message* forward,
-                                                  const Message* backward) override {
-        Vector noChangeNormConstant, changeNormConstant;
-        Message* smoothed_msg = new DirichletMessage();
-        // no change particles
-        for (size_t i=0; i<forward->components.size()-1; i++) {
-          DirichletComponent* fc = static_cast<DirichletComponent*>(forward->components[i]);
-          for (size_t j=0; j<backward->components.size(); j++) {
-            DirichletComponent* bc = static_cast<DirichletComponent*>(backward->components[j]);
-            DirichletComponent* newComp = DirichletComponent::multiply(fc, bc);
-            noChangeNormConstant.append(newComp->log_c);
-            smoothed_msg->components.push_back(newComp);
-          }
-        }
-        // change particles
-        DirichletComponent* last = static_cast<DirichletComponent*>(forward->components.back());
-        for (size_t i=0; i<backward->components.size(); i++) {
-          DirichletComponent *bc = static_cast<DirichletComponent *>(backward->components[i]);
-          DirichletComponent* newComp = DirichletComponent::multiply(last, bc);
-          changeNormConstant.append(newComp->log_c);
-          smoothed_msg->components.push_back(newComp);
-        }
-        Vector mean = eval_mean_cpp(smoothed_msg).first;
-        double logPNoChange = logSumExp(noChangeNormConstant);
-        double logPChange = logSumExp(changeNormConstant);
-        Vector tmp = normalizeExp(Vector{logPChange, logPNoChange});
-        return std::make_tuple(smoothed_msg,mean,tmp(0));
-      };
-
-    private:
-      DirichletMessage* copyMessage(const Message* message) {
-        DirichletMessage* dm = new DirichletMessage();
-        for(Component *c : message->components){
-          DirichletComponent* d = static_cast<DirichletComponent*>(c);
-          dm->add_component(new DirichletComponent(d->alpha,d->log_c));
-        }
-        return dm;
-      }
-  
-    public:
-      Vector alpha;
-  };
-
-  class GammaModel : public Model{
-    public:
-      GammaModel(double _p1_, double a_, double b_)
-            : Model(_p1_), a(a_), b(b_){}
-
-    public:
-      std::pair<Matrix, Vector> generateData(size_t T) override{
-          Vector cps = Vector::zeros(T);
-          Matrix obs;
-          double theta = gamma::rand(a, b);
-          for (size_t t=0; t<T; ++t) {
-              if (t > 0 && uniform::rand() < p1) {
-                  cps(t) = 1;
-                  theta = gamma::rand(a, b);
-              }
-              obs.appendColumn(poisson::rand(theta, 1));
-          }
-          return {obs, cps};
-      }
-
-      Message* initForward() override{
-          Message* msg = new GammaMessage();
-          // Append no change component.
-          msg->add_component(new GammaComponent(a, b, log_p0));
-          // Append change component.
-          msg->add_component(new GammaComponent(a, b, log_p1));
-          return msg;
-      }
-
-      Message* initBackward() override{
-          return new GammaMessage(a, b);
-      }
-
-      Message* predict(const Message* message) override{
-          GammaMessage* gm = copyMessage(message);
-          Vector consts(gm->size());
-          for (size_t i=0; i<gm->size(); i++) {
-              consts(i) = gm->components[i]->log_c;
-              gm->components[i]->log_c += log_p0;
-          }
-          gm->add_component(new GammaComponent(a, b, log_p1 + logSumExp(consts)));
-          return gm;
-      };
-
-      Message* update(const Message* message, const Vector& data) override{
-          GammaMessage* gm = copyMessage(message);
-          for(Component *c : gm->components){
-              GammaComponent* g = static_cast<GammaComponent*>(c);
-              g->log_c += GammaComponent::gamPoNormConsant(data, g->a, g->b);
-              g->a += data.first();
-              g->b += 1;
-          }
-          return gm;
-      }
-
-      std::pair<Vector,double> eval_mean_cpp(const Message* message) override{
-          Vector consts;
-          Vector norm_params;
-          for(Component *c : message->components) {
-              GammaComponent *g = static_cast<GammaComponent *>(c);
-              consts.append(g->log_c);
-              norm_params.append(g->a/g->b);
-          }
-          Vector exp_consts = exp(consts - max(consts));
-          Vector norm_const = normalize(exp_consts);
-          Vector mean;
-          mean.append(dot(norm_const,norm_params));
-          return std::make_pair(mean, norm_const.last());
-      }
-
-      std::tuple<Message*,Vector,double> multiply(const Message* forward,
-                                                  const Message* backward) override {
-          Vector noChangeNormConstant, changeNormConstant;
-          Message* smoothed_msg = new GammaMessage();
-          // no change particles
-          for (size_t i=0; i<forward->components.size()-1; i++) {
-              GammaComponent* fc = static_cast<GammaComponent*>(forward->components[i]);
-              for (size_t j=0; j<backward->components.size(); j++) {
-                  GammaComponent* bc = static_cast<GammaComponent*>(backward->components[j]);
-                  GammaComponent* newComp = GammaComponent::multiply(fc, bc);
-                  noChangeNormConstant.append(newComp->log_c);
-                  smoothed_msg->components.push_back(newComp);
-              }
-          }
-          // change particles
-          GammaComponent* last = static_cast<GammaComponent*>(forward->components.back());
-          for (size_t i=0; i<backward->components.size(); i++) {
-              GammaComponent *bc = static_cast<GammaComponent *>(backward->components[i]);
-              GammaComponent* newComp = GammaComponent::multiply(last, bc);
-              changeNormConstant.append(newComp->log_c);
-              smoothed_msg->components.push_back(newComp);
-          }
-          Vector mean = eval_mean_cpp(smoothed_msg).first;
-          double logPNoChange = logSumExp(noChangeNormConstant);
-          double logPChange = logSumExp(changeNormConstant);
-          Vector tmp = normalizeExp(Vector{logPChange, logPNoChange});
-          return std::make_tuple(smoothed_msg,mean,tmp(0));
-      };
-
-    private:
-      GammaMessage* copyMessage(const Message* message) {
-          GammaMessage* gm = new GammaMessage();
-          for(Component *c : message->components){
-              GammaComponent* g = static_cast<GammaComponent*>(c);
-              gm->add_component(new GammaComponent(g->a,g->b,g->log_c));
-          }
-          return gm;
-      }
-  
-    public:
-      double a;  // shape parameter
-      double b;  // rate parameter
-  };
 
 
   // ----------- FORWARD-BACKWARD ----------- //
 
   class ForwardBackward{
-    public:
-      ForwardBackward(Model *model_, int lag_=0, int max_components_=100):
-              model(model_), lag(lag_), max_components(max_components_) {}
-
-      ~ForwardBackward() {
-        freeVec(alpha_predict);
-        freeVec(alpha_update);
-        freeVec(beta_postdict);
-        freeVec(beta_update);
-        freeVec(smoothed_msgs);
-      }
-
-    // forward-backward in general
-    public:
-      void oneStepForward(const Vector& obs) {
-        // predict step
-        if (alpha_predict.size() == 0) {
-          // start forward recursion
-          alpha_predict.push_back(model->initForward());
-        }
-        else {
-          // calculate \alpha_{t+1,t}
-          alpha_predict.push_back(model->predict(alpha_update.back()));
-        }
-        // update step, calculate \alpha_{t+1,t+1}
-        alpha_update.push_back(model->update(alpha_predict.back(), obs));
-      }
-
-      void oneStepBackward(const Vector& obs) {
-        if (beta_postdict.size()==0) {
-          beta_postdict.push_back(model->initBackward());
-        }
-        else {
-          beta_postdict.push_back(model->predict(beta_update.back()));
-        }
-        beta_update.push_back(model->update(beta_postdict.back(), obs));
-      }
-
-      void forwardRecursion(const Matrix& data) {
-        for (size_t i=0; i<data.ncols(); i++) {
-          oneStepForward(data.getColumn(i));
-          if ((int) alpha_update.back()->components.size() > max_components) {
-            prun(alpha_update.back());
-          }
-        }
-      }
-
-      void backwardRecursion(const Matrix& data) {
-        for (size_t i=data.ncols(); i>0; i--) {
-          oneStepBackward(data.getColumn(i-1));
-          if ((int) beta_update.back()->components.size() > max_components) {
-            prun(beta_update.back());
-          }
-        }
-      }
 
       static double loglhood(Model* model, const Matrix& data) {
         ForwardBackward fb(model);
@@ -614,39 +358,6 @@ namespace pml {
         return logSumExp(consts);
       }
 
-      void smoothing(const Matrix &data) {
-        // run recursions
-        forwardRecursion(data);
-        backwardRecursion(data);
-        size_t T = data.ncols();
-        // t_0, t_1, ... t_{T-2}
-        for (size_t t=0; t<T-1; t++) {
-          auto res = model->multiply(alpha_update[t],beta_postdict[T-t-1]);
-          smoothed_msgs.push_back(std::get<0>(res));
-          mean.appendColumn(std::get<1>(res));
-          cpp.append(std::get<2>(res));
-        }
-        // t_{T-1}
-        std::pair<Vector,double> mean_cpp = model->eval_mean_cpp(alpha_update.back());
-        mean.appendColumn(mean_cpp.first);
-        cpp.append(mean_cpp.second);
-        Message* msg = new Message();
-
-        if(dynamic_cast<DirichletModel*>(model) != 0x0){
-          for(Component* comp : alpha_update.back()->components) {
-            DirichletComponent* d = static_cast<DirichletComponent*>(comp);
-            msg->add_component(new DirichletComponent(d->alpha, d->log_c));
-          }
-        }else if(dynamic_cast<GammaModel*>(model) != 0x0){
-          for(Component* comp : alpha_update.back()->components) {
-            GammaComponent* d = static_cast<GammaComponent*>(comp);
-            msg->add_component(new GammaComponent(d->a, d->b, d->log_c));
-        }
-        }else{
-            std::cout << "Given Model Type is not known." << std::endl;
-        }
-        smoothed_msgs.push_back(msg);
-      }
 
     private:
       void freeVec(std::vector<Message*> &vec) {
