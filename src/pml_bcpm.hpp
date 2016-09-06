@@ -31,6 +31,10 @@ namespace pml {
                                   log_c + p.log_c + delta);
       }
 
+      bool operator<(const DirichletPotential &other) const{
+        return this->log_c < other.log_c;
+      }
+
       void update(const Vector &obs){
         double log_c = std::lgamma(sum(obs)+1) - std::lgamma(sum(obs+1));
         this->operator*=(DirichletPotential(obs+1, log_c));
@@ -68,6 +72,10 @@ namespace pml {
         return GammaPotential(a + other.a - 1,
                               b + other.b,
                               log_c + other.log_c + delta);
+      }
+
+      bool operator<(const GammaPotential &other) const{
+        return this->log_c < other.log_c;
       }
 
       Vector rand() const{
@@ -153,8 +161,12 @@ namespace pml {
         return {mean, cpp};
       };
 
-      void prune(int max_components){
-        //ToDo: implement prune
+      void prune(size_t max_components){
+        while(components.size() > max_components){
+          auto iter = std::min_element(components.begin(), components.end());
+          std::swap(*iter, components.back());
+          components.pop_back();
+        }
       }
 
     public:
@@ -348,47 +360,6 @@ namespace pml {
 
   class ForwardBackward{
 
-      static double loglhood(Model* model, const Matrix& data) {
-        ForwardBackward fb(model);
-        fb.forwardRecursion(data);
-        Vector consts;
-        for(Component* component: fb.alpha_update.back()->components){
-          consts.append(component->log_c);
-        }
-        return logSumExp(consts);
-      }
-
-
-    private:
-      void freeVec(std::vector<Message*> &vec) {
-        for(Message* m : vec) {
-          delete m;
-        }
-        vec.clear();
-      }
-
-    // netas-related code
-    public:
-      size_t getTime() { return data.ncols(); }
-
-      void processObs(const Vector& obs) {
-        // predict & update
-        oneStepForward(obs);
-        // parameter updates
-        data.appendColumn(obs);
-        std::pair<Vector, double> mean_cpp = model->eval_mean_cpp(alpha_update.back());
-        mean.appendColumn(mean_cpp.first);
-        cpp.append(mean_cpp.second);
-        // smoothing
-        if (lag>0 && ((int)getTime()) >= lag) {
-          fixedLagSmooth();
-        }
-        // pruning
-        if ((int) alpha_update.back()->components.size() > max_components) {
-          prun(alpha_update.back());
-        }
-      }
-
       // needs better implementation via heap
       void prun(Message* msg) {
         while (msg->components.size() > (unsigned) max_components) {
@@ -405,46 +376,6 @@ namespace pml {
         }
       }
 
-      void fixedLagSmooth() {
-        size_t T = getTime();
-        std::vector<Message*> _beta_postdict;
-        std::vector<Message*> _beta_update;
-        // lag step backward
-        // TODO: implement below loop via ForwardBackward class and oneStepBackward()
-        for (int t=0; t<lag; t++){
-          if (t==0) {
-            _beta_postdict.push_back(model->initBackward());
-          }
-          else {
-            _beta_postdict.push_back(model->predict(_beta_update.back()));
-          }
-          _beta_update.push_back(model->update(_beta_postdict.back(), data.getColumn(T-1-t)));
-        }
-        // CHECK HERE AGAIN: posterior is calculated for t = T - Lag
-        size_t t = T - lag;
-        auto res = model->multiply(alpha_update[t], _beta_postdict.back());
-        delete std::get<0>(res);
-        mean.setColumn(t, std::get<1>(res));
-        cpp(t) = std::get<2>(res);
-        freeVec(_beta_postdict);
-        freeVec(_beta_update);
-      }
-
-    public:
-      Model *model;
-      int lag;
-      int max_components;
-      // messages
-      std::vector<Message*> alpha_predict;       // alpha_{t|t-1}
-      std::vector<Message*> alpha_update;        // alpha_{t|t}
-      std::vector<Message*> beta_postdict;       // beta_{t|t+1}
-      std::vector<Message*> beta_update;         // beta_{t|t}
-      // results
-      Vector cpp;                                // p(r_t=1)
-      Matrix mean;                               // for saving results
-      Matrix data;                               // for saving results
-      std::vector<Message*> smoothed_msgs;       // alpha_{t|t}*beta_{t|t+1}
-    };
 */
 }
 

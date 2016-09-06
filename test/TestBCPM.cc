@@ -126,7 +126,8 @@ void test_gp_new(){
   Matrix mean;
   Vector cpp;
   int lag = 10;
-  ForwardBackward<GammaPotential, PoissonRandom> fb(model, lag);
+  int max_components = 10;
+  ForwardBackward<GammaPotential, PoissonRandom> fb(model, lag, max_components);
 
   // Filtering
   std::tie(mean, cpp) = fb.filtering(obs);
@@ -144,7 +145,7 @@ void test_gp_new(){
   cpp.saveTxt("/tmp/cpp_fixed_lag.txt");
 
   //Visualize
-  cout << system("python3 ../test/python/visualizePoissonReset.py");
+  cout << system("anaconda3 ../test/python/visualizePoissonReset.py");
 }
 
 int main() {
