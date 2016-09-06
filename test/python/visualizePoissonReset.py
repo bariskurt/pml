@@ -50,10 +50,9 @@ def plot_poisson_reset():
     ax.set_ylim([0, 1])
     ax.set_title("CPP Fixed Lag")
 
-
-    fig.show()
+    plt.show()
 
 
 if __name__ == '__main__':
     plot_poisson_reset()
-    input("enter a character to continue: ")
+    #input("enter a character to continue: ")

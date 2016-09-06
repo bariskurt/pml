@@ -157,14 +157,19 @@ namespace pml {
         // Calculate cpp as the sum of last N probabilities
         double cpp = 0;
         for(int i=0; i < N; ++i)
-          cpp += consts(consts.size() -i - 1);
+          cpp += consts(consts.size() - i - 1);
         return {mean, cpp};
       };
 
       void prune(size_t max_components){
         while(components.size() > max_components){
-          auto iter = std::min_element(components.begin(), components.end());
+          // Find mininum no-change element
+          auto iter = std::min_element(components.begin(), components.end()-1);
+          // Swap the last two elements to save the order of the change comp.
+          std::swap(*(components.end()-1), *(components.end()-2));
+          // Swap last element with the minimum compoment.
           std::swap(*iter, components.back());
+          // Delete minimum component.
           components.pop_back();
         }
       }
@@ -199,18 +204,11 @@ namespace pml {
         return {states, obs};
       }
 
-      Message<P> initForward(){
-        Message<P> first_message;
-        first_message.add_component(prior, log_p0);
-        first_message.add_component(prior, log_p1);
-        return first_message;
-      }
-
-      Message<P> initBackward(){
-        Message<P> first_message;
-        first_message.add_component(prior, log_p0);
-        first_message.add_component(prior, log_p1);
-        return first_message;
+      Message<P> initialMessage(){
+        Message<P> message;
+        message.add_component(prior, log_p0);
+        message.add_component(prior, log_p1);
+        return message;
       }
 
       Message<P> predict(const Message<P> &prev){
@@ -242,24 +240,20 @@ namespace pml {
     public:
       void oneStepForward(std::vector<Message<P>> &alpha, const Vector& obs) {
         // predict step
-        if (alpha.size() == 0) {
-          alpha.push_back(model.initForward());
-        }
-        else {
+        if (alpha.size() == 0)
+          alpha.push_back(model.initialMessage());
+        else
           alpha.push_back(model.predict(alpha.back()));
-        }
         // update step
         alpha.back().update(obs);
       }
 
       void oneStepBackward(std::vector<Message<P>> &beta, const Vector& obs) {
         // predict step
-        if (beta.size()==0) {
-          beta.push_back(model.initBackward());
-        }
-        else {
+        if (beta.size()==0)
+          beta.push_back(model.initialMessage());
+        else
           beta.push_back(model.predict(beta.back()));
-        }
         // update step
         beta.back().update(obs);
       }
@@ -279,6 +273,7 @@ namespace pml {
           oneStepBackward(beta, obs.getColumn(i-1));
           beta.back().prune(max_components);
         }
+        // We calculated Beta backwards, we need to reverse the list.
         std::reverse(beta.begin(), beta.end());
         return beta;
       }
@@ -308,11 +303,10 @@ namespace pml {
         auto beta = backward(obs);
 
         // Calculate Smoothed density
-        std::vector<Message<P>> gamma;
+        Message<P> gamma;
         for(size_t i=0; i < obs.ncols(); ++i) {
-          gamma.push_back(alpha[i] * beta[i]);
-          // evaluate mean and cpp
-          auto result = gamma[i].evaluate(beta[i].size());
+          gamma = alpha[i] * beta[i];
+          auto result = gamma.evaluate(beta[i].size());
           mean.appendColumn(result.first);
           cpp.append(result.second);
         }
@@ -327,18 +321,18 @@ namespace pml {
         Matrix mean;
         Vector cpp;
         std::vector<Message<P>> alpha = forward(obs);
-        std::vector<Message<P>> gamma;
+        Message<P> gamma;
         for (size_t t=0; t<obs.ncols()-lag+1; t++) {
           auto beta = backward(obs.getColumns(Range(t, t+lag)));
-          gamma.push_back(alpha[t] * beta[0]);
-          auto result = gamma.back().evaluate(beta[0].size());
+          gamma = alpha[t] * beta[0];
+          auto result = gamma.evaluate(beta[0].size());
           mean.appendColumn(result.first);
           cpp.append(result.second);
           // if T-lag is reached, smooth the rest
           if(t == obs.ncols()-lag){
             for(int i = 1; i < lag; ++i){
-              gamma.push_back(alpha[t+i] * beta[i]);
-              auto result = gamma.back().evaluate(beta[i].size());
+              gamma = alpha[t+i] * beta[i];
+              auto result = gamma.evaluate(beta[i].size());
               mean.appendColumn(result.first);
               cpp.append(result.second);
             }
