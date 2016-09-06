@@ -12,6 +12,10 @@ namespace pml {
   class DirichletPotential{
 
     public:
+      DirichletPotential(size_t K, double log_c_ = 0) : log_c(log_c_) {
+        alpha = Vector::ones(K);
+      }
+
       DirichletPotential(const Vector& alpha_, double log_c_ = 0) :
               alpha(alpha_), log_c(log_c_) {}
 
