@@ -140,7 +140,7 @@ namespace pml {
       friend Matrix apply(const Matrix &x, double (*func)(double)) {
         Matrix result(x);
         result.apply(func);
-        return x;
+        return result;
       }
 
     public:
@@ -564,25 +564,33 @@ namespace pml {
     return result;
   }
 
+  Vector for_each_rows(const Matrix& x, double (*func)(const Vector &)){
+    Vector result;
+    for(size_t i=0; i < x.nrows(); ++i){
+      result.append(func(x.getRow(i)));
+    }
+    return result;
+  }
+
+  Vector for_each_cols(const Matrix& x, double (*func)(const Vector &)){
+    Vector result;
+    for(size_t i=0; i < x.ncols(); ++i){
+      result.append(func(x.getColumn(i)));
+    }
+    return result;
+  }
+
   // Sum
   inline double sum(const Matrix  &x){
     return std::accumulate(x.begin(), x.end(), 0.0);
   }
 
   inline Vector sumCols(const Matrix &x) {
-    Vector result = Vector::zeros(x.ncols());
-    for(size_t i=0; i < x.nrows(); ++i)
-      for(size_t j=0; j < x.ncols(); ++j)
-        result[j] += x(i,j);
-    return result;
+    return for_each_cols(x, sum);
   }
 
   inline Vector sumRows(const Matrix &x) {
-    Vector result = Vector::zeros(x.nrows());
-    for(size_t i=0; i < x.nrows(); ++i)
-      for(size_t j=0; j < x.ncols(); ++j)
-        result[i] += x(i,j);
-    return result;
+    return for_each_rows(x, sum);
   }
 
   //Min
@@ -591,25 +599,11 @@ namespace pml {
   }
 
   inline Vector minCols(const Matrix &x) {
-    Vector result = Vector(x.ncols(), std::numeric_limits<double>::max());
-    for (size_t i = 0; i < x.nrows(); ++i) {
-      for (size_t j = 0; j < x.ncols(); ++j) {
-        if (result[i] > x(i, j))
-          result[i] = x(i, j);
-      }
-    }
-    return result;
+    return for_each_cols(x, min);
   }
 
   inline Vector minRows(const Matrix &x) {
-    Vector result = Vector(x.nrows(), std::numeric_limits<double>::max());
-    for (size_t i = 0; i < x.nrows(); ++i) {
-      for (size_t j = 0; j < x.ncols(); ++j) {
-        if (result[j] > x(i, j))
-          result[j] = x(i, j);
-      }
-    }
-    return result;
+    return for_each_rows(x, min);
   }
 
   // Max
@@ -618,25 +612,11 @@ namespace pml {
   }
 
   inline Vector maxCols(const Matrix &x) {
-    Vector result = Vector(x.ncols(), std::numeric_limits<double>::min());
-    for (size_t i = 0; i < x.nrows(); ++i) {
-      for (size_t j = 0; j < x.ncols(); ++j) {
-        if (result[i] < x(i, j))
-          result[i] = x(i, j);
-      }
-    }
-    return result;
+    return for_each_cols(x, max);
   }
 
   inline Vector maxRows(const Matrix &x) {
-    Vector result = Vector(x.nrows(), std::numeric_limits<double>::min());
-    for (size_t i = 0; i < x.nrows(); ++i) {
-      for (size_t j = 0; j < x.ncols(); ++j) {
-        if (result[j] < x(i, j))
-          result[j] = x(i, j);
-      }
-    }
-    return result;
+    return for_each_rows(x, max);
   }
 
   // Absolute value of x
@@ -655,7 +635,7 @@ namespace pml {
   }
 
   // Polygamma Function.
-  inline Matrix psi(const Matrix &x, int n = 1){
+  inline Matrix psi(const Matrix &x, int n = 0){
     Matrix y(x.shape());
     for(size_t i=0; i < y.size(); i++) {
       y(i) = gsl_sf_psi_n(n, x(i));
@@ -695,12 +675,12 @@ namespace pml {
 
   inline Matrix normalizeExpCols(const Matrix &x) {
     Matrix max_cols = tileRows(maxCols(x), x.nrows());
-    return normalizeCols(x - max_cols);
+    return normalizeCols(exp(x - max_cols));
   }
 
   inline Matrix normalizeExpRows(const Matrix &x) {
     Matrix max_rows = tileCols(maxRows(x), x.ncols());
-    return normalizeRows(x - max_rows);
+    return normalizeRows(exp(x - max_rows));
   }
 
   // Safe LogSumExp(x)

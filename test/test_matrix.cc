@@ -72,9 +72,55 @@ void test_matrix(){
 void test_matrix_functions(){
   std::cout << "test_matrix_functions...\n";
 
+  // Sum, Min, Max
+  Matrix m(2, 3, {0, 1, 2, 3, 4, 5});
+  assert(sum(m) == 15);
+  assert(sumCols(m) == Vector({1, 5, 9}));
+  assert(sumRows(m) == Vector({6, 9}));
 
+  assert(min(m) == 0);
+  assert(minCols(m) == Vector({0, 2, 4}));
+  assert(minRows(m) == Vector({0, 1}));
 
-  std::cout << "OK\n";
+  assert(max(m) == 5);
+  assert(maxCols(m) == Vector({1, 3, 5}));
+  assert(maxRows(m) == Vector({4, 5}));
+
+  // Round and Abs
+  Matrix m2(3, 5, -2.3);
+  assert(abs(m2) == 2.3);
+  assert(round(abs(m2)) == 2);
+
+  // Log, Exp, Psi
+  Matrix m3 = Matrix(3, 4, 0.5);
+  assert(log(m3) == -0.6931471);
+  assert(exp(m3) == 1.64872127);
+  assert(psi(m3) == -1.96351002);
+
+  // Normalizations
+  Matrix m4(2,2, {1, 2, 3, 4});
+  assert(normalize(m4) == Matrix(2,2, {0.1, 0.2, 0.3, 0.4}));
+  assert(normalizeCols(m4) == Matrix(2,2, {1.0/3, 2.0/3, 3.0/7, 4.0/7}));
+  assert(normalizeRows(m4) == Matrix(2,2, {1.0/4, 2.0/6, 3.0/4, 4.0/6}));
+
+  // Normalize Exp
+  Matrix m5 = log(m4);
+  assert(normalizeExp(m5) == Matrix(2,2, {0.1, 0.2, 0.3, 0.4}));
+  assert(normalizeExpCols(m5) == Matrix(2,2, {1.0/3, 2.0/3, 3.0/7, 4.0/7}));
+  assert(normalizeExpRows(m5) == Matrix(2,2, {1.0/4, 2.0/6, 3.0/4, 4.0/6}));
+
+  // LogSumExp
+  assert(logSumExp(m5) == std::log(10));
+  assert(logSumExpCols(m5) == log(sumCols(m4)));
+  assert(logSumExpRows(m5) == log(sumRows(m4)));
+
+  // Tile
+  Vector v = {1,2};
+  assert(tileRows(v, 2) == Matrix(2,2, {1,1,2,2}));
+  assert(tileCols(v, 2) == Matrix(2,2, {1,2,1,2}));
+  assert(repmat(v, 2, 2) == Matrix(4,2, {1,2,1,2,1,2,1,2}));
+
+   std::cout << "OK\n";
 }
 
 void test_matrix_algebra(){
