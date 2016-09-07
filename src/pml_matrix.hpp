@@ -3,6 +3,14 @@
 
 #include "pml_vector.hpp"
 
+extern "C" {
+// LU decomoposition of a general matrix
+void dgetrf_(int*, int*, double*, int*, int*, int*);
+
+// generate inverse of a matrix given its LU decomposition
+void dgetri_(int*, double*, int*, int*, double*, int*, int* );
+}
+
 namespace pml {
 
   class Matrix {
@@ -531,6 +539,21 @@ namespace pml {
     for (size_t i = 0; i < m.nrows(); ++i)
       for (size_t j = 0; j < m.ncols(); ++j)
         result(j, i) = m(i, j);
+    return result;
+  }
+
+  // Inverse
+  Matrix inv(const Matrix &matrix) {
+    Matrix result(matrix);
+    int N = matrix.nrows();
+    int *IPIV = new int[N+1];
+    int LWORK = N*N;
+    double *WORK = new double[LWORK];
+    int INFO;
+    dgetrf_(&N,&N,result.data(),&N,IPIV,&INFO);
+    dgetri_(&N,result.data(),&N,IPIV,WORK,&LWORK,&INFO);
+    delete IPIV;
+    delete WORK;
     return result;
   }
 

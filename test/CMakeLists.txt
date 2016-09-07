@@ -13,7 +13,7 @@ add_executable(test_hmm TestHMM.cc)
 
 add_executable(test_nmf TestNMF.cc)
 
-add_executable(test_bcpm TestBCPM.cc)
+add_executable(test_bcpm test_bcpm.cc)
 
 add_executable(test_vector test_vector.cc)
 
