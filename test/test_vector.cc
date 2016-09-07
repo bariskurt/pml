@@ -43,6 +43,10 @@ void test_vector(){
   v6.push_back(6);  assert(v6.size() == 6);
   v6.pop_back();    assert(v6.size() == 5);
 
+  // Test append 2 Vectors
+  v6.append(Vector()); assert(v6.size() == 5);
+  v6.append(Vector({10,11})); assert(v6.size() == 7);
+
   // Assign, Copy
   Vector v7(v6);  assert(v6 == v7);
   Vector v8; v8 = v6;  assert(v6 == v8);
@@ -86,6 +90,14 @@ void test_vector_functions() {
 
   Vector v3 = {1.1, 2.4, 2.9, 4, 4.8};
   assert(v1 == round(v3));
+
+  // Test slice
+  Vector v4 = {0,1,2,3,4,5,6,7,8};
+  assert(slice(v4, {0, v4.size()}) == v4);
+  assert(slice(v4, {0, 4}) == Vector({0,1,2,3}));
+  assert(slice(v4, {0, 0}) == Vector());
+  assert(slice(v4, {0, v4.size(), 2}) == Vector({0,2,4,6,8}));
+  assert(slice(v4, {1, v4.size(), 2}) == Vector({1,3,5,7}));
 
   std::cout << "OK.\n";
 }

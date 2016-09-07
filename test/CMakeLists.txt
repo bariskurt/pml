@@ -1,7 +1,6 @@
 include_directories(../src)
 link_libraries(gsl)
 link_libraries(gslcblas)
-link_libraries(lapack)
 
 #add_executable(test_objects TestObjects.cc)
 

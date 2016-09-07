@@ -31,12 +31,9 @@ namespace pml {
   // Defines a series from start to stop exclusively with step size step:
   // [start, start+step, start+2*step, ...]
   struct Range {
-    Range(int start_, int stop_, int step_ = 1)
+    Range(size_t start_, size_t stop_, size_t step_ = 1)
         : start(start_), stop(stop_), step(step_) { }
-
-    int start;
-    int stop;
-    int step;
+    size_t start, stop, step;
   };
 
   class Vector {
@@ -49,7 +46,7 @@ namespace pml {
           : data_(length, value) { }
 
       // Vector from given array
-      Vector(size_t length, double *values)
+      Vector(size_t length, const double *values)
           : data_(length) {
         memcpy(this->data(), values, sizeof(double) * length);
       }
@@ -502,16 +499,12 @@ namespace pml {
   }
 
   // Vector slice
-  // ToDo: Replace with Range
-  inline Vector slice(const Vector &v, size_t start,
-                      size_t length, size_t step=1 ){
-    Vector vslice(length);
-    size_t idx = start;
-    for(size_t i = 0; i< length; ++i){
-      vslice(i) = v(idx);
-      idx+=step;
+  inline Vector slice(const Vector &v, const Range &range){
+    Vector result;
+    for(size_t i = range.start; i < range.stop; i+=range.step){
+      result.append(v[i]);
     }
-    return vslice;
+    return result;
   }
 
   // KL Divergence Between Vectors

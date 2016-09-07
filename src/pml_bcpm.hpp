@@ -9,15 +9,35 @@
 namespace pml {
   // ----------- POTENTIALS ----------- //
 
-  class DirichletPotential{
+  class Potential {
 
     public:
-      DirichletPotential(size_t K, double log_c_ = 0) : log_c(log_c_) {
+      explicit Potential(double log_c_) : log_c(log_c_) {}
+
+    public:
+      bool operator<(const Potential &other) const{
+        return this->log_c < other.log_c;
+      }
+
+      virtual Vector rand() const = 0;
+
+      virtual Vector mean() const = 0;
+
+      virtual void update(const Vector &obs) = 0;
+
+    public:
+      double log_c;
+  };
+
+  class DirichletPotential : public Potential {
+
+    public:
+      DirichletPotential(size_t K, double log_c_ = 0) : Potential(log_c_) {
         alpha = Vector::ones(K);
       }
 
-      DirichletPotential(const Vector& alpha_, double log_c_ = 0) :
-              alpha(alpha_), log_c(log_c_) {}
+      DirichletPotential(const Vector& alpha_, double log_c_ = 0)
+          : Potential(log_c_), alpha(alpha_) {}
 
     public:
       void operator*=(const DirichletPotential &p){
@@ -35,32 +55,28 @@ namespace pml {
                                   log_c + p.log_c + delta);
       }
 
-      bool operator<(const DirichletPotential &other) const{
-        return this->log_c < other.log_c;
-      }
-
-      void update(const Vector &obs){
+      void update(const Vector &obs) override{
         double log_c = std::lgamma(sum(obs)+1) - std::lgamma(sum(obs+1));
         this->operator*=(DirichletPotential(obs+1, log_c));
       }
 
-      Vector rand() const{
+      Vector rand() const override{
         return dirichlet::rand(alpha);
       }
 
-      Vector mean() const{
+      Vector mean() const override{
         return normalize(alpha);
       }
 
     public:
       Vector alpha;
-      double log_c;   //log of normalizing constant
   };
 
-  class GammaPotential{
+  class GammaPotential : public Potential {
+
     public:
       GammaPotential(double a_, double b_, double log_c_ = 0)
-              : a(a_), b(b_), log_c(log_c_) {}
+              : Potential(log_c_), a(a_), b(b_){}
 
     public:
       void operator*=(const GammaPotential &other){
@@ -78,26 +94,21 @@ namespace pml {
                               log_c + other.log_c + delta);
       }
 
-      bool operator<(const GammaPotential &other) const{
-        return this->log_c < other.log_c;
-      }
-
-      Vector rand() const{
+      Vector rand() const override {
         return gamma::rand(a, b, 1);
       }
 
-      Vector mean() const{
+      Vector mean() const override {
         return Vector(1, a / b);
       }
 
-      void update(const Vector &obs){
+      void update(const Vector &obs) override {
         this->operator*=(GammaPotential(obs.first()+1, 1));
       }
 
     public:
       double a;
       double b;
-      double log_c;   //log of normalizing constant
   };
 
   // ----------- OBSERVATION MODELS ----------- //

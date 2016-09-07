@@ -27,7 +27,7 @@ namespace pml {
 
       // Matrix with given dimensions and array.
       // Matrix is stored in column major order.
-      Matrix(size_t num_rows, size_t num_cols, double *values)
+      Matrix(size_t num_rows, size_t num_cols, const double *values)
           : nrows_(num_rows), ncols_(num_cols), data_(num_rows * num_cols) {
         memcpy(this->data(), values, sizeof(double) * size());
       }
@@ -412,7 +412,7 @@ namespace pml {
       // Returns several columns as Matrix
       Matrix getColumns(Range range) const {
         Matrix result;
-        for(int i = range.start; i < range.stop; i+=range.step){
+        for(size_t i = range.start; i < range.stop; i+=range.step){
           result.appendColumn(getColumn(i));
         }
         return result;
@@ -533,6 +533,11 @@ namespace pml {
 
   };
 
+  // Returns a flat vector from Matrix x
+  Vector vectorize(const Matrix &x){
+    return Vector(x.size(), x.data());
+  }
+
   // Transpose
   inline Matrix transpose(const Matrix &m){
     Matrix result(m.ncols(), m.nrows());
@@ -542,7 +547,8 @@ namespace pml {
     return result;
   }
 
-  // Inverse
+  // Inverse : will be added later in linear algebra package
+  /*
   Matrix inv(const Matrix &matrix) {
     Matrix result(matrix);
     int N = matrix.nrows();
@@ -556,6 +562,7 @@ namespace pml {
     delete WORK;
     return result;
   }
+  */
 
   // repmat function of Matlab
   Matrix repmat(const Vector &x, int n, int m ){
@@ -720,6 +727,10 @@ namespace pml {
   inline Vector logSumExpRows(const Matrix &x) {
     Vector row_max = maxRows(x);
     return row_max + log(sumRows(exp(x-tileCols(row_max, x.ncols()))));
+  }
+
+  double kl_div(const Matrix &x, const Matrix &y){
+    return kl_div(vectorize(x), vectorize(y));
   }
 
   // Matrix - Vector Product
