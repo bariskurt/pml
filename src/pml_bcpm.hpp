@@ -60,11 +60,11 @@ namespace pml {
         this->operator*=(DirichletPotential(obs+1, log_c));
       }
 
-      Vector rand() const override{
+      Vector rand() const override {
         return dirichlet::rand(alpha);
       }
 
-      Vector mean() const override{
+      Vector mean() const override {
         return normalize(alpha);
       }
 
@@ -75,7 +75,7 @@ namespace pml {
   class GammaPotential : public Potential {
 
     public:
-      GammaPotential(double a_, double b_, double log_c_ = 0)
+      GammaPotential(double a_ = 1, double b_ = 1, double log_c_ = 0)
               : Potential(log_c_), a(a_), b(b_){}
 
     public:
