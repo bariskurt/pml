@@ -102,54 +102,57 @@ namespace pml {
 
   // ----------- OBSERVATION MODELS ----------- //
 
-  class PoissonRandom{
+  template <class P>
+  class ObservationModel{
 
     public:
-      PoissonRandom(const GammaPotential &prior_) : prior(prior_){
-        reset();
-      }
+      ObservationModel(const P &prior_) : prior(prior_) {}
 
+    public:
       void reset(){
         lambda = prior.rand();
       }
+      virtual Vector rand() const  = 0;
 
-      Vector rand() const {
-        return poisson::rand(lambda.first(), 1);
-      }
-
-      void update(GammaPotential &gp, const Vector &obs){
-        gp *= GammaPotential(obs.first()+1, 1);
-      }
+      virtual void update(P &p, const Vector &obs) const = 0;
 
     public:
-      GammaPotential prior;
+      P prior;
       Vector lambda;
   };
 
-  class MultinomialRandom{
+  class PoissonRandom : public ObservationModel<GammaPotential> {
 
     public:
-      MultinomialRandom(const DirichletPotential &prior_) : prior(prior_){
+      PoissonRandom(const GammaPotential &prior_) : ObservationModel(prior_){
         reset();
       }
 
-      void reset(){
-        lambda = prior.rand();
+      Vector rand() const override{
+        return poisson::rand(lambda.first(), 1);
       }
 
-      Vector rand() const {
+      void update(GammaPotential &gp, const Vector &obs) const override{
+        gp *= GammaPotential(obs.first()+1, 1);
+      }
+  };
+
+  class MultinomialRandom : public ObservationModel<DirichletPotential> {
+
+    public:
+      MultinomialRandom(const DirichletPotential &prior_)
+              : ObservationModel(prior_){
+        reset();
+      }
+
+      Vector rand() const override {
         return multinomial::rand(lambda, 100);
       }
 
-      void update(DirichletPotential &dp, const Vector &obs) {
+      void update(DirichletPotential &dp, const Vector &obs) const override {
         double log_c = std::lgamma(sum(obs)+1) - std::lgamma(sum(obs+1));
         dp *= DirichletPotential(obs+1, log_c);
       }
-
-    public:
-      DirichletPotential prior;
-      Vector lambda;
-
   };
 
   // ----------- MESSAGE----------- //
