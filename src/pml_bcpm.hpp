@@ -362,30 +362,6 @@ namespace pml {
       int lag;
       int max_components;
   };
-    /*
-
-
-  // ----------- FORWARD-BACKWARD ----------- //
-
-  class ForwardBackward{
-
-      // needs better implementation via heap
-      void prun(Message* msg) {
-        while (msg->components.size() > (unsigned) max_components) {
-          std::vector<Component*> &comps = msg->components;
-          double min_c = comps[0]->log_c;
-          int min_id = 0;
-          for (size_t i=1; i<comps.size(); i++) {
-            if (comps[i]->log_c < min_c) {
-              min_c = comps[i]->log_c;
-              min_id = i;
-            }
-          }
-          comps.erase(comps.begin() + min_id);
-        }
-      }
-
-*/
 }
 
 #endif //MATLIB_PML_BCPM_H
