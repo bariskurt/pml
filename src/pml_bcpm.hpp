@@ -23,8 +23,6 @@ namespace pml {
 
       virtual Vector mean() const = 0;
 
-      virtual void update(const Vector &obs) = 0;
-
     public:
       double log_c;
   };
@@ -53,11 +51,6 @@ namespace pml {
 
         return DirichletPotential(alpha + p.alpha - 1,
                                   log_c + p.log_c + delta);
-      }
-
-      void update(const Vector &obs) override{
-        double log_c = std::lgamma(sum(obs)+1) - std::lgamma(sum(obs+1));
-        this->operator*=(DirichletPotential(obs+1, log_c));
       }
 
       Vector rand() const override {
@@ -102,10 +95,6 @@ namespace pml {
         return Vector(1, a / b);
       }
 
-      void update(const Vector &obs) override {
-        this->operator*=(GammaPotential(obs.first()+1, 1));
-      }
-
     public:
       double a;
       double b;
@@ -113,16 +102,54 @@ namespace pml {
 
   // ----------- OBSERVATION MODELS ----------- //
 
-  struct PoissonRandom{
-    Vector operator()(const Vector &param) const {
-      return poisson::rand(param.first(), 1);
-    }
+  class PoissonRandom{
+
+    public:
+      PoissonRandom(const GammaPotential &prior_) : prior(prior_){
+        reset();
+      }
+
+      void reset(){
+        lambda = prior.rand();
+      }
+
+      Vector rand() const {
+        return poisson::rand(lambda.first(), 1);
+      }
+
+      void update(GammaPotential &gp, const Vector &obs){
+        gp *= GammaPotential(obs.first()+1, 1);
+      }
+
+    public:
+      GammaPotential prior;
+      Vector lambda;
   };
 
-  struct MultinomialRandom{
-    Vector operator()(const Vector &param) const {
-      return multinomial::rand(param, 100);
-    }
+  class MultinomialRandom{
+
+    public:
+      MultinomialRandom(const DirichletPotential &prior_) : prior(prior_){
+        reset();
+      }
+
+      void reset(){
+        lambda = prior.rand();
+      }
+
+      Vector rand() const {
+        return multinomial::rand(lambda, 100);
+      }
+
+      void update(DirichletPotential &dp, const Vector &obs) {
+        double log_c = std::lgamma(sum(obs)+1) - std::lgamma(sum(obs+1));
+        dp *= DirichletPotential(obs+1, log_c);
+      }
+
+    public:
+      DirichletPotential prior;
+      Vector lambda;
+
   };
 
   // ----------- MESSAGE----------- //
@@ -150,12 +177,6 @@ namespace pml {
           for(auto &component2 : m2.components)
             msg.add_component(component1 * component2);
         return msg;
-      }
-
-      void update(const Vector& obs) {
-        for(auto &component : components){
-          component.update(obs);
-        }
       }
 
       // Returns mean and cpp (Maybe renamed)
@@ -198,7 +219,8 @@ namespace pml {
   template <class P, class Obs>
   class Model{
     public:
-      Model(const P &prior_, double p1_) : prior(prior_), p1(p1_){
+      Model(const P &prior_, double p1_)
+              : prior(prior_), observation(prior_), p1(p1_){
         log_p1 = std::log(p1);
         log_p0 = std::log(1-p1);
       }
@@ -208,13 +230,12 @@ namespace pml {
       std::pair<Matrix, Matrix> generateData(size_t T){
         Matrix states, obs;
 
-        Vector state = prior.rand();
         for (size_t t=0; t<T; t++) {
           if (t > 0 && uniform::rand() < p1) {
-            state = prior.rand();
+            observation.reset();
           }
-          states.appendColumn(state);
-          obs.appendColumn(observation(state));
+          states.appendColumn(observation.lambda);
+          obs.appendColumn(observation.rand());
         }
         return {states, obs};
       }
@@ -235,6 +256,11 @@ namespace pml {
         }
         message.add_component(prior, log_p1 + logSumExp(consts));
         return message;
+      }
+
+      void update(Message<P> &message, const Vector &obs){
+        for(auto &component : message.components)
+          observation.update(component, obs);
       }
 
     private:
@@ -260,7 +286,7 @@ namespace pml {
         else
           alpha.push_back(model.predict(alpha.back()));
         // update step
-        alpha.back().update(obs);
+        model.update(alpha.back(), obs);
       }
 
       void oneStepBackward(std::vector<Message<P>> &beta, const Vector& obs) {
@@ -270,7 +296,7 @@ namespace pml {
         else
           beta.push_back(model.predict(beta.back()));
         // update step
-        beta.back().update(obs);
+        model.update(beta.back(), obs);
       }
 
       std::vector<Message<P>> forward(const Matrix& obs){
