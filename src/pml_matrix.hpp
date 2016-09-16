@@ -348,11 +348,11 @@ namespace pml {
 
       // R = A + [b b ... b]
       friend Matrix operator+(const Matrix &x, const Vector &v) {
-        ASSERT_TRUE(x.nrows() == v.size(),
+        ASSERT_TRUE(x.nrows_ == v.size(),
                     "Matrix::operator+:: Vector size mismatch.");
         Matrix result(x.shape());
-        for (size_t i = 0; i < x.nrows(); ++i) {
-          for (size_t j = 0; j < x.ncols(); ++j) {
+        for (size_t i = 0; i < x.nrows_; ++i) {
+          for (size_t j = 0; j < x.ncols_; ++j) {
             result(i,j) = x(i,j) + v[i];
           }
         }
@@ -361,11 +361,11 @@ namespace pml {
 
       // R = A - [v v ... v]
       friend Matrix operator-(const Matrix &x, const Vector &v) {
-        ASSERT_TRUE(x.nrows() == v.size(),
+        ASSERT_TRUE(x.nrows_ == v.size(),
                     "Matrix::operator-:: Vector size mismatch.");
         Matrix result(x.shape());
-        for (size_t i = 0; i < x.nrows(); ++i) {
-          for (size_t j = 0; j < x.ncols(); ++j) {
+        for (size_t i = 0; i < x.nrows_; ++i) {
+          for (size_t j = 0; j < x.ncols_; ++j) {
             result(i,j) = x(i,j) - v[i];
           }
         }
@@ -374,11 +374,11 @@ namespace pml {
 
       // R = A * [b b ... b]
       friend Matrix operator*(const Matrix &x, const Vector &v) {
-        ASSERT_TRUE(x.nrows() == v.size(),
+        ASSERT_TRUE(x.nrows_ == v.size(),
                     "Matrix::operator*:: Vector size mismatch.");
         Matrix result(x.shape());
-        for (size_t i = 0; i < x.nrows(); ++i) {
-          for (size_t j = 0; j < x.ncols(); ++j) {
+        for (size_t i = 0; i < x.nrows_; ++i) {
+          for (size_t j = 0; j < x.ncols_; ++j) {
             result(i,j) = x(i,j) * v[i];
           }
         }
@@ -387,11 +387,11 @@ namespace pml {
 
       // R = A / [v v ... v]
       friend Matrix operator/(const Matrix &x, const Vector &v) {
-        ASSERT_TRUE(x.nrows() == v.size(),
+        ASSERT_TRUE(x.nrows_ == v.size(),
                     "Matrix::operator/:: Vector size mismatch.");
         Matrix result(x.shape());
-        for (size_t i = 0; i < x.nrows(); ++i) {
-          for (size_t j = 0; j < x.ncols(); ++j) {
+        for (size_t i = 0; i < x.nrows_; ++i) {
+          for (size_t j = 0; j < x.ncols_; ++j) {
             result(i,j) = x(i,j) / v[i];
           }
         }
@@ -440,7 +440,7 @@ namespace pml {
 
       // Sets a single row.
       void setRow(size_t row_num, const Vector &row) {
-        ASSERT_TRUE(ncols() == row.size(),
+        ASSERT_TRUE(ncols_ == row.size(),
                     "Matrix::setRow:: Vector size mismatch");
         size_t idx = row_num;
         for(size_t i=0; i < ncols_; ++i){
@@ -451,27 +451,33 @@ namespace pml {
 
       // Appends a column to the right.
       void appendColumn(const Vector &v){
-        ASSERT_TRUE( empty() | (nrows() == v.size()),
+        ASSERT_TRUE( empty() | (nrows_ == v.size()),
                     "Matrix::appendColumn:: Vector size mismatch");
         if(empty()){
           nrows_ = v.size();
-        } else {
-          assert(nrows_ == v.size());
         }
         data_.insert(data_.end(), v.begin(), v.end());
         ncols_++;
       }
 
-      // Appends a column to the right.
+      // Appends a row to the bottom.
       void appendRow(const Vector &v){
-        ASSERT_TRUE(empty() | (ncols() == v.size()),
+        ASSERT_TRUE(empty() | (ncols_ == v.size()),
                     "Matrix::appendRow:: Vector size mismatch");
-        Matrix temp(nrows()+1, ncols());
-        for(size_t i = 0; i < nrows(); ++i){
-          temp.setRow(i, getRow(i));
+        if(empty()) {
+          data_.insert(data_.end(), v.begin(), v.end());
+          ncols_ = v.size();
+        } else {
+          Matrix temp(nrows_+1, ncols_);
+          double *temp_data = temp.data();
+          for(size_t i=0; i < ncols_; ++i){
+            memcpy(&temp_data[i * (nrows_+1)], &data_[i * nrows_],
+                   sizeof(double) * nrows_);
+            temp(nrows_, i) = v(i);
+          }
+          data_ = std::move(temp.data_);
         }
-        temp.setRow(nrows(), v);
-        data_ = std::move(temp.data_);
+        nrows_++;
       }
 
       // ---------- File Operations --------

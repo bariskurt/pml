@@ -363,7 +363,7 @@ namespace pml {
                                       const Vector &x) {
         out << std::setprecision(DEFAULT_PRECISION) << std::fixed;
         for (auto &value : x) {
-          out << value << std::endl;
+          out << value << "  ";
         }
         return out;
       }
@@ -380,7 +380,10 @@ namespace pml {
         if (ofs.is_open()) {
           ofs << 1 << std::endl;      // dimension
           ofs << size() << std::endl; // size
-          ofs << *this;               // elements
+          ofs << std::setprecision(DEFAULT_PRECISION) << std::fixed;
+          for (auto &value : data_) {
+            ofs << value << std::endl;
+          }
           ofs.close();
         }
       }

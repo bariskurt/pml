@@ -184,11 +184,35 @@ void test_matrix_algebra(){
   std::cout << "OK\n";
 }
 
+void test_matrix_append(){
+
+  std::cout << "test_matrix_append...\n";
+
+  Matrix m1;
+  m1.appendColumn(Vector({1,2,3,4}));
+  m1.appendColumn(Vector({1,2,3,4}));
+  assert(m1.nrows()==4);
+  assert(m1.ncols()==2);
+  assert(m1.getColumn(0) == Vector({1,2,3,4}));
+  assert(m1.getColumn(1) == Vector({1,2,3,4}));
+
+  Matrix m2;
+  m2.appendRow(Vector({1,2,3,4}));
+  m2.appendRow(Vector({1,2,3,4}));
+  assert(m2.nrows()==2);
+  assert(m2.ncols()==4);
+  assert(m2.getRow(0) == Vector({1,2,3,4}));
+  assert(m2.getRow(1) == Vector({1,2,3,4}));
+
+  std::cout << "OK\n";
+}
+
 
 int main(){
   test_matrix();
   test_matrix_functions();
   test_matrix_algebra();
+  test_matrix_append();
   return 0;
 }
 
