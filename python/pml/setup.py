@@ -5,5 +5,6 @@ setup(
     version='0.1', 
     author='Baris Kurt', 
     author_email='bariskurt@gmail.com', 
-    url='www.bariskurt.com'
+    url='www.bariskurt.com',
+    packages=['pml']
 )

@@ -375,12 +375,13 @@ namespace pml {
         return in;
       }
 
-      void saveTxt(const std::string &filename) const {
+      void saveTxt(const std::string &filename,
+                   int precision = DEFAULT_PRECISION) const {
         std::ofstream ofs(filename);
         if (ofs.is_open()) {
           ofs << 1 << std::endl;      // dimension
           ofs << size() << std::endl; // size
-          ofs << std::setprecision(DEFAULT_PRECISION) << std::fixed;
+          ofs << std::setprecision(precision) << std::fixed;
           for (auto &value : data_) {
             ofs << value << std::endl;
           }
