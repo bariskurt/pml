@@ -297,9 +297,8 @@ namespace pml {
         if (beta.size()==0)
           beta.push_back(model.initialMessage());
         else
+          model.update(beta.back(), obs);
           beta.push_back(model.predict(beta.back()));
-        // update step
-        model.update(beta.back(), obs);
       }
 
       std::vector<Message<P>> forward(const Matrix& obs){
@@ -313,7 +312,8 @@ namespace pml {
 
       std::vector<Message<P>> backward(const Matrix& obs){
         std::vector<Message<P>> beta;
-        for (size_t i=obs.ncols(); i>0; i--) {
+        beta.push_back(model.initialMessage());
+        for (size_t i=obs.ncols(); i>1; i--) {
           oneStepBackward(beta, obs.getColumn(i-1));
           beta.back().prune(max_components);
         }
