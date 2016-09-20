@@ -6,5 +6,5 @@ setup(
     author='Baris Kurt', 
     author_email='bariskurt@gmail.com', 
     url='www.bariskurt.com',
-    py_modules=['pml']
+    packages=['pml']
 )

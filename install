@@ -3,9 +3,10 @@ if [ ! -d /usr/local/include/pml ]; then
 fi
 
 cp src/pml.hpp /usr/local/include/pml
+cp src/pml_vector.hpp /usr/local/include/pml
+cp src/pml_matrix.hpp /usr/local/include/pml
 cp src/pml_hmm.hpp /usr/local/include/pml
 cp src/pml_bcpm.hpp /usr/local/include/pml
-cp src/pml_linalg.hpp /usr/local/include/pml
 cp src/pml_nmf.hpp /usr/local/include/pml
 cp src/pml_rand.hpp /usr/local/include/pml
 cp src/pml_utils.hpp /usr/local/include/pml
