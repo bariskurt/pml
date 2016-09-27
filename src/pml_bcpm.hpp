@@ -61,6 +61,10 @@ namespace pml {
         return normalize(alpha);
       }
 
+      void print(){
+        std::cout << alpha << " log_c:" << log_c << std::endl;
+      }
+
     public:
       Vector alpha;
   };
@@ -93,6 +97,11 @@ namespace pml {
 
       Vector mean() const override {
         return Vector(1, a / b);
+      }
+
+      void print(){
+        std::cout << "a:" << a << "  b:" << b
+                  << "  log_c: " << log_c << std::endl;
       }
 
     public:
@@ -132,6 +141,10 @@ namespace pml {
         return poisson::rand(lambda.first(), 1);
       }
 
+      GammaPotential transformObs(const Vector &obs){
+        return GammaPotential(obs.first()+1, 1);
+      }
+
       void update(GammaPotential &gp, const Vector &obs) const override{
         gp *= GammaPotential(obs.first()+1, 1);
       }
@@ -147,6 +160,10 @@ namespace pml {
 
       Vector rand() const override {
         return multinomial::rand(lambda, 100);
+      }
+
+      DirichletPotential transformObs(const Vector &obs){
+        return DirichletPotential(obs+1);
       }
 
       void update(DirichletPotential &dp, const Vector &obs) const override {
@@ -213,6 +230,14 @@ namespace pml {
         }
       }
 
+      double log_likelihood(){
+        Vector consts;
+        for(auto &potential: components){
+          consts.append(potential.log_c);
+        }
+        return logSumExp(consts);
+      }
+
     public:
       std::vector<P> components;
   };
@@ -266,6 +291,32 @@ namespace pml {
           observation.update(component, obs);
       }
 
+      void set_p1(double p1_new){
+        p1 = p1_new;
+        log_p1 = std::log(p1);
+        log_p0 = std::log(1-p1);
+      }
+
+      double get_p1(){
+        return p1;
+      }
+
+      double get_log_p0(){
+        return log_p0;
+      }
+
+      double get_log_p1(){
+        return log_p1;
+      }
+
+      void set_prior(const P &prior_new){
+        prior = prior_new;
+      }
+
+      P get_prior(){
+        return prior;
+      }
+
     private:
       P prior;
       Obs observation;
@@ -284,8 +335,12 @@ namespace pml {
     public:
       void oneStepForward(std::vector<Message<P>> &alpha, const Vector& obs) {
         // predict step
-        if (alpha.size() == 0)
-          alpha.push_back(model.initialMessage());
+        if (alpha.size() == 0) {
+          Message<P> message;
+          message.add_component(model.get_prior(), model.get_log_p0());
+          message.add_component(model.get_prior(), model.get_log_p1());
+          alpha.push_back(message);
+        }
         else
           alpha.push_back(model.predict(alpha.back()));
         // update step
@@ -294,11 +349,16 @@ namespace pml {
 
       void oneStepBackward(std::vector<Message<P>> &beta, const Vector& obs) {
         // predict step
-        if (beta.size()==0)
-          beta.push_back(model.initialMessage());
-        else
-          model.update(beta.back(), obs);
-          beta.push_back(model.predict(beta.back()));
+        if (beta.size()==0) {
+          Message<P> message;
+          message.add_component(model.get_prior(), 0);
+          beta.push_back(message);
+        }
+        else {
+          Message<P> m = beta.back();
+          model.update(m, obs);
+          beta.push_back(model.predict(m));
+        }
       }
 
       std::vector<Message<P>> forward(const Matrix& obs){
@@ -312,7 +372,8 @@ namespace pml {
 
       std::vector<Message<P>> backward(const Matrix& obs){
         std::vector<Message<P>> beta;
-        beta.push_back(model.initialMessage());
+        oneStepBackward(beta, Vector());
+
         for (size_t i=obs.ncols(); i>1; i--) {
           oneStepBackward(beta, obs.getColumn(i-1));
           beta.back().prune(max_components);
@@ -346,10 +407,32 @@ namespace pml {
         auto alpha = forward(obs);
         auto beta = backward(obs);
 
+        for(auto &message : alpha){
+          std::cout << "alpha:\n";
+          for(auto &potential: message.components){
+            potential.print();
+          }
+        }
+        std::cout << "-------------\n\n";
+
+        for(auto &message : beta){
+          std::cout << "beta:\n";
+          for(auto &potential: message.components){
+            potential.print();
+          }
+        }
+        std::cout << "-------------\n\n";
+
         // Calculate Smoothed density
         Message<P> gamma;
+
         for(size_t i=0; i < obs.ncols(); ++i) {
           gamma = alpha[i] * beta[i];
+          std::cout << gamma.log_likelihood() << std::endl;
+          std::cout << "smoothed: \n";
+          for(auto &potential: gamma.components){
+            potential.print();
+          }
           auto result = gamma.evaluate(beta[i].size());
           mean.appendColumn(result.first);
           cpp.append(result.second);
@@ -385,12 +468,56 @@ namespace pml {
         return {mean, cpp};
       }
 
+      std::pair<Matrix, Vector> learn_params(const Matrix& obs){
+
+        std::cout << model.get_p1() << std::endl;
+        size_t MAX_ITER = 10;
+        Vector ll;
+
+        for(size_t iter = 0; iter < MAX_ITER; ++iter){
+          // Forward_backward
+          auto alpha = forward(obs);
+          auto beta = backward(obs);
+          ll.append(alpha.back().log_likelihood());
+
+          // Smooth
+          std::vector<Message<P>> gamma;
+          Vector cpp;
+          for(size_t i=0; i < obs.ncols(); ++i) {
+            gamma.push_back(alpha[i] * beta[i]);
+            auto result = gamma.back().evaluate(beta[i].size());
+            cpp.append(result.second);
+          }
+
+          // Log-likelihood
+          std::cout << "ll is " <<  ll.last() << std::endl;
+          if(iter > 0 && ll[iter] < ll[iter-1]){
+            std::cout << "likelihood decreased.\n";
+          }
+
+          // E-Step:
+
+          // M-Step:
+          model.set_p1(sum(cpp) / cpp.size());
+          std::cout << model.get_p1() << std::endl;
+
+        }
+        return smoothing(obs);
+      }
+
 
     public:
       Model<P, Obs> model;
       int lag;
       int max_components;
   };
+
+  using DM_Model = Model<DirichletPotential, MultinomialRandom>;
+  using DM_ForwardBackward = ForwardBackward<DirichletPotential, MultinomialRandom>;
+
+  using PG_Model = Model<GammaPotential, PoissonRandom>;
+  using PG_ForwardBackward = ForwardBackward<GammaPotential, PoissonRandom>;
+
 }
 
 #endif //MATLIB_PML_BCPM_H

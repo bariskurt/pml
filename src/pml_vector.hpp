@@ -119,6 +119,10 @@ namespace pml {
         return true;
       }
 
+      friend bool operator!=(const Vector &x, double v) {
+        return !(x==v);
+      }
+
       friend bool operator==(const Vector &x, const Vector &y) {
         // Check sizes
         if (x.size() != y.size()) return false;
@@ -127,6 +131,10 @@ namespace pml {
           if (!fequal(x(i), y(i))) return false;
         }
         return true;
+      }
+
+      friend bool operator!=(const Vector &x, const Vector &y) {
+        return !(x==y);
       }
 
     public:

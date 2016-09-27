@@ -8,10 +8,9 @@ const int K = 10;
 const int T = 100;
 const int LAG = 10;
 
-void test_dm_new(){
+void test_dm(){
   // Generate Model
-  Model<DirichletPotential, MultinomialRandom>
-          model(DirichletPotential(Vector::ones(10)), 0.05);
+  DM_Model model(DirichletPotential(Vector::ones(10)), 0.05);
 
   // Generate Sequence
   Matrix states, obs;
@@ -24,8 +23,7 @@ void test_dm_new(){
   Vector cpp;
   int lag = 10;
   int max_components = 20;
-  ForwardBackward<DirichletPotential, MultinomialRandom> fb(model, lag,
-                                                            max_components);
+  DM_ForwardBackward fb(model, lag, max_components);
 
   // Filtering
   std::tie(mean, cpp) = fb.filtering(obs);
@@ -46,11 +44,11 @@ void test_dm_new(){
 }
 
 
-
-void test_gp_new(){
+/*
+void test_gp(){
 
   // Generate Model
-  Model<GammaPotential, PoissonRandom> model(GammaPotential(10, 1), 0.02);
+  PG_Model model(GammaPotential(10, 1), 0.02);
 
   // Generate Sequence
   Matrix states, obs;
@@ -63,7 +61,7 @@ void test_gp_new(){
   Vector cpp;
   int lag = 10;
   int max_components = 20;
-  ForwardBackward<GammaPotential, PoissonRandom> fb(model, lag, max_components);
+  PG_ForwardBackward  fb(model, lag, max_components);
 
   // Filtering
   std::tie(mean, cpp) = fb.filtering(obs);
@@ -83,12 +81,142 @@ void test_gp_new(){
   //Visualize
   cout << system("anaconda3 ../test/python/visualizePoissonReset.py");
 }
+*/
+
+pair<Matrix, Vector> readData(const string& obs_path="../etc/simulator_logs/log_low_250.txt",
+                              const string& cps_path="../etc/simulator_logs/log_low_250_cps.txt") {
+  Matrix obs = Matrix::loadTxt(obs_path);
+  // if path contains the word "simulator", take the transpose
+  if (obs_path.find("simulator") != string::npos) { obs = transpose(obs); }
+  Vector cps;
+  if(cps_path=="") { cps = Vector::zeros(obs.ncols()); }
+  else { cps = Vector::loadTxt(cps_path); }
+  return make_pair(obs, cps);
+}
+
+pair<Matrix, Vector> crop(const pair<Matrix, Vector>& data, size_t start, size_t end) {
+  Matrix obs = data.first;
+  Vector cps = data.second;
+  Matrix retMat;
+  Vector retVec;
+  for(size_t i=start; i<end; i++) {
+    retMat.appendColumn(obs.getColumn(i));
+    retVec.append(cps(i));
+  }
+  return make_pair(retMat,retVec);
+}
+
+void test_dm_em(){
+  // Load Data
+  pair<Matrix, Vector> data = readData();
+  data = crop(data, 500, 900);
+  Matrix &obs = data.first;
+//  Vector &cps = data.second;
+  size_t K = obs.nrows();
+
+  DM_Model model(Vector::ones(K)*10, 0.01);
+  DM_ForwardBackward fb(model);
+
+  fb.learn_params(obs);
+
+}
+
+
+void test_pg_em(){
+
+  cout << "test_pg_em...\n";
+  size_t length = 3;
+  double c = 0.5;
+  double a = 1;
+
+  // Generate data:
+  Matrix states, obs;
+  PG_Model model(GammaPotential(a, 1), c);
+  std::tie(states, obs) = model.generateData(length);
+  obs.saveTxt("/tmp/obs.txt");
+  states.saveTxt("/tmp/states.txt");
+
+  std::cout << "data: \n";
+  std::cout << obs << std::endl;
+
+  // Estimate with true parameters
+  PG_ForwardBackward fb(model);
+  auto result = fb.smoothing(obs);
+  result.first.saveTxt("/tmp/mean.txt");
+  result.second.saveTxt("/tmp/cpp.txt");
+/*
+  // Learn parameters
+  double c_init = 0.00001;
+  double a_init = a;
+  PG_Model init_model(GammaPotential(a_init, 1), c_init);
+  PG_ForwardBackward fb2(init_model);
+  result = fb2.learn_params(obs);
+  result.first.saveTxt("/tmp/mean2.txt");
+  result.second.saveTxt("/tmp/cpp2.txt");
+*/
+  cout << "done.\n";
+}
+
+
+
+void test_dm_em2(){
+
+  cout << "test_dm_em2...\n";
+
+  size_t K = 5;
+  size_t length = 2;
+  double c = 0.5;
+  Vector alpha = Vector::ones(K)*1;
+  // size_t max_iter = 10;
+
+  // Generate data:
+  Matrix states, obs;
+  DM_Model model(DirichletPotential(alpha), c);
+  std::tie(states, obs) = model.generateData(length);
+  // Real Change Points
+  Vector cps = Vector::zeros(length);
+  for(size_t t = 1; t < length; ++t) {
+    cps[t] = (states.getColumn(t) != states.getColumn(t-1));
+  }
+  obs.saveTxt("/tmp/obs.txt");
+  cps.saveTxt("/tmp/cps.txt");
+
+  // Estimate with true parameters
+  DM_ForwardBackward fb(model);
+  auto result = fb.smoothing(obs);
+  result.first.saveTxt("/tmp/mean.txt");
+  result.second.saveTxt("/tmp/cpp.txt");
+  
+  // Learn parameters
+  /*
+  double c_init = 0.00001;
+  Vector alpha_init = alpha;
+  DM_Model init_model(DirichletPotential(alpha_init), c_init);
+  DM_ForwardBackward fb2(init_model);
+  result = fb2.learn_params(obs);
+  result.first.saveTxt("/tmp/mean2.txt");
+  result.second.saveTxt("/tmp/cpp2.txt");
+   */
+
+  cout << "done.\n";
+}
+
+
+void test_bcpm(){
+
+
+
+}
 
 int main() {
 
-    test_gp_new();
+  // test_gp();
 
-//  test_dm_new();
+  // test_dm();
+
+  // test_dm_em2();
+
+  test_pg_em();
 
   return 0;
 }
