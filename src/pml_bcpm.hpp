@@ -250,52 +250,6 @@ namespace pml {
   };
 
 
-/*
-  // ----------- MODEL----------- //
-  template <class P, class Obs>
-  class Model{
-    public:
-      Model(const P &prior_, double p1_)
-              : prior(prior_), observation(prior_), p1(p1_){
-        log_p1 = std::log(p1);
-        log_p0 = std::log(1-p1);
-      }
-
-    public:
-      // returns  "states" as first matrix and "obervations" as second
-      std::pair<Matrix, Matrix> generateData(size_t T){
-        Matrix states, obs;
-
-        for (size_t t=0; t<T; t++) {
-          if (t > 0 && uniform::rand() < p1) {
-            observation.reset();
-          }
-          states.appendColumn(observation.lambda);
-          obs.appendColumn(observation.rand());
-        }
-        return {states, obs};
-      }
-
-      Message<P> initialMessage(){
-        Message<P> message;
-        message.add_component(prior, log_p0);
-        message.add_component(prior, log_p1);
-        return message;
-      }
-
-      Message<P> update(const Message<P> &predict, const Vector &obs){
-        Message<P> message = predict;
-        for(auto &component : message.components) {
-          observation.update(component, obs);
-        }
-        return message;
-      }
-
-
-  };
-    */
-
-
   template <class P>
   class ForwardBackward {
     public:
@@ -326,7 +280,7 @@ namespace pml {
         return message;
       }
 
-    // --------- FORWARD ------------- //
+    // ------------- FORWARD ------------- //
     public:
       std::pair<Matrix, Vector> filtering(const Matrix& obs) {
         // Run forward
@@ -350,14 +304,6 @@ namespace pml {
           oneStepForward(obs.getColumn(i));
           alpha.back().prune(max_components);
         }
-
-        for(auto &message : alpha){
-          std::cout << "alpha:\n";
-          for(auto &potential: message.potentials){
-            potential.print();
-          }
-        }
-        std::cout << "-------------\n\n";
       }
 
       void oneStepForward(const Vector& obs) {
@@ -375,7 +321,7 @@ namespace pml {
         alpha.push_back(update(alpha_predict.back(), obs));
       }
 
-      // --------- BACKWARD ------------- //
+      // ------------- BACKWARD ------------- //
       void backward(const Matrix& obs, size_t idx = 0, size_t steps = 0){
         // Start from column "idx" and go back for "steps" steps
         if(steps == 0 ){
@@ -403,14 +349,25 @@ namespace pml {
           message.add_potential(P::obs2Potential(obs.getColumn(idx)), c);
           beta.push_back(message);
         }
-        for(auto &message : beta){
-          std::cout << "beta:\n";
-          for(auto &potential: message.potentials){
-            potential.print();
-          }
-        }
-        std::cout << "-------------\n\n";
+        std::reverse(beta.begin(), beta.end());
+      }
 
+
+      std::pair<Matrix, Vector> smoothing(const Matrix& obs) {
+        // Run Forward - Backward
+        forward(obs);
+        backward(obs);
+
+        // Calculate Smoothed density
+        Matrix mean;
+        Vector cpp;
+        for(size_t i=0; i < obs.ncols(); ++i) {
+          Message<P> gamma = alpha_predict[i] * beta[i];
+          auto result = gamma.evaluate(beta[i].size());
+          mean.appendColumn(result.first);
+          cpp.append(result.second);
+        }
+        return {mean, cpp};
       }
 
   public:
@@ -424,196 +381,6 @@ namespace pml {
 
   };
 
-
-/*
-
-      // --------- BACKWARD RECURSION --------- //
-
-      void oneStepBackward(const Vector& obs) {
-        // predict step
-        if (beta.size()==0) {
-          Message<P> message;
-          message.add_component(Obs::transformObs(obs));
-          beta.push_back(message);
-        }
-        else {
-          Message<P> m = beta.back();
-          m = model.update(m, obs);
-          beta.push_back(model.predict(m));
-        }
-      }
-
-      void backward(const Matrix& obs, int start = -1, int stop = 0){
-        beta.clear();
-        if(start == -1){
-          start = obs.ncols()-1;
-        }
-        for (int t = start; t >= stop; --t) {
-          Message<P> message;
-          Vector v = obs.getColumn(t);
-          if (beta.size()==0) {
-            message.add_component(Obs::transformObs(v));
-            beta.push_back(message);
-          } else {
-            // Predict p1:
-            Message<P> temp = model.update(beta.back(), model.prior);
-            double c = temp.log_likelihood() + model.log_p1;
-            // Predict p0
-            Message<P> temp2 = model.update(beta.back(), v);
-            for(auto &component: temp2.components){
-              component.log_c += model.log_p0;
-            }
-            // Update
-            temp2.add_component(Obs::transformObs(v), c);
-            beta.push_back(temp2);
-          }
-          beta.back().prune(max_components);
-        }
-        // We calculated Beta backwards, we need to reverse the list.
-        std::reverse(beta.begin(), beta.end());
-      }
-
-      // Returns mean and cpp
-      std::pair<Matrix, Vector> filtering(const Matrix& obs) {
-        // Run forward
-        forward(obs);
-
-        // Calculate mean and cpp
-        Matrix mean;
-        Vector cpp;
-        for(auto &message : alpha){
-          auto result = message.evaluate();
-          mean.appendColumn(result.first);
-          cpp.append(result.second);
-        }
-        return {mean, cpp};
-      }
-
-      // Returns mean and cpp
-      std::pair<Matrix, Vector> smoothing(const Matrix& obs) {
-
-        // Run Forward - Backward
-        forward(obs);
-        backward(obs);
-
-        for(auto &message : alpha){
-          std::cout << "alpha:\n";
-          for(auto &potential: message.components){
-            potential.print();
-          }
-        }
-        std::cout << "-------------\n\n";
-
-        for(auto &message : beta){
-          std::cout << "beta:\n";
-          for(auto &potential: message.components){
-            potential.print();
-          }
-        }
-        std::cout << "-------------\n\n";
-
-        // Calculate Smoothed density
-        Matrix mean;
-        Vector cpp;
-        for(size_t i=0; i < obs.ncols(); ++i) {
-          Message<P> gamma = alpha[i] * beta[i];
-          std::cout << gamma.log_likelihood() << std::endl;
-          std::cout << "smoothed: \n";
-          for(auto &potential: gamma.components){
-            potential.print();
-          }
-          auto result = gamma.evaluate(beta[i].size());
-          mean.appendColumn(result.first);
-          cpp.append(result.second);
-        }
-        std::cout << "Smoothing out\n";
-        return {mean, cpp};
-      }
-
-      // a.k.a. fixed-lag smoothing
-      std::pair<Matrix, Vector> online_smoothing(const Matrix& obs) {
-        if( lag == 0){
-          return filtering(obs);
-        }
-        // Run Forward
-        forward(obs);
-
-        // Fixed-Lag Smooting
-        Matrix mean;
-        Vector cpp;
-        for (size_t t=0; t<obs.ncols()-lag+1; t++) {
-          backward(obs.getColumns(Range(t,t+lag)));
-          Message<P> gamma = alpha[t] * beta[0];
-          auto result = gamma.evaluate(beta[0].size());
-          mean.appendColumn(result.first);
-          cpp.append(result.second);
-          // if T-lag is reached, smooth the rest
-          if(t == obs.ncols()-lag){
-            for(int i = 1; i < lag; ++i){
-              gamma = alpha[t+i] * beta[i];
-              auto result = gamma.evaluate(beta[i].size());
-              mean.appendColumn(result.first);
-              cpp.append(result.second);
-            }
-          }
-        }
-        return {mean, cpp};
-      }
-
-      std::pair<Matrix, Vector> learn_params(const Matrix& obs){
-
-        std::cout << model.get_p1() << std::endl;
-        size_t MAX_ITER = 10;
-        Vector ll;
-
-        for(size_t iter = 0; iter < MAX_ITER; ++iter){
-          // Forward_backward
-          forward(obs);
-          backward(obs);
-          ll.append(alpha.back().log_likelihood());
-
-          // Smooth
-          std::vector<Message<P>> gamma;
-          Vector cpp;
-          for(size_t i=0; i < obs.ncols(); ++i) {
-            gamma.push_back(alpha[i] * beta[i]);
-            auto result = gamma.back().evaluate(beta[i].size());
-            cpp.append(result.second);
-          }
-
-          // Log-likelihood
-          std::cout << "ll is " <<  ll.last() << std::endl;
-          if(iter > 0 && ll[iter] < ll[iter-1]){
-            std::cout << "likelihood decreased.\n";
-          }
-
-          // E-Step:
-
-          // M-Step:
-          model.set_p1(sum(cpp) / cpp.size());
-          std::cout << model.get_p1() << std::endl;
-
-        }
-        return smoothing(obs);
-      }
-
-
-    public:
-      Model<P, Obs> model;
-      int lag;
-      int max_components;
-
-    private:
-      std::vector<Message<P>> alpha;
-      std::vector<Message<P>> alpha_predict;
-      std::vector<Message<P>> beta;
-  };
-
-  using DM_Model = Model<DirichletPotential, MultinomialRandom>;
-  using DM_ForwardBackward = ForwardBackward<DirichletPotential, MultinomialRandom>;
-
-
-*/
   using PG_ForwardBackward = ForwardBackward<GammaPotential>;
 
 } // namespace

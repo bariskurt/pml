@@ -171,8 +171,8 @@ void test_dm_em2(){
 void test_pg_em(){
 
   cout << "test_pg_em...\n";
-  size_t length = 3;
-  double c = 0.5;
+  size_t length = 1000;
+  double c = 0.01;
   double a = 10;
 
   // Generate data:
@@ -183,17 +183,16 @@ void test_pg_em(){
   // Save data:
   obs.saveTxt("/tmp/obs.txt");
   states.saveTxt("/tmp/states.txt");
-  std::cout << "data: " << obs ;
-
 
   // Estimate with true parameters
   PG_ForwardBackward fb(model);
   auto result = fb.filtering(obs);
-
-  fb.backward(obs);
-
   result.first.saveTxt("/tmp/mean.txt");
   result.second.saveTxt("/tmp/cpp.txt");
+
+  result = fb.smoothing(obs);
+  result.first.saveTxt("/tmp/mean2.txt");
+  result.second.saveTxt("/tmp/cpp2.txt");
 
   cout << "done.\n";
 }
