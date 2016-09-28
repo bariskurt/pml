@@ -22,13 +22,13 @@ disp(b2)
  
 
 data.M = 3;
-data.nu = 1;  
+data.nu = 10;  
 data.B = 1;
-data.a0 = 1;  
+data.a0 = 10;  
 data.b0 = 1;
 data.log_p1 = log(0.5); 
 data.log_p0 = log(1 - exp(data.log_p1));
-data.x = [0, 5, 2];
+data.x = [20, 13, 11];
 
 inference
 

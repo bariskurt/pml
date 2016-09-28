@@ -42,10 +42,14 @@ for t=M:-1:1,
     if t==M,
         tau = 0;
         eng.bf(tau +1, t, :) = reshape([data.x(t)+1, 1, 0], [1 1 3]);
-    else
-        tau = 0;
+    else        
+        disp(eng.bf((0:(M-(t+1))) +1, t+1, :))        
+        disp('-------------')
         temp = cmpe58n_mult_gampot(eng.bf((0:(M-(t+1))) +1, t+1, :), reshape([data.nu, data.B, 0], [1 1 3]));
         c = log_sum_exp(temp(:,1,3));
+        disp(temp)
+        disp('-----------------------------------')
+        tau = 0;
         eng.bf(tau +1, t, :) = reshape([data.x(t)+1, 1, data.log_p1 + c], [1 1 3]);
         tau = 1:(M-t);
         eng.bf(tau +1, t, :) = cmpe58n_mult_gampot(eng.bf(tau-1 +1, t+1, :), reshape([data.x(t)+1, 1, data.log_p0], [1 1 3]) );

@@ -23,6 +23,7 @@ namespace pml {
 
       virtual Vector mean() const = 0;
 
+
     public:
       double log_c;
   };
@@ -51,6 +52,10 @@ namespace pml {
 
         return DirichletPotential(alpha + p.alpha - 1,
                                   log_c + p.log_c + delta);
+      }
+
+      static DirichletPotential obs2Potential(const Vector& obs){
+        return DirichletPotential(obs+1);
       }
 
       Vector rand() const override {
@@ -91,6 +96,10 @@ namespace pml {
                               log_c + other.log_c + delta);
       }
 
+      static GammaPotential obs2Potential(const Vector& obs){
+        return GammaPotential(obs.first()+1, 1);
+      }
+
       Vector rand() const override {
         return gamma::rand(a, b, 1);
       }
@@ -109,93 +118,90 @@ namespace pml {
       double b;
   };
 
-  // ----------- OBSERVATION MODELS ----------- //
+  // ----------- MODEL ----------- //
 
   template <class P>
-  class ObservationModel{
+  class Model{
 
     public:
-      ObservationModel(const P &prior_) : prior(prior_) {}
-
-    public:
-      void reset(){
-        lambda = prior.rand();
+      Model(const P &prior_, double p1_) : prior(prior_) {
+        set_p1(p1_);
       }
-      virtual Vector rand() const  = 0;
 
-      virtual void update(P &p, const Vector &obs) const = 0;
+    public:
+      void set_p1(double p1_new){
+        p1 = p1_new;
+        log_p1 = std::log(p1);
+        log_p0 = std::log(1-p1);
+      }
+
+      virtual Vector rand(const Vector &state) const {
+        return Vector();
+      }
+
+      std::pair<Matrix, Matrix> generateData(size_t length){
+        Matrix states, obs;
+        Vector state = prior.rand();
+        for (size_t t=0; t<length; t++) {
+          if (t == 0 || uniform::rand() < p1) {
+            state = prior.rand();
+          }
+          states.appendColumn(state);
+          obs.appendColumn(rand(state));
+        }
+        return {states, obs};
+      }
 
     public:
       P prior;
-      Vector lambda;
+      double p1;
+      double log_p1, log_p0;
   };
 
-  class PoissonRandom : public ObservationModel<GammaPotential> {
+  class PG_Model : public Model<GammaPotential> {
 
     public:
-      PoissonRandom(const GammaPotential &prior_) : ObservationModel(prior_){
-        reset();
-      }
+      PG_Model(const GammaPotential &prior_, double p1_)
+          : Model(prior_, p1_) { }
 
-      Vector rand() const override{
-        return poisson::rand(lambda.first(), 1);
-      }
-
-      GammaPotential transformObs(const Vector &obs){
-        return GammaPotential(obs.first()+1, 1);
-      }
-
-      void update(GammaPotential &gp, const Vector &obs) const override{
-        gp *= GammaPotential(obs.first()+1, 1);
+      Vector rand(const Vector &state) const override {
+        return poisson::rand(state.first(), 1);
       }
   };
 
-  class MultinomialRandom : public ObservationModel<DirichletPotential> {
+  class DM_Model: public Model<DirichletPotential> {
 
     public:
-      MultinomialRandom(const DirichletPotential &prior_)
-              : ObservationModel(prior_){
-        reset();
-      }
+      DM_Model(const DirichletPotential &prior_, double p1_)
+              : Model(prior_, p1_){ }
 
-      Vector rand() const override {
-        return multinomial::rand(lambda, 100);
-      }
-
-      DirichletPotential transformObs(const Vector &obs){
-        return DirichletPotential(obs+1);
-      }
-
-      void update(DirichletPotential &dp, const Vector &obs) const override {
-        double log_c = std::lgamma(sum(obs)+1) - std::lgamma(sum(obs+1));
-        dp *= DirichletPotential(obs+1, log_c);
+      Vector rand(const Vector &state) const override {
+        return multinomial::rand(state, 100);
       }
   };
-
-  // ----------- MESSAGE----------- //
 
   template <class P>
   class Message {
 
     public:
       size_t size() const {
-        return components.size();
+        return potentials.size();
       }
 
-      void add_component(const P &potential){
-        components.push_back(potential);
+      void add_potential(const P &potential){
+        potentials.push_back(potential);
       }
 
-      void add_component(const P &potential, double log_c){
-        components.push_back(potential);
-        components.back().log_c = log_c;
+      void add_potential(const P &potential, double log_c){
+        potentials.push_back(potential);
+        potentials.back().log_c = log_c;
       }
 
       friend Message<P> operator*(const Message<P> &m1, const Message<P> &m2){
         Message<P> msg;
-        for(auto &component1 : m1.components)
-          for(auto &component2 : m2.components)
-            msg.add_component(component1 * component2);
+        for(auto &pot1 : m1.potentials)
+          for(auto &pot2 : m2.potentials)
+            msg.add_potential(pot1 * pot2);
         return msg;
       }
 
@@ -203,7 +209,7 @@ namespace pml {
       std::pair<Vector, double> evaluate(int N = 1){
         Vector consts;
         Matrix params;
-        for(auto &potential: components){
+        for(auto &potential: potentials){
           consts.append(potential.log_c);
           params.appendColumn(potential.mean());
         }
@@ -218,31 +224,33 @@ namespace pml {
       };
 
       void prune(size_t max_components){
-        while(components.size() > max_components){
+        while(size() > max_components){
           // Find mininum no-change element
-          auto iter = std::min_element(components.begin(), components.end()-1);
+          auto iter = std::min_element(potentials.begin(), potentials.end()-1);
           // Swap the last two elements to save the order of the change comp.
-          std::swap(*(components.end()-1), *(components.end()-2));
+          std::swap(*(potentials.end()-1), *(potentials.end()-2));
           // Swap last element with the minimum compoment.
-          std::swap(*iter, components.back());
+          std::swap(*iter, potentials.back());
           // Delete minimum component.
-          components.pop_back();
+          potentials.pop_back();
         }
       }
 
       double log_likelihood(){
         Vector consts;
-        for(auto &potential: components){
+        for(auto &potential: potentials){
           consts.append(potential.log_c);
         }
         return logSumExp(consts);
       }
 
     public:
-      std::vector<P> components;
+      std::vector<P> potentials;
+
   };
 
 
+/*
   // ----------- MODEL----------- //
   template <class P, class Obs>
   class Model{
@@ -275,118 +283,200 @@ namespace pml {
         return message;
       }
 
-      Message<P> predict(const Message<P> &prev){
-        Message<P> message = prev;
-        Vector consts;
-        for(auto &component : message.components){
-          consts.append(component.log_c);
-          component.log_c += log_p0;
+      Message<P> update(const Message<P> &predict, const Vector &obs){
+        Message<P> message = predict;
+        for(auto &component : message.components) {
+          observation.update(component, obs);
         }
-        message.add_component(prior, log_p1 + logSumExp(consts));
         return message;
       }
 
-      void update(Message<P> &message, const Vector &obs){
-        for(auto &component : message.components)
-          observation.update(component, obs);
-      }
 
-      void set_p1(double p1_new){
-        p1 = p1_new;
-        log_p1 = std::log(p1);
-        log_p0 = std::log(1-p1);
-      }
-
-      double get_p1(){
-        return p1;
-      }
-
-      double get_log_p0(){
-        return log_p0;
-      }
-
-      double get_log_p1(){
-        return log_p1;
-      }
-
-      void set_prior(const P &prior_new){
-        prior = prior_new;
-      }
-
-      P get_prior(){
-        return prior;
-      }
-
-    private:
-      P prior;
-      Obs observation;
-      double p1;                //  probability of change
-      double log_p1, log_p0;
   };
+    */
 
-  template <class P, class Obs>
+
+  template <class P>
   class ForwardBackward {
     public:
-      ForwardBackward(const Model<P, Obs> &model_,
-                      int lag_ = 0, int max_components_ = 100)
-              : model(model_), lag(lag_), max_components(max_components_) {}
-
-
-    public:
-      void oneStepForward(std::vector<Message<P>> &alpha, const Vector& obs) {
-        // predict step
-        if (alpha.size() == 0) {
-          Message<P> message;
-          message.add_component(model.get_prior(), model.get_log_p0());
-          message.add_component(model.get_prior(), model.get_log_p1());
-          alpha.push_back(message);
-        }
-        else
-          alpha.push_back(model.predict(alpha.back()));
-        // update step
-        model.update(alpha.back(), obs);
+      ForwardBackward(const Model<P> &model_, int max_components_ = 100)
+          :model(model_), max_components(max_components_){
+        alpha.clear();
+        alpha_predict.clear();
+        beta.clear();
       }
 
-      void oneStepBackward(std::vector<Message<P>> &beta, const Vector& obs) {
+    public:
+      Message<P> predict(const Message<P>& prev){
+        Message<P> message = prev;
+        Vector consts;
+        for(auto &potential : message.potentials){
+          consts.append(potential.log_c);
+          potential.log_c += model.log_p0;
+        }
+        message.add_potential(model.prior, model.log_p1 + logSumExp(consts));
+        return message;
+      }
+
+      Message<P> update(const Message<P> &prev, const Vector &obs){
+        Message<P> message = prev;
+        for(auto &potential : message.potentials) {
+          potential *= P::obs2Potential(obs);
+        }
+        return message;
+      }
+
+    // --------- FORWARD ------------- //
+    public:
+      std::pair<Matrix, Vector> filtering(const Matrix& obs) {
+        // Run forward
+        forward(obs);
+
+        // Calculate mean and cpp
+        Matrix mean;
+        Vector cpp;
+        for(auto &message : alpha){
+          auto result = message.evaluate();
+          mean.appendColumn(result.first);
+          cpp.append(result.second);
+        }
+        return {mean, cpp};
+      }
+
+      void forward(const Matrix& obs){
+        alpha.clear();
+        alpha_predict.clear();
+        for (size_t i=0; i<obs.ncols(); i++) {
+          oneStepForward(obs.getColumn(i));
+          alpha.back().prune(max_components);
+        }
+
+        for(auto &message : alpha){
+          std::cout << "alpha:\n";
+          for(auto &potential: message.potentials){
+            potential.print();
+          }
+        }
+        std::cout << "-------------\n\n";
+      }
+
+      void oneStepForward(const Vector& obs) {
+        // Predict step
+        if (alpha_predict.empty()) {
+          Message<P> message;
+          message.add_potential(model.prior, model.log_p0);
+          message.add_potential(model.prior, model.log_p1);
+          alpha_predict.push_back(message);
+        }
+        else {
+          alpha_predict.push_back(predict(alpha.back()));
+        }
+        // Update step
+        alpha.push_back(update(alpha_predict.back(), obs));
+      }
+
+      // --------- BACKWARD ------------- //
+      void backward(const Matrix& obs, size_t idx = 0, size_t steps = 0){
+        // Start from column "idx" and go back for "steps" steps
+        if(steps == 0 ){
+          steps = obs.ncols();
+          idx = obs.ncols()-1;
+        }
+        beta.clear();
+        for(size_t t = 0; t < steps; ++t, --idx){
+          Message<P> message;
+          double c = 0;
+          if(!beta.empty()){
+            // Predict for case s_t = 1, calculate constant only
+            message = beta.back();
+            for(auto &potential : message.potentials){
+              potential *= model.prior;
+            }
+            c = model.log_p1 + message.log_likelihood();
+
+            // Update :
+            message = update(beta.back(), obs.getColumn(idx));
+            for(auto &potential : message.potentials){
+              potential.log_c += model.log_p0;
+            }
+          }
+          message.add_potential(P::obs2Potential(obs.getColumn(idx)), c);
+          beta.push_back(message);
+        }
+        for(auto &message : beta){
+          std::cout << "beta:\n";
+          for(auto &potential: message.potentials){
+            potential.print();
+          }
+        }
+        std::cout << "-------------\n\n";
+
+      }
+
+  public:
+      Model<P> model;
+      int max_components;
+
+    private:
+      std::vector<Message<P>> alpha;
+      std::vector<Message<P>> alpha_predict;
+      std::vector<Message<P>> beta;
+
+  };
+
+
+/*
+
+      // --------- BACKWARD RECURSION --------- //
+
+      void oneStepBackward(const Vector& obs) {
         // predict step
         if (beta.size()==0) {
           Message<P> message;
-          message.add_component(model.get_prior(), 0);
+          message.add_component(Obs::transformObs(obs));
           beta.push_back(message);
         }
         else {
           Message<P> m = beta.back();
-          model.update(m, obs);
+          m = model.update(m, obs);
           beta.push_back(model.predict(m));
         }
       }
 
-      std::vector<Message<P>> forward(const Matrix& obs){
-        std::vector<Message<P>> alpha;
-        for (size_t i=0; i<obs.ncols(); i++) {
-          oneStepForward(alpha, obs.getColumn(i));
-          alpha.back().prune(max_components);
+      void backward(const Matrix& obs, int start = -1, int stop = 0){
+        beta.clear();
+        if(start == -1){
+          start = obs.ncols()-1;
         }
-        return alpha;
-      }
-
-      std::vector<Message<P>> backward(const Matrix& obs){
-        std::vector<Message<P>> beta;
-        oneStepBackward(beta, Vector());
-
-        for (size_t i=obs.ncols(); i>1; i--) {
-          oneStepBackward(beta, obs.getColumn(i-1));
+        for (int t = start; t >= stop; --t) {
+          Message<P> message;
+          Vector v = obs.getColumn(t);
+          if (beta.size()==0) {
+            message.add_component(Obs::transformObs(v));
+            beta.push_back(message);
+          } else {
+            // Predict p1:
+            Message<P> temp = model.update(beta.back(), model.prior);
+            double c = temp.log_likelihood() + model.log_p1;
+            // Predict p0
+            Message<P> temp2 = model.update(beta.back(), v);
+            for(auto &component: temp2.components){
+              component.log_c += model.log_p0;
+            }
+            // Update
+            temp2.add_component(Obs::transformObs(v), c);
+            beta.push_back(temp2);
+          }
           beta.back().prune(max_components);
         }
         // We calculated Beta backwards, we need to reverse the list.
         std::reverse(beta.begin(), beta.end());
-        return beta;
       }
 
       // Returns mean and cpp
       std::pair<Matrix, Vector> filtering(const Matrix& obs) {
         // Run forward
-        auto alpha = forward(obs);
+        forward(obs);
 
         // Calculate mean and cpp
         Matrix mean;
@@ -401,11 +491,10 @@ namespace pml {
 
       // Returns mean and cpp
       std::pair<Matrix, Vector> smoothing(const Matrix& obs) {
-        Matrix mean;
-        Vector cpp;
-        // Run Forward and Backward
-        auto alpha = forward(obs);
-        auto beta = backward(obs);
+
+        // Run Forward - Backward
+        forward(obs);
+        backward(obs);
 
         for(auto &message : alpha){
           std::cout << "alpha:\n";
@@ -424,10 +513,10 @@ namespace pml {
         std::cout << "-------------\n\n";
 
         // Calculate Smoothed density
-        Message<P> gamma;
-
+        Matrix mean;
+        Vector cpp;
         for(size_t i=0; i < obs.ncols(); ++i) {
-          gamma = alpha[i] * beta[i];
+          Message<P> gamma = alpha[i] * beta[i];
           std::cout << gamma.log_likelihood() << std::endl;
           std::cout << "smoothed: \n";
           for(auto &potential: gamma.components){
@@ -437,6 +526,7 @@ namespace pml {
           mean.appendColumn(result.first);
           cpp.append(result.second);
         }
+        std::cout << "Smoothing out\n";
         return {mean, cpp};
       }
 
@@ -445,13 +535,15 @@ namespace pml {
         if( lag == 0){
           return filtering(obs);
         }
+        // Run Forward
+        forward(obs);
+
+        // Fixed-Lag Smooting
         Matrix mean;
         Vector cpp;
-        std::vector<Message<P>> alpha = forward(obs);
-        Message<P> gamma;
         for (size_t t=0; t<obs.ncols()-lag+1; t++) {
-          auto beta = backward(obs.getColumns(Range(t, t+lag)));
-          gamma = alpha[t] * beta[0];
+          backward(obs.getColumns(Range(t,t+lag)));
+          Message<P> gamma = alpha[t] * beta[0];
           auto result = gamma.evaluate(beta[0].size());
           mean.appendColumn(result.first);
           cpp.append(result.second);
@@ -476,8 +568,8 @@ namespace pml {
 
         for(size_t iter = 0; iter < MAX_ITER; ++iter){
           // Forward_backward
-          auto alpha = forward(obs);
-          auto beta = backward(obs);
+          forward(obs);
+          backward(obs);
           ll.append(alpha.back().log_likelihood());
 
           // Smooth
@@ -510,14 +602,20 @@ namespace pml {
       Model<P, Obs> model;
       int lag;
       int max_components;
+
+    private:
+      std::vector<Message<P>> alpha;
+      std::vector<Message<P>> alpha_predict;
+      std::vector<Message<P>> beta;
   };
 
   using DM_Model = Model<DirichletPotential, MultinomialRandom>;
   using DM_ForwardBackward = ForwardBackward<DirichletPotential, MultinomialRandom>;
 
-  using PG_Model = Model<GammaPotential, PoissonRandom>;
-  using PG_ForwardBackward = ForwardBackward<GammaPotential, PoissonRandom>;
 
-}
+*/
+  using PG_ForwardBackward = ForwardBackward<GammaPotential>;
+
+} // namespace
 
 #endif //MATLIB_PML_BCPM_H
