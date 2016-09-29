@@ -186,13 +186,23 @@ void test_pg_em(){
 
   // Estimate with true parameters
   PG_ForwardBackward fb(model);
+
+
+  std::cout << "Filtering...\n";
   auto result = fb.filtering(obs);
   result.first.saveTxt("/tmp/mean.txt");
   result.second.saveTxt("/tmp/cpp.txt");
 
+  std::cout << "Smoothing...\n";
   result = fb.smoothing(obs);
   result.first.saveTxt("/tmp/mean2.txt");
   result.second.saveTxt("/tmp/cpp2.txt");
+
+
+  std::cout << "Online smoothing...\n";
+  result = fb.online_smoothing(obs, 10);
+  result.first.saveTxt("/tmp/mean3.txt");
+  result.second.saveTxt("/tmp/cpp3.txt");
 
   cout << "done.\n";
 }

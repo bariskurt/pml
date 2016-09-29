@@ -347,6 +347,7 @@ namespace pml {
             }
           }
           message.add_potential(P::obs2Potential(obs.getColumn(idx)), c);
+          message.prune(max_components);
           beta.push_back(message);
         }
         std::reverse(beta.begin(), beta.end());
@@ -369,6 +370,42 @@ namespace pml {
         }
         return {mean, cpp};
       }
+
+      std::pair<Matrix, Vector> online_smoothing(const Matrix& obs,
+                                                 size_t lag) {
+        if( lag == 0)
+          return filtering(obs);
+
+        if( lag >= obs.ncols())
+          return smoothing(obs);
+
+        Message<P> gamma;
+        Matrix mean;
+        Vector cpp;
+
+        // Go forward
+        forward(obs);
+
+        // Run Fixed-Lags for alpha[0:T-lag]
+        for(size_t t=0; t <= obs.ncols()-lag; ++t){
+          backward(obs, t+lag-1, lag);
+          gamma = alpha[t] * beta.front();
+          auto result = gamma.evaluate(beta.front().size());
+          mean.appendColumn(result.first);
+          cpp.append(result.second);
+        }
+
+        // Smooth alpha[T-lag+1:T] with last beta
+        for(size_t i = 1; i < lag; ++i){
+          gamma = alpha[obs.ncols()-lag+i] * beta[i];
+          auto result = gamma.evaluate(beta[i].size());
+          mean.appendColumn(result.first);
+          cpp.append(result.second);
+        }
+
+        return {mean, cpp};
+      }
+
 
   public:
       Model<P> model;
