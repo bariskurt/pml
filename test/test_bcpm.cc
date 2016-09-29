@@ -46,45 +46,6 @@ void test_dm(){
 */
 
 /*
-void test_gp(){
-
-  // Generate Model
-  PG_Model model(GammaPotential(10, 1), 0.02);
-
-  // Generate Sequence
-  Matrix states, obs;
-  std::tie(states, obs) = model.generateData(100);
-  states.saveTxt("/tmp/states.txt");
-  obs.saveTxt("/tmp/obs.txt");
-
-  // Filtering and Smoothing
-  Matrix mean;
-  Vector cpp;
-  int lag = 10;
-  int max_components = 20;
-  PG_ForwardBackward  fb(model, lag, max_components);
-
-  // Filtering
-  std::tie(mean, cpp) = fb.filtering(obs);
-  mean.saveTxt("/tmp/mean_filtering.txt");
-  cpp.saveTxt("/tmp/cpp_filtering.txt");
-
-  // Smoothing
-  std::tie(mean, cpp) = fb.smoothing(obs);
-  mean.saveTxt("/tmp/mean_smoothing.txt");
-  cpp.saveTxt("/tmp/cpp_smoothing.txt");
-
-  // Fixed Lag
-  std::tie(mean, cpp) = fb.online_smoothing(obs);
-  mean.saveTxt("/tmp/mean_fixed_lag.txt");
-  cpp.saveTxt("/tmp/cpp_fixed_lag.txt");
-
-  //Visualize
-  cout << system("anaconda3 ../test/python/visualizePoissonReset.py");
-}
-*/
-
-/*
 pair<Matrix, Vector> readData(const string& obs_path="../etc/simulator_logs/log_low_250.txt",
                               const string& cps_path="../etc/simulator_logs/log_low_250_cps.txt") {
   Matrix obs = Matrix::loadTxt(obs_path);
@@ -168,7 +129,7 @@ void test_dm_em2(){
   */
 
 
-void test_pg_em(){
+void test_pg(){
 
   cout << "test_pg_em...\n";
   size_t length = 1000;
@@ -200,9 +161,29 @@ void test_pg_em(){
 
 
   std::cout << "Online smoothing...\n";
-  result = fb.online_smoothing(obs, 10);
+  result = fb.online_smoothing(obs, 100);
   result.first.saveTxt("/tmp/mean3.txt");
   result.second.saveTxt("/tmp/cpp3.txt");
+
+  cout << "done.\n";
+}
+
+void test_pg_em(){
+  cout << "test_pg_em...\n";
+  size_t length = 999;
+  double c = 0.1;
+  double a = 10;
+
+  // Generate data:
+  Matrix states, obs;
+  PG_Model model(GammaPotential(a, 1), c);
+  std::tie(states, obs) = model.generateData(length);
+
+  double init_c = 0.0001;
+  double init_a = a;
+  PG_Model init_model(GammaPotential(init_a, 1), init_c);
+  PG_ForwardBackward fb(init_model);
+  fb.learn_parameters(obs);
 
   cout << "done.\n";
 }

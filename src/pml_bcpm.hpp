@@ -406,6 +406,34 @@ namespace pml {
         return {mean, cpp};
       }
 
+      std::pair<Matrix, Vector> learn_parameters(const Matrix& obs){
+        size_t MAX_ITER = 100;
+        Vector ll;
+        Matrix mean;
+        Vector cpp;
+
+        for(size_t iter = 0; iter < MAX_ITER; ++iter){
+          // Forward_backward
+          std::tie(mean, cpp) = smoothing(obs);
+          ll.append(alpha.back().log_likelihood());
+
+          // Log-likelihood
+          std::cout << "ll is " <<  ll.last() << std::endl;
+          if(iter > 0 && ll[iter] < ll[iter-1]){
+            std::cout << "step: " << iter << " likelihood decreased: "
+                      << ll[iter-1] - ll[iter] << std::endl;
+          }
+
+          // E-Step:
+
+          // M-Step:
+          model.set_p1(sum(cpp) / cpp.size());
+          std::cout << model.p1 << std::endl;
+
+        }
+        return smoothing(obs);
+      }
+
 
   public:
       Model<P> model;
