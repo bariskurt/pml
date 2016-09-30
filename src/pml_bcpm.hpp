@@ -7,6 +7,89 @@
 #include <algorithm>
 
 namespace pml {
+
+  double my_digamma(double x, double THRESHOLD=1e-3) {
+    if (std::fabs(x) <= THRESHOLD) {
+      std::cout << "too small for digamma\n";
+    }
+    return gsl_sf_psi(x);
+  }
+
+  Vector my_digamma(Vector vec, double THRESHOLD=1e-3) {
+    Vector y;
+    for(size_t i=0; i<vec.size(); i++) {
+      y.append(my_digamma(vec(i),THRESHOLD));
+    }
+    return y;
+  }
+
+  double my_polygamma(double x, double THRESHOLD=1e-5) {
+    if (x <= THRESHOLD) {
+      std::cout <<"too small for polygamma\n";
+    }
+    return gsl_sf_psi_1(x);
+  }
+
+  Vector my_polygamma(Vector vec) {
+    Vector y;
+    for(size_t i=0; i<vec.size(); i++) {
+      y.append(my_polygamma(vec(i)));
+    }
+    return y;
+  }
+
+  /*
+  Vector inv_digamma(Vector y, double THRESHOLD=10, double eps_=1e-5) {
+    // check if params are valid
+    for(size_t i=0; i<y.size(); i++) {
+      if (y(i) >= THRESHOLD) {
+        std::cout << "too big for inv_digamma\n";
+        std::cout << y(i) << "\n";
+      }
+    }
+    // find the initial x
+    Vector x;
+    for(size_t i=0; i<y.size(); i++) {
+      if (y(i) > -2.22) {
+        x.append(std::exp(y(i))+0.5);
+      }
+      else {
+        x.append(-1/(y(i)-my_digamma(1)));
+      }
+    }
+    // newton iterations
+    x -= (my_digamma(x)-y) / my_polygamma(x);
+    x -= (my_digamma(x)-y) / my_polygamma(x);
+    x -= (my_digamma(x)-y) / my_polygamma(x);
+
+    return x;
+  }
+  */
+
+  double my_sign(double x){
+    if (x > 0) return 1;
+    if (x < 0) return -1;
+    return 0;
+  }
+
+  double inv_digamma(double x) {
+    double L = 1;
+    double y = std::exp(x);
+    while( L > 1e-8){
+      y = y + L * my_sign(x-my_digamma(y));
+      L /= 2;
+    }
+    return y;
+  }
+
+  Vector inv_digamma(Vector y) {
+    Vector result;
+    for(auto &v : y){
+      result.append(inv_digamma(v));
+    }
+    return result;
+  }
+
   // ----------- POTENTIALS ----------- //
 
   class Potential {
@@ -55,7 +138,9 @@ namespace pml {
       }
 
       static DirichletPotential obs2Potential(const Vector& obs){
-        return DirichletPotential(obs+1);
+        double log_c = std::lgamma(sum(obs)+1)
+                       - std::lgamma(sum(obs)+obs.size());
+        return DirichletPotential(obs+1, log_c);
       }
 
       Vector rand() const override {
@@ -70,7 +155,18 @@ namespace pml {
         std::cout << alpha << " log_c:" << log_c << std::endl;
       }
 
-    public:
+
+      Vector get_ss() const{
+        return my_digamma(alpha) - my_digamma(sum(alpha));
+      }
+
+      void update(const Vector &ss){
+        for(int iter=0; iter<100; iter++) {
+          alpha = inv_digamma( ss + my_digamma(sum(alpha)) );
+        }
+      }
+
+  public:
       Vector alpha;
   };
 
@@ -111,6 +207,16 @@ namespace pml {
       void print(){
         std::cout << "a:" << a << "  b:" << b
                   << "  log_c: " << log_c << std::endl;
+      }
+
+      Vector get_ss() const{
+        return Vector(1, my_digamma(a) + std::log(b));
+
+      }
+
+      void update(const Vector &ss){
+        a = inv_digamma(ss).first();
+        std::cout << "a : " << a << std::endl;
       }
 
     public:
@@ -329,16 +435,16 @@ namespace pml {
           idx = obs.ncols()-1;
         }
         beta.clear();
+        Message<P> message;
         for(size_t t = 0; t < steps; ++t, --idx){
-          Message<P> message;
           double c = 0;
           if(!beta.empty()){
             // Predict for case s_t = 1, calculate constant only
-            message = beta.back();
-            for(auto &potential : message.potentials){
+            Message<P> temp = beta.back();
+            for(auto &potential : temp.potentials){
               potential *= model.prior;
             }
-            c = model.log_p1 + message.log_likelihood();
+            c = model.log_p1 + temp.log_likelihood();
 
             // Update :
             message = update(beta.back(), obs.getColumn(idx));
@@ -346,7 +452,9 @@ namespace pml {
               potential.log_c += model.log_p0;
             }
           }
-          message.add_potential(P::obs2Potential(obs.getColumn(idx)), c);
+          P pot = P::obs2Potential(obs.getColumn(idx));
+          pot.log_c += c;
+          message.add_potential(pot);
           message.prune(max_components);
           beta.push_back(message);
         }
@@ -373,10 +481,10 @@ namespace pml {
 
       std::pair<Matrix, Vector> online_smoothing(const Matrix& obs,
                                                  size_t lag) {
-        if( lag == 0)
+        if(lag == 0)
           return filtering(obs);
 
-        if( lag >= obs.ncols())
+        if(lag >= obs.ncols())
           return smoothing(obs);
 
         Message<P> gamma;
@@ -406,31 +514,58 @@ namespace pml {
         return {mean, cpp};
       }
 
+      Vector compute_ss(const Message<P> &message) {
+        Matrix tmp;
+        Vector norm_consts;
+        for(auto &potential : message.potentials){
+          norm_consts.append(potential.log_c);
+          tmp.appendColumn( potential.get_ss() );
+        }
+        norm_consts = normalizeExp(norm_consts);
+        tmp = tmp * tileRows(norm_consts, tmp.nrows());
+        std::cout << " compute ss: " << sumRows(tmp) << std::endl;
+        return sumRows(tmp);
+      }
+
       std::pair<Matrix, Vector> learn_parameters(const Matrix& obs){
-        size_t MAX_ITER = 100;
+        size_t MAX_ITER = 5;
         Vector ll;
-        Matrix mean;
-        Vector cpp;
 
         for(size_t iter = 0; iter < MAX_ITER; ++iter){
           // Forward_backward
-          std::tie(mean, cpp) = smoothing(obs);
-          ll.append(alpha.back().log_likelihood());
+          forward(obs);
+          backward(obs);
+
+          double cpp=0;
+          double cpp_sum=0;
+          Matrix E_log_pi_weighted;
+          for(size_t i=0; i < obs.ncols(); ++i) {
+            Message<P> gamma = alpha_predict[i] * beta[i];
+            auto result = gamma.evaluate(beta[i].size());
+            cpp = result.second;
+            cpp_sum += cpp;
+            E_log_pi_weighted.appendColumn(compute_ss(gamma)*cpp);
+          }
+          Vector ss = sumRows(E_log_pi_weighted) / cpp_sum;
+          std::cout << ss << std::endl;
 
           // Log-likelihood
+          ll.append(alpha.back().log_likelihood());
           std::cout << "ll is " <<  ll.last() << std::endl;
           if(iter > 0 && ll[iter] < ll[iter-1]){
             std::cout << "step: " << iter << " likelihood decreased: "
                       << ll[iter-1] - ll[iter] << std::endl;
           }
 
-          // E-Step:
 
           // M-Step:
-          model.set_p1(sum(cpp) / cpp.size());
-          std::cout << model.p1 << std::endl;
+          model.prior.update(ss);
+
+          model.set_p1(cpp_sum / obs.ncols());
+          //std::cout << model.p1 << std::endl;
 
         }
+
         return smoothing(obs);
       }
 
@@ -447,6 +582,7 @@ namespace pml {
   };
 
   using PG_ForwardBackward = ForwardBackward<GammaPotential>;
+  using DM_ForwardBackward = ForwardBackward<DirichletPotential>;
 
 } // namespace
 
