@@ -13,17 +13,11 @@
 #include <iostream>
 #include <vector>
 
+#include "pml_array.hpp"
+
 #define DEFAULT_PRECISION 6
 
 namespace pml {
-
-  // Helpers:
-  inline void ASSERT_TRUE(bool condition, const std::string &message) {
-    if (!condition) {
-      std::cout << "FATAL ERROR: " << message << std::endl;
-      exit(-1);
-    }
-  }
 
   // Defines a series from start to stop exclusively with step size step:
   // [start, start+step, start+2*step, ...]
@@ -44,23 +38,20 @@ namespace pml {
 
       // Vector of given length and default value.
       explicit Vector(size_t length, double value = 0)
-          : data_(length, value) { }
+              : block(length, value){}
 
       // Vector from given array
       Vector(size_t length, const double *values)
-          : data_(length) {
-        memcpy(this->data(), values, sizeof(double) * length);
+          : block(length) {
+        memcpy(block.data, values, sizeof(double) * length);
       }
 
       // Vector from initializer lsit
       Vector(const std::initializer_list<double> &values)
-          : data_(values) { }
-
-      // Vector from range
-      explicit Vector(Range range) {
-        for (double d = range.start; d < range.stop; d += range.step) {
-          data_.push_back(d);
-        }
+          : block(values.size()) {
+        Block::iterator it = block.begin();
+        for(auto value : values)
+          *it++ = value;
       }
 
       // Vector of zeros of given length.
@@ -76,18 +67,18 @@ namespace pml {
     public:
       // Returns length of the Vector.
       size_t size() const {
-        return data_.size();
+        return block.size;
       }
 
       // Checks empty.
       bool empty() const {
-        return data_.empty();
+        return block.size == 0;
       }
 
       // Vector resize. If new size is smaller, the data_ is cropped.
       // If new size is larger, garbage values are appended.
       void resize(size_t new_size) {
-        data_.resize(new_size);
+        block.resize(new_size);
       }
 
     public:
@@ -466,7 +457,7 @@ namespace pml {
       }
 
     public:
-      std::vector<double> data_;
+      Block block;
   };
 
   // Returns the set of indices i of v, such that v[i] == 1.
