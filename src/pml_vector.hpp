@@ -6,6 +6,7 @@
 #include <cmath>
 #include <cstring>
 #include <fstream>
+#include <functional>
 #include <gsl/gsl_cblas.h>
 #include <gsl/gsl_sf_psi.h>
 #include <iomanip>
@@ -17,10 +18,6 @@
 namespace pml {
 
   // Helpers:
-  inline bool fequal(double a, double b) {
-    return fabs(a - b) < 1e-6;
-  }
-
   inline void ASSERT_TRUE(bool condition, const std::string &message) {
     if (!condition) {
       std::cout << "FATAL ERROR: " << message << std::endl;
@@ -31,10 +28,14 @@ namespace pml {
   // Defines a series from start to stop exclusively with step size step:
   // [start, start+step, start+2*step, ...]
   struct Range {
-    Range(size_t start_, size_t stop_, size_t step_ = 1)
-        : start(start_), stop(stop_), step(step_) { }
-    size_t start, stop, step;
+      Range(size_t start_, size_t stop_, size_t step_ = 1)
+              : start(start_), stop(stop_), step(step_) { }
+      size_t start, stop, step;
   };
+
+  inline bool fequal(double a, double b) {
+    return fabs(a - b) < 1e-6;
+  }
 
   class Vector {
     public:
@@ -111,22 +112,94 @@ namespace pml {
         data_.insert(data_.end(), v.data_.begin(), v.data_.end());
       }
 
+      void apply(double (*func)(double)){
+        for(double &d : data_)
+          d = func(d);
+      }
 
     public:
-      friend bool operator==(const Vector &x, double v) {
-        for(double d : x)
-          if (!fequal(d, v)) return false;
+      friend bool any(const Vector &v){
+        for(size_t i = 0; i < v.size(); ++i)
+          if( v[i] == 1 )
+            return true;
+        return false;
+      }
+
+      friend bool all(const Vector &v){
+        for(size_t i = 0; i < v.size(); ++i)
+          if( v[i] == 0 )
+            return false;
         return true;
       }
 
-      friend bool operator==(const Vector &x, const Vector &y) {
+      friend Vector operator==(const Vector &x, double v) {
+        Vector result(x.size());
+        for(size_t i = 0; i < x.size(); ++i)
+          result[i] = fequal(x[i], v);
+        return result;
+      }
+
+      friend Vector operator==(const Vector &x, const Vector &y) {
         // Check sizes
-        if (x.size() != y.size()) return false;
+        ASSERT_TRUE(x.size() == y.size(),
+            "Vector::operator== cannot compare vectors of different size" );
         // Check element-wise
-        for (size_t i = 0; i < x.size(); ++i) {
-          if (!fequal(x(i), y(i))) return false;
-        }
-        return true;
+        Vector result(x.size());
+        for(size_t i = 0; i < x.size(); ++i)
+          result[i] = fequal(x[i], y[i]);
+        return result;
+      }
+
+
+      friend Vector operator<(const Vector &x, double d) {
+        // Check element-wise
+        Vector result(x.size());
+        for(size_t i = 0; i < x.size(); ++i)
+          result[i] = x[i] < d;
+        return result;
+      }
+
+      friend Vector operator<( double d, const Vector &x) {
+        return x > d;
+      }
+
+      friend Vector operator<(const Vector &x, const Vector &y) {
+        // Check sizes
+        ASSERT_TRUE(x.size() == y.size(),
+            "Vector::operator== cannot compare vectors of different size" );
+        // Check element-wise
+        Vector result(x.size());
+        for(size_t i = 0; i < x.size(); ++i)
+          result[i] = x[i] < y[i];
+        return result;
+      }
+
+      friend Vector operator>(const Vector &x, double d) {
+        Vector result(x.size());
+        for(size_t i = 0; i < x.size(); ++i)
+          result[i] = x[i] > d;
+        return result;
+      }
+
+      friend Vector operator>( double d, const Vector &x) {
+        return x < d;
+      }
+
+      friend Vector operator>(const Vector &x, const Vector &y) {
+        // Check sizes
+        ASSERT_TRUE(x.size() == y.size(),
+            "Vector::operator== cannot compare vectors of different size" );
+        // Check element-wise
+        Vector result(x.size());
+        for(size_t i = 0; i < x.size(); ++i)
+          result[i] = x[i] > y[i];
+        return result;
+      }
+
+      bool equals(const Vector &other){
+        if(size() != other.size())
+          return false;
+        return all(*this == other);
       }
 
     public:
@@ -190,20 +263,6 @@ namespace pml {
       }
 
     public:
-      // Apply x[i] = f(x[i]) to each element.
-      // Function signature: double f(double x)
-      void apply(double (*func)(double)) {
-        for (auto &value : data_) {
-          value = func(value);
-        }
-      }
-
-      // Apply f to a new Vector
-      friend Vector apply(const Vector &x, double (*func)(double)) {
-        Vector result(x);
-        result.apply(func);
-        return result;
-      }
 
       // ------ Self Assignment Operators -------
 
@@ -410,11 +469,42 @@ namespace pml {
       std::vector<double> data_;
   };
 
+  // Returns the set of indices i of v, such that v[i] == 1.
+  Vector find(const Vector &v){
+    Vector result;
+    for(size_t i=0; i < v.size(); ++i){
+      if(v[i] == 1)
+        result.append(i);
+    }
+    return result;
+  }
+
+  // is_nan
+  Vector is_nan(const Vector &v){
+    Vector result = Vector::zeros(v.size());
+    for(size_t i=0; i < v.size(); ++i){
+      if(std::isnan(v[i]))
+        result[i] = 1;
+    }
+    return result;
+  }
+
+  // is_inf
+  Vector is_inf(const Vector &v){
+    Vector result = Vector::zeros(v.size());
+    for(size_t i=0; i < v.size(); ++i){
+      if(std::isinf(v[i]))
+        result[i] = 1;
+    }
+    return result;
+  }
+
   // Sum
   inline double sum(const Vector &x){
     return std::accumulate(x.begin(), x.end(), 0.0);
   }
 
+  // Power
   inline Vector pow(const Vector &x, double p = 2){
     Vector result(x);
     for(double &d : result)
@@ -454,17 +544,23 @@ namespace pml {
 
   // Absolute value of x
   inline Vector abs(const Vector &x){
-    return apply(x, std::fabs);
+    Vector v = x;
+    v.apply(std::fabs);
+    return v;
   }
 
   // Round to nearest integer
   inline Vector round(const Vector &x){
-    return apply(x, std::round);
+    Vector v = x;
+    v.apply(std::round);
+    return v;
   }
 
   // Log Gamma function.
   inline Vector lgamma(const Vector &x){
-    return apply(x, std::lgamma);
+    Vector v = x;
+    v.apply(std::lgamma);
+    return v;
   }
 
   // Polygamma Function.
@@ -478,12 +574,16 @@ namespace pml {
 
   // Exponential
   inline Vector exp(const Vector &x){
-    return apply(x, std::exp);
+    Vector v = x;
+    v.apply(std::exp);
+    return v;
   }
 
   // Logarithm
   inline Vector log(const Vector &x){
-    return apply(x, std::log);
+    Vector v = x;
+    v.apply(std::log);
+    return v;
   }
 
   // Normalize

@@ -100,20 +100,93 @@ namespace pml {
         return data_.empty();
       }
 
-      friend bool operator==(const Matrix &x, double v) {
-        for(double d : x)
-          if(!fequal(d, v)) return false;
+      void apply(double (*func)(double)){
+        for(double &d : data_)
+          d = func(d);
+      }
+
+    public:
+
+      friend bool any(const Matrix &m){
+        for(size_t i = 0; i < m.size(); ++i)
+          if( m[i] == 1 )
+            return true;
+        return false;
+      }
+
+      friend bool all(const Matrix &m){
+        for(size_t i = 0; i < m.size(); ++i)
+          if( m[i] == 0 )
+            return false;
         return true;
       }
 
-      friend bool operator==(const Matrix &x, const Matrix &y) {
+      friend Matrix operator==(const Matrix &x, double v) {
+        Matrix result(x.shape());
+        for(size_t i = 0; i < x.size(); ++i)
+          result[i] = fequal(x[i], v);
+        return result;
+      }
+
+      friend Matrix operator==(const Matrix &x, const Matrix &y) {
         // Check sizes
-        if (x.shape() != y.shape()) return false;
+        ASSERT_TRUE(x.shape() == y.shape(),
+            "Matrix::operator== cannot compare matrices of different shape" );
         // Check element-wise
-        for (size_t i = 0; i < x.size(); ++i) {
-          if (!fequal(x(i), y(i))) return false;
-        }
-        return true;
+        Matrix result(x.shape());
+        for(size_t i = 0; i < x.size(); ++i)
+          result[i] = fequal(x[i], y[i]);
+        return result;
+      }
+
+      friend Matrix operator<(const Matrix &x, double v) {
+        Matrix result(x.shape());
+        for(size_t i = 0; i < x.size(); ++i)
+          result[i] = x[i] <  v;
+        return result;
+      }
+
+      friend Matrix operator<(double v, const Matrix &x) {
+        return x > v;
+      }
+
+      friend Matrix operator<(const Matrix &x, const Matrix &y) {
+        // Check sizes
+        ASSERT_TRUE(x.shape() == y.shape(),
+            "Matrix::operator== cannot compare matrices of different shape" );
+        // Check element-wise
+        Matrix result(x.shape());
+        for(size_t i = 0; i < x.size(); ++i)
+          result[i] = x[i] <  y[i];
+        return result;
+      }
+
+      friend Matrix operator>(const Matrix &x, double v) {
+        Matrix result(x.shape());
+        for(size_t i = 0; i < x.size(); ++i)
+          result[i] = x[i] > v;
+        return result;
+      }
+
+      friend Matrix operator>(double v, const Matrix &x) {
+        return x < v;
+      }
+
+      friend Matrix operator>(const Matrix &x, const Matrix &y) {
+        // Check sizes
+        ASSERT_TRUE(x.shape() == y.shape(),
+            "Matrix::operator== cannot compare matrices of different shape" );
+        // Check element-wise
+        Matrix result(x.shape());
+        for(size_t i = 0; i < x.size(); ++i)
+          result[i] = x[i] > y[i];
+        return result;
+      }
+
+      bool equals(const Matrix &other){
+        if(shape() != other.shape())
+          return false;
+        return all(*this == other);
       }
 
     public:
@@ -133,22 +206,6 @@ namespace pml {
 
       std::vector<double>::const_iterator end() const {
         return data_.cend();
-      }
-
-    public:
-      // Apply x[i] = f(x[i]) to each element.
-      // Function signature: double f(double x)
-      void apply(double (*func)(double)) {
-        for (auto &value : data_) {
-          value = func(value);
-        }
-      }
-
-      // Apply f to a new Vector
-      friend Matrix apply(const Matrix &x, double (*func)(double)) {
-        Matrix result(x);
-        result.apply(func);
-        return result;
       }
 
     public:
@@ -657,17 +714,23 @@ namespace pml {
 
   // Absolute value of x
   inline Matrix abs(const Matrix &x){
-    return apply(x, std::fabs);
+    Matrix result = x;
+    result.apply(std::fabs);
+    return result;
   }
 
   // Round to nearest integer
   inline Matrix round(const Matrix &x){
-    return apply(x, std::round);
+    Matrix result = x;
+    result.apply(std::round);
+    return result;
   }
 
   // Log Gamma function.
   inline Matrix lgamma(const Matrix &x){
-    return apply(x, std::lgamma);
+    Matrix result = x;
+    result.apply(std::lgamma);
+    return result;
   }
 
   // Polygamma Function.
@@ -681,12 +744,16 @@ namespace pml {
 
   // Exponential
   inline Matrix exp(const Matrix &x){
-    return apply(x, std::exp);
+    Matrix result = x;
+    result.apply(std::exp);
+    return result;
   }
 
   // Logarithm
   inline Matrix log(const Matrix &x){
-    return apply(x, std::log);
+    Matrix result = x;
+    result.apply(std::log);
+    return result;
   }
 
   // Normalize
