@@ -75,16 +75,16 @@ void test_matrix_functions(){
   // Sum, Min, Max
   Matrix m(2, 3, {0, 1, 2, 3, 4, 5});
   assert(sum(m) == 15);
-  assert(sumCols(m).equals(Vector({1, 5, 9})));
-  assert(sumRows(m).equals(Vector({6, 9})));
+  assert(sum(m,0).equals(Vector({1, 5, 9})));
+  assert(sum(m,1).equals(Vector({6, 9})));
 
   assert(min(m) == 0);
-  assert(minCols(m).equals(Vector({0, 2, 4})));
-  assert(minRows(m).equals(Vector({0, 1})));
+  assert(min(m,0).equals(Vector({0, 2, 4})));
+  assert(min(m,1).equals(Vector({0, 1})));
 
   assert(max(m) == 5);
-  assert(maxCols(m).equals(Vector({1, 3, 5})));
-  assert(maxRows(m).equals(Vector({4, 5})));
+  assert(max(m,0).equals(Vector({1, 3, 5})));
+  assert(max(m,1).equals(Vector({4, 5})));
 
   // Round and Abs
   Matrix m2(3, 5, -2.3);
@@ -100,19 +100,19 @@ void test_matrix_functions(){
   // Normalizations
   Matrix m4(2,2, {1, 2, 3, 4});
   assert(normalize(m4).equals(Matrix(2,2, {0.1, 0.2, 0.3, 0.4})));
-  assert(normalizeCols(m4).equals(Matrix(2,2, {1.0/3, 2.0/3, 3.0/7, 4.0/7})));
-  assert(normalizeRows(m4).equals(Matrix(2,2, {1.0/4, 2.0/6, 3.0/4, 4.0/6})));
+  assert(normalize(m4,0).equals(Matrix(2,2, {1.0/3, 2.0/3, 3.0/7, 4.0/7})));
+  assert(normalize(m4,1).equals(Matrix(2,2, {1.0/4, 2.0/6, 3.0/4, 4.0/6})));
 
   // Normalize Exp
   Matrix m5 = log(m4);
   assert(normalizeExp(m5).equals(Matrix(2,2, {0.1, 0.2, 0.3, 0.4})));
-  assert(normalizeExpCols(m5).equals(Matrix(2,2, {1.0/3, 2.0/3, 3.0/7, 4.0/7})));
-  assert(normalizeExpRows(m5).equals(Matrix(2,2, {1.0/4, 2.0/6, 3.0/4, 4.0/6})));
+  assert(normalizeExp(m5,0).equals(Matrix(2,2, {1.0/3, 2.0/3, 3.0/7, 4.0/7})));
+  assert(normalizeExp(m5,1).equals(Matrix(2,2, {1.0/4, 2.0/6, 3.0/4, 4.0/6})));
 
   // LogSumExp
   assert(logSumExp(m5) == std::log(10));
-  assert(logSumExpCols(m5).equals(log(sumCols(m4))));
-  assert(logSumExpRows(m5).equals(log(sumRows(m4))));
+  assert(logSumExp(m5,0).equals(log(sum(m4,0))));
+  assert(logSumExp(m5,1).equals(log(sum(m4,1))));
 
   // Tile
   Vector v = {1,2};
