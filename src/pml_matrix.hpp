@@ -665,6 +665,16 @@ namespace pml {
     return apply(x, std::round);
   }
 
+  // Ceiling
+  inline Matrix ceil(const Matrix &x){
+    return apply(x, std::ceil);
+  }
+
+  // Floor
+  inline Matrix floor(const Matrix &x){
+    return apply(x, std::floor);
+  }
+
   // Log Gamma function.
   inline Matrix lgamma(const Matrix &x){
     return apply(x, std::lgamma);

@@ -470,18 +470,45 @@ namespace pml {
     return apply(x, std::round);
   }
 
+  // Ceiling
+  inline Vector ceil(const Vector &x){
+    return apply(x, std::ceil);
+  }
+
+  // Floor
+  inline Vector floor(const Vector &x){
+    return apply(x, std::floor);
+  }
+
   // Log Gamma function.
   inline Vector lgamma(const Vector &x){
     return apply(x, std::lgamma);
   }
 
   // Polygamma Function.
-  inline Vector psi(const Vector &x, int n = 1){
+  inline Vector psi(const Vector &x, int n = 0){
     Vector y(x.size());
     for(size_t i=0; i<y.size(); i++) {
       y(i) = gsl_sf_psi_n(n, x(i));
     }
     return y;
+  }
+
+  // Inverse Polygamma with Newton Method
+  inline Vector inv_psi(const Vector &y){
+    Vector x;
+    double eta = 0.577215; // -psi(1);
+    for(auto &d : y){
+      if (d > -2.22) {
+        x.append(std::exp(d)+0.5);
+      } else {
+        x.append(-1/(d + eta));
+      }
+    }
+    // make 5 newton iterations
+    for(int i=0; i < 5; ++i)
+      x -= (psi(x)-y) / psi(x,1);
+    return x;
   }
 
   // Exponential

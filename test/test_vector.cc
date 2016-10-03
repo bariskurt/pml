@@ -71,8 +71,6 @@ void test_vector_functions() {
   assert(fequal(var(v1), 2.5));
   assert(fequal(stdev(v1), 1.581138));
 
-  assert(lgamma(v1) == Vector({0, 0, 0.693147, 1.791759, 3.178053}));
-
   assert(exp(v1) == Vector({2.718281, 7.389056, 20.085536,
                             54.598150, 148.413159}));
 
@@ -80,6 +78,12 @@ void test_vector_functions() {
 
   assert(normalize(v1) == Vector({0.066667, 0.133333, 0.2,
                                   0.266667, 0.333333}));
+
+  assert(lgamma(v1) == Vector({0, 0, 0.693147, 1.791759, 3.178053}));
+
+  assert(psi(v1) == Vector({-0.577215, 0.422784, 0.922784, 1.256117, 1.506117}));
+
+  assert(psi(v1,1) == Vector({1.644934, 0.644934 ,0.394934 ,0.283822 ,0.221322}));
 
   Vector z = log(v1);
   assert(normalizeExp(z) == normalize(v1));

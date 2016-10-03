@@ -1,7 +1,7 @@
 #ifndef MATLIB_PML_RAND_H
 #define MATLIB_PML_RAND_H
 
-#include "pml.hpp"
+#include "pml_matrix.hpp"
 
 #include <ctime>
 
@@ -19,235 +19,191 @@ namespace pml {
     return rng;
   }
 
-  namespace uniform {
+  class Distribution1D{
+    public:
+      virtual double rand() = 0;
 
-    // Returns a double precision random number in [0,1).
-    inline double rand() {
-      return gsl_rng_uniform(rnd_get_rng());
-    }
-
-    // Returns random integers in [low. high]
-    inline uint64_t randi(int low, int high) {
-      return gsl_rng_uniform_int(rnd_get_rng(), high-low+1) + low;
-    }
-
-    inline Vector rand(size_t length) {
-      Vector result(length);
-      for (unsigned i = 0; i < result.size(); ++i) {
-        result(i) = rand();
+      Vector rand(size_t length){
+        Vector result(length);
+        for(auto &d : result)
+          d = rand();
+        return result;
       }
-      return result;
-    }
 
-    inline Matrix rand(size_t num_rows, size_t num_cols) {
-      Matrix result(num_rows, num_cols);
-      for(auto &value : result){
-        value = rand();
+      Matrix rand(size_t nrows, size_t ncols) {
+        Matrix result(nrows, ncols);
+        for(auto &d : result)
+          d = rand();
+        return result;
       }
-      return result;
-    }
+  };
 
-  } // uniform
+  class DistributionND{
+    public:
+      virtual Vector rand() = 0;
 
-  namespace gaussian{
-    inline double rand(double mu, double sigma) {
-      return mu + gsl_ran_gaussian(rnd_get_rng(), sigma);
-    }
-
-    inline Vector rand(double mu, double sigma, size_t length) {
-      Vector result(length);
-      for(auto &item : result){
-        item = gaussian::rand(mu, sigma);
+      Matrix rand(size_t ncols) {
+        Matrix result;
+        for(size_t i = 0; i < ncols; ++i)
+          result.appendColumn(rand());
+        return result;
       }
-      return result;
-    }
+  };
 
-    inline Matrix rand(double mu, double sigma, size_t dim1, size_t dim2) {
-      Matrix result(dim1, dim2);
-      for(auto &item : result){
-        item = gaussian::rand(mu, sigma);
+  class Uniform : public Distribution1D {
+    public:
+      Uniform(double low_ = 0, double high_ = 1) : low(low_), high(high_) {
+        range = high - low;
       }
-      return result;
-    }
 
-    // ToDo: implement
-    inline Vector rand(const Vector &mu, const Matrix &sigma){
-      return Vector();
-    }
-
-    // ToDo: implement
-    inline Matrix rand(const Vector &mu, const Matrix &sigma, size_t ncols){
-      return Matrix();
-    }
-
-  }
-
-  namespace poisson {
-
-    inline unsigned rand(double mu) {
-      return gsl_ran_poisson(rnd_get_rng(), mu);
-    }
-
-    inline Vector rand(double mu, size_t length) {
-      Vector result(length);
-      for(auto &item : result){
-        item = poisson::rand(mu);
+      double rand() override{
+        return low + gsl_rng_uniform(rnd_get_rng()) * range;
       }
-      return result;
-    }
 
-    inline Vector rand(const Vector &mu) {
-      Vector result;
-      for(auto &m : mu){
-        result.append(poisson::rand(m));
+      // Integer versions:
+      int randi(){
+        return rand();
       }
-      return result;
-    }
 
-    inline Matrix rand(double mu, size_t dim1, size_t dim2) {
-      Matrix result(dim1, dim2);
-      for(auto &item : result){
-        item = poisson::rand(mu);
+      Vector randi(size_t length) {
+        return ceil(Distribution1D::rand(length));
       }
-      return result;
-    }
 
-    inline Matrix rand(const Matrix &mu) {
-      Matrix result(mu.shape());
-      for(size_t i=0; i<mu.size(); ++i){
-        result(i) = poisson::rand(mu(i));
+      Matrix randi(size_t nrows, size_t ncols) {
+        return ceil(Distribution1D::rand(nrows, ncols));
       }
-      return result;
-    }
 
-  } // Poisson
+    private:
+      double low, high, range;
+  };
 
-  namespace categorical {
+  class Bernoulli : public Distribution1D{
+    public:
+      Bernoulli(double pi_) : pi(pi_){}
 
-    inline unsigned rand(const Vector &v) {
-      Vector tmp = normalize(v);
-      double rnd = uniform::rand();
-      double cum_sum = 0;
-      unsigned i = 0;
-      for (; i < tmp.size(); i++) {
-        cum_sum += tmp(i);
-        if (rnd < cum_sum) {
-          break;
+      double rand() override {
+        return gsl_rng_uniform(rnd_get_rng()) < pi;
+      }
+
+    public:
+      double pi;
+  };
+
+  class Binomial : public Distribution1D{
+    public:
+      Binomial(double pi_, size_t trials_) : pi(pi_), trials(trials_) {}
+
+      double rand() override {
+        return gsl_ran_binomial(rnd_get_rng(), pi, trials);
+      }
+
+      double pmf(unsigned i, unsigned j) {
+        return gsl_ran_binomial_pdf(j, pi, i);
+      }
+
+      double log_pmf(unsigned i, unsigned j) {
+        return std::log(pmf(i, j));
+      }
+
+    public:
+      double pi;
+      size_t trials;
+  };
+
+  class Multinomial : public DistributionND{
+
+    public:
+      Multinomial(const Vector &p_, size_t trials_){
+        p = normalize(p_);
+        trials = trials_;
+      }
+
+      Vector rand() override {
+        Vector samples(p.size());
+        unsigned buf[p.size()];
+        gsl_ran_multinomial(rnd_get_rng(), p.size(), trials, p.data(), buf);
+        for (size_t i = 0; i < samples.size(); ++i) {
+          samples(i) = buf[i];
         }
+        return samples;
       }
-      return i;
-    }
-
-  } // Categorial
-
-  namespace gamma {
-    /*
-    * a = shape parameter
-    * b = scale parameter
-    * log p(x|a,b) = (a-1) log(x) - x/b - log(Gamma(a) - a log(b)
-    */
-
-    inline double rand(double a, double b) {
-      return gsl_ran_gamma_knuth(rnd_get_rng(), a, b);
-    }
-
-    inline Vector rand(double a, double b, size_t length) {
-      Vector result(length);
-      for(auto &item : result){
-        item = gamma::rand(a,b);
+/*
+      double log_pmf(const Vector &x) {
+        unsigned counts[x.size()];
+        for (size_t i = 0; i < x.size(); ++i) {
+          counts[i] = (size_t) x(i);
+        }
+        return gsl_ran_multinomial_lnpdf(p.size(), p.data(), counts);
       }
-      return result;
-    }
 
-    inline Vector rand(const Vector &a, const Vector &b){
-      assert(a.size() == b.size());
-      Vector result;
-      for(size_t i=0; i < a.size(); ++i){
-        result.append(gamma::rand(a(i), b(i)));
+      double pmf(Vector &x, Vector &p) {
+        return std::exp(log_pmf(x, p));
       }
-      return result;
-    }
+*/
+    public:
+      Vector p;
+      size_t trials;
+  };
 
-    inline Matrix rand(double a, double b, size_t nrows, size_t ncols) {
-      Matrix result(nrows, ncols);
-      for(auto &item : result){
-        item = gamma::rand(a,b);
+
+  class Gaussian : public Distribution1D{
+    public:
+      Gaussian(double mu_, double sigma_) : mu(mu_), sigma(sigma_) {}
+
+      double rand() override {
+        return mu + gsl_ran_gaussian(rnd_get_rng(), sigma);
       }
-      return result;
-    }
 
-    inline Matrix rand(const Matrix &a, const Matrix &b) {
-      assert(a.shape() == b.shape());
-      Matrix result(a.shape());
-      for (size_t i = 0; i < a.size(); ++i) {
-        result(i) = gamma::rand(a(i), b(i));
+    public:
+      double mu, sigma;
+  };
+
+  class Poisson : public Distribution1D{
+    public:
+      Poisson(double lambda_) : lambda(lambda_) {}
+
+      double rand() override {
+        return gsl_ran_poisson(rnd_get_rng(), lambda);
       }
-      return result;
-    }
-  } // Gamma
 
-  namespace binomial {
-    inline unsigned rand(unsigned N, double rate) {
-      return gsl_ran_binomial(rnd_get_rng(), rate, N);
-    }
+    public:
+      double lambda;
+  };
 
-    inline double pmf(unsigned i, unsigned j, double p) {
-      return gsl_ran_binomial_pdf(j, p, i);
-    }
 
-    inline double log_pmf(unsigned i, unsigned j, double p) {
-      return std::log(pmf(i, j, p));
-    }
-  } // Binomial
+  // a = shape parameter
+  // b = scale parameter
+  // log p(x|a,b) = (a-1) log(x) - x/b - log(Gamma(a) - a log(b)
+  class Gamma : public Distribution1D{
+    public:
+      Gamma(double a_, double b_) : a(a_), b(b_) {}
 
-  namespace multinomial {
-
-    inline Vector rand(const Vector &p, unsigned N) {
-      Vector samples(p.size());
-      unsigned buf[p.size()];
-      gsl_ran_multinomial(rnd_get_rng(), p.size(), N, p.data(),
-                          buf);
-      for (size_t i = 0; i < samples.size(); ++i) {
-        samples(i) = buf[i];
+      double rand() override {
+        return gsl_ran_gamma_knuth(rnd_get_rng(), a, b);
       }
-      return samples;
-    }
+    public:
+      double a, b;
+  };
 
-    inline double log_pmf(const Vector &x, const Vector &p) {
-      unsigned counts[x.size()];
-      for (size_t i = 0; i < x.size(); ++i) {
-        counts[i] = (size_t) x(i);
-      }
-      return gsl_ran_multinomial_lnpdf(p.size(), p.data(), counts);
-    }
 
-    inline double pmf(Vector &x, Vector &p) {
-      return std::exp(log_pmf(x, p));
-    }
+  class Dirichlet : public DistributionND {
+    public:
+      Dirichlet(const Vector &alpha_) : alpha(alpha_) { }
 
-  } // Multinomial
-
-  namespace dirichlet {
-
-    inline Vector rand(const Vector &alpha) {
-      Vector result(alpha.size());
-      gsl_ran_dirichlet(rnd_get_rng(), alpha.size(),
-                        alpha.data(), result.data());
-      return result;
-    }
-
-    inline Matrix rand(const Vector &alpha, unsigned num_cols) {
-      Matrix result(alpha.size(), num_cols);
-      Vector buf(alpha.size());
-      for (size_t j = 0; j < num_cols; ++j) {
+      Vector rand() override {
+        Vector result(alpha.size());
         gsl_ran_dirichlet(rnd_get_rng(), alpha.size(),
-                          alpha.data(), buf.data());
-        result.setColumn(j, buf);
+                          alpha.data(), result.data());
+        return result;
       }
-      return result;
-    }
 
-  } // Dirichlet
+      static Dirichlet fit(const Matrix &data){
+        Vector ss =  sum(log(data),
+      }
+
+    public:
+      Vector alpha;
+  };
 
 } // pml
 
