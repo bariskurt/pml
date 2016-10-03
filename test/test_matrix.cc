@@ -9,18 +9,18 @@ void test_matrix(){
 
   Matrix M1 = Matrix(3,2, {1,2,3,4,5,6});
 
-  Matrix M2(M1);  assert(M1 == M2);
+  Matrix M2(M1);  assert(M1.equals(M2));
 
-  Matrix M3; M3 = M2; assert(M1 == M3);
+  Matrix M3; M3 = M2; assert(M1.equals(M3));
 
   // Zeros and Ones
   Matrix M4 = Matrix::ones(4,5);
   assert(M4.nrows() == 4);
   assert(M4.ncols() == 5);
-  assert(M4 == 1);
+  assert(all(M4 == 1));
 
   Matrix M5 = Matrix::zeros(4,5);
-  assert(M5 == 0);
+  assert(all(M5 == 0));
 
   // Identity
   Matrix I = Matrix::identity(4);
@@ -41,7 +41,7 @@ void test_matrix(){
   v2(0) = m(0,3);
   v2(1) = m(1,3);
   v2(2) = m(2,3);
-  assert(v1 == v2);
+  assert(v1.equals(v2));
 
   m.setColumn(2, Vector::ones(3));
   assert(m(0,2) == 1);
@@ -52,7 +52,7 @@ void test_matrix(){
   m = Matrix(3,4, {0,1,2,3,4,5,6,7,8,9,10,11});
   v1 = m.getRow(2);
   v2 = Vector({m(2,0), m(2,1), m(2,2), m(2,3)});
-  assert(v1 == v2);
+  assert(v1.equals(v2));
 
   m.setRow(1, Vector::ones(4));
   assert(m(1,0) == 1);
@@ -63,7 +63,7 @@ void test_matrix(){
   // Test File operations
   m.saveTxt("/tmp/dummy.txt");
   Matrix m2 = Matrix::loadTxt("/tmp/dummy.txt");
-  assert(m == m2);
+  assert(m.equals(m2));
 
 
   std::cout << "OK\n";
@@ -75,50 +75,50 @@ void test_matrix_functions(){
   // Sum, Min, Max
   Matrix m(2, 3, {0, 1, 2, 3, 4, 5});
   assert(sum(m) == 15);
-  assert(sumCols(m) == Vector({1, 5, 9}));
-  assert(sumRows(m) == Vector({6, 9}));
+  assert(sum(m,0).equals(Vector({1, 5, 9})));
+  assert(sum(m,1).equals(Vector({6, 9})));
 
   assert(min(m) == 0);
-  assert(minCols(m) == Vector({0, 2, 4}));
-  assert(minRows(m) == Vector({0, 1}));
+  assert(min(m,0).equals(Vector({0, 2, 4})));
+  assert(min(m,1).equals(Vector({0, 1})));
 
   assert(max(m) == 5);
-  assert(maxCols(m) == Vector({1, 3, 5}));
-  assert(maxRows(m) == Vector({4, 5}));
+  assert(max(m,0).equals(Vector({1, 3, 5})));
+  assert(max(m,1).equals(Vector({4, 5})));
 
   // Round and Abs
   Matrix m2(3, 5, -2.3);
-  assert(abs(m2) == 2.3);
-  assert(round(abs(m2)) == 2);
+  assert(all(abs(m2) == 2.3));
+  assert(all(round(abs(m2)) == 2));
 
   // Log, Exp, Psi
   Matrix m3 = Matrix(3, 4, 0.5);
-  assert(log(m3) == -0.6931471);
-  assert(exp(m3) == 1.64872127);
-  assert(psi(m3) == -1.96351002);
+  assert(all(log(m3) == -0.6931471));
+  assert(all(exp(m3) == 1.64872127));
+  assert(all(psi(m3) == -1.96351002));
 
   // Normalizations
   Matrix m4(2,2, {1, 2, 3, 4});
-  assert(normalize(m4) == Matrix(2,2, {0.1, 0.2, 0.3, 0.4}));
-  assert(normalizeCols(m4) == Matrix(2,2, {1.0/3, 2.0/3, 3.0/7, 4.0/7}));
-  assert(normalizeRows(m4) == Matrix(2,2, {1.0/4, 2.0/6, 3.0/4, 4.0/6}));
+  assert(normalize(m4).equals(Matrix(2,2, {0.1, 0.2, 0.3, 0.4})));
+  assert(normalize(m4,0).equals(Matrix(2,2, {1.0/3, 2.0/3, 3.0/7, 4.0/7})));
+  assert(normalize(m4,1).equals(Matrix(2,2, {1.0/4, 2.0/6, 3.0/4, 4.0/6})));
 
   // Normalize Exp
   Matrix m5 = log(m4);
-  assert(normalizeExp(m5) == Matrix(2,2, {0.1, 0.2, 0.3, 0.4}));
-  assert(normalizeExpCols(m5) == Matrix(2,2, {1.0/3, 2.0/3, 3.0/7, 4.0/7}));
-  assert(normalizeExpRows(m5) == Matrix(2,2, {1.0/4, 2.0/6, 3.0/4, 4.0/6}));
+  assert(normalizeExp(m5).equals(Matrix(2,2, {0.1, 0.2, 0.3, 0.4})));
+  assert(normalizeExp(m5,0).equals(Matrix(2,2, {1.0/3, 2.0/3, 3.0/7, 4.0/7})));
+  assert(normalizeExp(m5,1).equals(Matrix(2,2, {1.0/4, 2.0/6, 3.0/4, 4.0/6})));
 
   // LogSumExp
   assert(logSumExp(m5) == std::log(10));
-  assert(logSumExpCols(m5) == log(sumCols(m4)));
-  assert(logSumExpRows(m5) == log(sumRows(m4)));
+  assert(logSumExp(m5,0).equals(log(sum(m4,0))));
+  assert(logSumExp(m5,1).equals(log(sum(m4,1))));
 
   // Tile
   Vector v = {1,2};
-  assert(tileRows(v, 2) == Matrix(2,2, {1,1,2,2}));
-  assert(tileCols(v, 2) == Matrix(2,2, {1,2,1,2}));
-  assert(repmat(v, 2, 2) == Matrix(4,2, {1,2,1,2,1,2,1,2}));
+  assert(tileRows(v, 2).equals(Matrix(2,2, {1,1,2,2})));
+  assert(tileCols(v, 2).equals(Matrix(2,2, {1,2,1,2})));
+  assert(repmat(v, 2, 2).equals(Matrix(4,2, {1,2,1,2,1,2,1,2})));
 
    std::cout << "OK\n";
 }
@@ -130,42 +130,42 @@ void test_matrix_algebra(){
   Matrix y({3, 4}, 5);
 
   // A = A op b
-  x += 1; assert(x == 4);
-  x -= 1; assert(x == 3);
-  x *= 2; assert(x == 6);
-  x /= 2; assert(x == 3);
+  x += 1; assert(all(x == 4));
+  x -= 1; assert(all(x == 3));
+  x *= 2; assert(all(x == 6));
+  x /= 2; assert(all(x == 3));
 
 
   // A = A op B
-  x += y; assert(x == 8);
-  x -= y; assert(x == 3);
-  x *= y; assert(x == 15);
-  x /= y; assert(x == 3);
+  x += y; assert(all(x == 8));
+  x -= y; assert(all(x == 3));
+  x *= y; assert(all(x == 15));
+  x /= y; assert(all(x == 3));
 
   Matrix z;
-  z = x + 1; assert(z == 4);
-  z = 1 + x; assert(z == 4);
-  z = x - 1; assert(z == 2);
-  z = 1 - x; assert(z == -2);
-  z = x * 2; assert(z == 6);
-  z = 2 * x; assert(z == 6);
-  z = x / 2; assert(z == 1.5);
-  z = 2 / x; assert(z == 2.0/3.0);
+  z = x + 1; assert(all(z == 4));
+  z = 1 + x; assert(all(z == 4));
+  z = x - 1; assert(all(z == 2));
+  z = 1 - x; assert(all(z == -2));
+  z = x * 2; assert(all(z == 6));
+  z = 2 * x; assert(all(z == 6));
+  z = x / 2; assert(all(z == 1.5));
+  z = 2 / x; assert(all(z == 2.0/3.0));
 
   // C = A op B
-  z = x + y; assert(z == 8);
-  z = x - y; assert(z == -2);
-  z = x * y; assert(z == 15);
-  z = x / y; assert(z == 3.0/5.0);
+  z = x + y; assert(all(z == 8));
+  z = x - y; assert(all(z == -2));
+  z = x * y; assert(all(z == 15));
+  z = x / y; assert(all(z == 3.0/5.0));
 
 
   // Multiply Matrix columns..
   Matrix a({3, 4}, 3);
   Vector b({1, 2, 3});
   a = a * b;
-  assert(a.getRow(0) == 3);
-  assert(a.getRow(1) == 6);
-  assert(a.getRow(2) == 9);
+  assert(all(a.getRow(0) == 3));
+  assert(all(a.getRow(1) == 6));
+  assert(all(a.getRow(2) == 9));
 
   a = a + b;
   a = a - b;
@@ -174,12 +174,8 @@ void test_matrix_algebra(){
   // Dot Product
   Vector v({1,2,3});
   Matrix m(2,3,{1,2,3,4,5,6});
-  assert(dot(m, v) == Vector({22, 28}));
-  assert(dot(m,transpose(m)) == Matrix(2,2, {35, 44, 44, 56}));
-
-  // Inverse
-  //Matrix A(2,2,{1,2,3,4});
-  //assert(inv(A) == Matrix(2, 2, {-2, 1, 1.5, -0.5}));
+  assert(dot(m, v).equals(Vector({22, 28})));
+  assert(dot(m,transpose(m)).equals(Matrix(2,2, {35, 44, 44, 56})));
 
   std::cout << "OK\n";
 }
@@ -193,16 +189,16 @@ void test_matrix_append(){
   m1.appendColumn(Vector({1,2,3,4}));
   assert(m1.nrows()==4);
   assert(m1.ncols()==2);
-  assert(m1.getColumn(0) == Vector({1,2,3,4}));
-  assert(m1.getColumn(1) == Vector({1,2,3,4}));
+  assert(m1.getColumn(0).equals(Vector({1,2,3,4})));
+  assert(m1.getColumn(1).equals(Vector({1,2,3,4})));
 
   Matrix m2;
   m2.appendRow(Vector({1,2,3,4}));
   m2.appendRow(Vector({1,2,3,4}));
   assert(m2.nrows()==2);
   assert(m2.ncols()==4);
-  assert(m2.getRow(0) == Vector({1,2,3,4}));
-  assert(m2.getRow(1) == Vector({1,2,3,4}));
+  assert(m2.getRow(0).equals(Vector({1,2,3,4})));
+  assert(m2.getRow(1).equals(Vector({1,2,3,4})));
 
   std::cout << "OK\n";
 }

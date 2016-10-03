@@ -100,20 +100,93 @@ namespace pml {
         return data_.empty();
       }
 
-      friend bool operator==(const Matrix &x, double v) {
-        for(double d : x)
-          if(!fequal(d, v)) return false;
+      void apply(double (*func)(double)){
+        for(double &d : data_)
+          d = func(d);
+      }
+
+    public:
+
+      friend bool any(const Matrix &m){
+        for(size_t i = 0; i < m.size(); ++i)
+          if( m[i] == 1 )
+            return true;
+        return false;
+      }
+
+      friend bool all(const Matrix &m){
+        for(size_t i = 0; i < m.size(); ++i)
+          if( m[i] == 0 )
+            return false;
         return true;
       }
 
-      friend bool operator==(const Matrix &x, const Matrix &y) {
+      friend Matrix operator==(const Matrix &x, double v) {
+        Matrix result(x.shape());
+        for(size_t i = 0; i < x.size(); ++i)
+          result[i] = fequal(x[i], v);
+        return result;
+      }
+
+      friend Matrix operator==(const Matrix &x, const Matrix &y) {
         // Check sizes
-        if (x.shape() != y.shape()) return false;
+        ASSERT_TRUE(x.shape() == y.shape(),
+            "Matrix::operator== cannot compare matrices of different shape" );
         // Check element-wise
-        for (size_t i = 0; i < x.size(); ++i) {
-          if (!fequal(x(i), y(i))) return false;
-        }
-        return true;
+        Matrix result(x.shape());
+        for(size_t i = 0; i < x.size(); ++i)
+          result[i] = fequal(x[i], y[i]);
+        return result;
+      }
+
+      friend Matrix operator<(const Matrix &x, double v) {
+        Matrix result(x.shape());
+        for(size_t i = 0; i < x.size(); ++i)
+          result[i] = x[i] <  v;
+        return result;
+      }
+
+      friend Matrix operator<(double v, const Matrix &x) {
+        return x > v;
+      }
+
+      friend Matrix operator<(const Matrix &x, const Matrix &y) {
+        // Check sizes
+        ASSERT_TRUE(x.shape() == y.shape(),
+            "Matrix::operator== cannot compare matrices of different shape" );
+        // Check element-wise
+        Matrix result(x.shape());
+        for(size_t i = 0; i < x.size(); ++i)
+          result[i] = x[i] <  y[i];
+        return result;
+      }
+
+      friend Matrix operator>(const Matrix &x, double v) {
+        Matrix result(x.shape());
+        for(size_t i = 0; i < x.size(); ++i)
+          result[i] = x[i] > v;
+        return result;
+      }
+
+      friend Matrix operator>(double v, const Matrix &x) {
+        return x < v;
+      }
+
+      friend Matrix operator>(const Matrix &x, const Matrix &y) {
+        // Check sizes
+        ASSERT_TRUE(x.shape() == y.shape(),
+            "Matrix::operator== cannot compare matrices of different shape" );
+        // Check element-wise
+        Matrix result(x.shape());
+        for(size_t i = 0; i < x.size(); ++i)
+          result[i] = x[i] > y[i];
+        return result;
+      }
+
+      bool equals(const Matrix &other){
+        if(shape() != other.shape())
+          return false;
+        return all(*this == other);
       }
 
     public:
@@ -133,22 +206,6 @@ namespace pml {
 
       std::vector<double>::const_iterator end() const {
         return data_.cend();
-      }
-
-    public:
-      // Apply x[i] = f(x[i]) to each element.
-      // Function signature: double f(double x)
-      void apply(double (*func)(double)) {
-        for (auto &value : data_) {
-          value = func(value);
-        }
-      }
-
-      // Apply f to a new Vector
-      friend Matrix apply(const Matrix &x, double (*func)(double)) {
-        Matrix result(x);
-        result.apply(func);
-        return result;
       }
 
     public:
@@ -440,6 +497,8 @@ namespace pml {
 
       // Sets a single row.
       void setRow(size_t row_num, const Vector &row) {
+        ASSERT_TRUE(row_num < nrows(),
+                    "Matrix::setRow:: row_num exceeds number of rows");
         ASSERT_TRUE(ncols_ == row.size(),
                     "Matrix::setRow:: Vector size mismatch");
         size_t idx = row_num;
@@ -621,11 +680,10 @@ namespace pml {
     return std::accumulate(x.begin(), x.end(), 0.0);
   }
 
-  inline Vector sumCols(const Matrix &x) {
-    return for_each_cols(x, sum);
-  }
-
-  inline Vector sumRows(const Matrix &x) {
+  inline Vector sum(const Matrix &x, int axis) {
+    ASSERT_TRUE(axis==0 || axis==1, "Matrix::sum axis out of bounds.");
+    if (axis == 0)
+      return for_each_cols(x, sum);
     return for_each_rows(x, sum);
   }
 
@@ -634,50 +692,59 @@ namespace pml {
     return *(std::min_element(x.begin(), x.end()));
   }
 
-  inline Vector minCols(const Matrix &x) {
-    return for_each_cols(x, min);
-  }
-
-  inline Vector minRows(const Matrix &x) {
+  inline Vector min(const Matrix &x, int axis) {
+    ASSERT_TRUE(axis==0 || axis==1, "Matrix::min axis out of bounds.");
+    if (axis == 0)
+      return for_each_cols(x, min);
     return for_each_rows(x, min);
   }
+
 
   // Max
   inline double max(const Matrix &x) {
     return *(std::max_element(x.begin(), x.end()));
   }
 
-  inline Vector maxCols(const Matrix &x) {
-    return for_each_cols(x, max);
-  }
-
-  inline Vector maxRows(const Matrix &x) {
+  inline Vector max(const Matrix &x, int axis) {
+    ASSERT_TRUE(axis==0 || axis==1, "Matrix::max axis out of bounds.");
+    if (axis == 0)
+      return for_each_cols(x, max);
     return for_each_rows(x, max);
   }
 
   // Absolute value of x
   inline Matrix abs(const Matrix &x){
-    return apply(x, std::fabs);
+    Matrix result = x;
+    result.apply(std::fabs);
+    return result;
   }
 
   // Round to nearest integer
   inline Matrix round(const Matrix &x){
-    return apply(x, std::round);
+    Matrix result = x;
+    result.apply(std::round);
+    return result;
   }
 
   // Ceiling
   inline Matrix ceil(const Matrix &x){
-    return apply(x, std::ceil);
+    Matrix result = x;
+    result.apply(std::ceil);
+    return result;
   }
 
   // Floor
   inline Matrix floor(const Matrix &x){
-    return apply(x, std::floor);
+    Matrix result = x;
+    result.apply(std::floor);
+    return result;
   }
 
   // Log Gamma function.
   inline Matrix lgamma(const Matrix &x){
-    return apply(x, std::lgamma);
+    Matrix result = x;
+    result.apply(std::lgamma);
+    return result;
   }
 
   // Polygamma Function.
@@ -691,43 +758,46 @@ namespace pml {
 
   // Exponential
   inline Matrix exp(const Matrix &x){
-    return apply(x, std::exp);
+    Matrix result = x;
+    result.apply(std::exp);
+    return result;
   }
 
   // Logarithm
   inline Matrix log(const Matrix &x){
-    return apply(x, std::log);
+    Matrix result = x;
+    result.apply(std::log);
+    return result;
   }
 
   // Normalize
-  inline Matrix normalize(const Matrix  &x) {
+  inline Matrix normalize(const Matrix  &x, int axis = 2) {
+    ASSERT_TRUE(axis>=0 && axis<=2, "Matrix::normalize axis out of bounds.");
+    if( axis == 0){
+      Matrix col_sums = tileRows(sum(x,0), x.nrows());
+      return x / col_sums;
+    }
+    if( axis == 1){
+      Matrix row_sums = tileCols(sum(x,1), x.ncols());
+      return x / row_sums;
+    }
     return x / sum(x);
   }
 
-  inline Matrix normalizeCols(const Matrix &x) {
-    Matrix col_sums = tileRows(sumCols(x), x.nrows());
-    return x / col_sums;
-  }
-
-  inline Matrix normalizeRows(const Matrix &x) {
-    Matrix row_sums = tileCols(sumRows(x), x.ncols());
-    return x / row_sums;
-  }
-
   // Safe  NormalizeExp
-  inline Matrix normalizeExp(const Matrix &x) {
+  inline Matrix normalizeExp(const Matrix &x, int axis = 2) {
+    ASSERT_TRUE(axis>=0 && axis<=2, "Matrix::normalizeExp axis out of bounds.");
+    if( axis == 0){
+      Matrix max_cols = tileRows(max(x,0), x.nrows());
+      return normalize(exp(x - max_cols), 0);
+    }
+    if( axis == 1){
+      Matrix max_rows = tileCols(max(x,1), x.ncols());
+      return normalize(exp(x - max_rows),1);
+    }
     return normalize(exp(x - max(x)));
   }
 
-  inline Matrix normalizeExpCols(const Matrix &x) {
-    Matrix max_cols = tileRows(maxCols(x), x.nrows());
-    return normalizeCols(exp(x - max_cols));
-  }
-
-  inline Matrix normalizeExpRows(const Matrix &x) {
-    Matrix max_rows = tileCols(maxRows(x), x.ncols());
-    return normalizeRows(exp(x - max_rows));
-  }
 
   // Safe LogSumExp(x)
   inline double logSumExp(const Matrix &x) {
@@ -735,14 +805,14 @@ namespace pml {
     return x_max + std::log(sum(exp(x - x_max)));
   }
 
-  inline Vector logSumExpCols(const Matrix &x) {
-    Vector col_max = maxCols(x);
-    return col_max + log(sumCols(exp(x-tileRows(col_max, x.nrows()))));
-  }
-
-  inline Vector logSumExpRows(const Matrix &x) {
-    Vector row_max = maxRows(x);
-    return row_max + log(sumRows(exp(x-tileCols(row_max, x.ncols()))));
+  inline Vector logSumExp(const Matrix &x, int axis) {
+    ASSERT_TRUE(axis==0 || axis==1, "Matrix::logSumExp axis out of bounds.");
+    if(axis == 0){
+      Vector col_max = max(x,0);
+      return col_max + log(sum(exp(x-tileRows(col_max, x.nrows())),0));
+    }
+    Vector row_max = max(x,1);
+    return row_max + log(sum(exp(x-tileCols(row_max, x.ncols())),1));
   }
 
   double kl_div(const Matrix &x, const Matrix &y){
