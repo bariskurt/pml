@@ -46,7 +46,7 @@ def plot_multinomial_reset():
     ax[2].set_title('Smoothed Density')
 
     ax[3].pcolormesh(x, y, mean3, cmap=plt.cm.Greys, vmin=0, vmax=1)
-    ax[3].vlines(np.arange(0, T), 0, cpp2,  colors='r', linestyles='-',
+    ax[3].vlines(np.arange(0, T), 0, cpp3,  colors='r', linestyles='-',
                  linewidth=2, label='change point prob.')
     ax[3].set_title('Fixed Lag Smoothing')
 

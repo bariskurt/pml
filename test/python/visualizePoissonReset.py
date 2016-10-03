@@ -6,12 +6,12 @@ from matplotlib import gridspec
 def plot_poisson_reset():
     states = pml.loadTxt('/tmp/states.txt')
     obs = pml.loadTxt('/tmp/obs.txt')
-    mean1 = pml.loadTxt('/tmp/mean_filtering.txt')
-    cpp1 = pml.loadTxt('/tmp/cpp_filtering.txt')
-    mean2 = pml.loadTxt('/tmp/mean_smoothing.txt')
-    cpp2 = pml.loadTxt('/tmp/cpp_smoothing.txt')
-    mean3 = pml.loadTxt('/tmp/mean_fixed_lag.txt')
-    cpp3 = pml.loadTxt('/tmp/cpp_fixed_lag.txt')
+    mean1 = pml.loadTxt('/tmp/mean.txt')
+    cpp1 = pml.loadTxt('/tmp/cpp.txt')
+    mean2 = pml.loadTxt('/tmp/mean2.txt')
+    cpp2 = pml.loadTxt('/tmp/cpp2.txt')
+    mean3 = pml.loadTxt('/tmp/mean3.txt')
+    cpp3 = pml.loadTxt('/tmp/cpp3.txt')
 
     states = states[0, :]
     obs = obs[0, :]

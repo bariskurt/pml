@@ -124,13 +124,14 @@ namespace pml {
       }
 
       Vector get_ss() const{
-        return Vector(1, psi(a) + std::log(b));
+        return Vector({a*b, psi(a) + std::log(b)});
 
       }
 
       void update(const Vector &ss){
-        a = inv_psi(ss.first());
-        std::cout << "a : " << a << std::endl;
+        Gamma g_est = Gamma::fit(ss[0],ss[1]);
+        a = g_est.a;
+        b = g_est.b;
       }
 
     public:

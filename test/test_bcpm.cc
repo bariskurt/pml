@@ -36,18 +36,17 @@ pair<Matrix, Vector> crop(const pair<Matrix, Vector>& data, size_t start, size_t
 */
 
 void test_dm(){
+  cout << "test_dm()...\n";
+
   // Generate Model
   DM_Model model(DirichletPotential(Vector::ones(10)*5), 0.01);
-/*
+
   // Generate Sequence
   Matrix states, obs;
   size_t length = 99;
   std::tie(states, obs) = model.generateData(length);
   states.saveTxt("/tmp/states.txt");
   obs.saveTxt("/tmp/obs.txt");
-*/
-
-  Matrix obs = Matrix::loadTxt("/tmp/obs.txt");
 
   // Filtering and Smoothing
   Matrix mean;
@@ -61,7 +60,6 @@ void test_dm(){
   mean.saveTxt("/tmp/mean.txt");
   cpp.saveTxt("/tmp/cpp.txt");
 
-  /*
   // Smoothing
   std::cout << "Smoothing...\n";
   std::tie(mean, cpp) = fb.smoothing(obs);
@@ -75,31 +73,15 @@ void test_dm(){
   mean.saveTxt("/tmp/mean3.txt");
   cpp.saveTxt("/tmp/cpp3.txt");
 
-  */
-
-  cout << system("anaconda3 ../test/python/visualizeMultinomialReset.py");
+  if(system("anaconda3 ../test/python/visualizeMultinomialReset.py")){
+    std::cout <<"plotting error...\n";
+  }
+  cout << "OK.\n";
 }
-
-/*
-void test_dm_em(){
-  // Load Data
-  pair<Matrix, Vector> data = readData();
-  data = crop(data, 500, 900);
-  Matrix &obs = data.first;
-
-  size_t K = obs.nrows();
-
-  DM_Model model(Vector::ones(K)*10, 0.01);
-  DM_ForwardBackward fb(model);
-
-  fb.learn_params(obs);
-
-}
- */
 
 void test_dm_em(){
 
-  cout << "test_dm_em2...\n";
+  cout << "test_dm_em()...\n";
 
   size_t K = 25;
   size_t length = 200;
@@ -110,6 +92,7 @@ void test_dm_em(){
   Matrix states, obs;
   DM_Model model(DirichletPotential(alpha), c);
   std::tie(states, obs) = model.generateData(length);
+
   // Real Change Points
   Vector cps = Vector::zeros(length);
   for(size_t t = 1; t < length; ++t) {
@@ -142,14 +125,13 @@ void test_dm_em(){
   std::cout << fb2.model.p1 << std::endl;
   std::cout << "-----------\n";
 
-
-  cout << "test_dm_em2 done.\n";
+  cout << "OK.\n";
 }
 
 
 void test_pg(){
 
-  cout << "test_pg_em...\n";
+  cout << "test_pg()...\n";
   size_t length = 1000;
   double c = 0.01;
   double a = 10;
@@ -183,43 +165,49 @@ void test_pg(){
   result.first.saveTxt("/tmp/mean3.txt");
   result.second.saveTxt("/tmp/cpp3.txt");
 
-  cout << "done.\n";
+  if(system("anaconda3 ../test/python/visualizePoissonReset.py")){
+    std::cout <<"plotting error...\n";
+  }
+  cout << "OK.\n";
 }
 
 void test_pg_em(){
   cout << "test_pg_em...\n";
-  size_t length = 10;
+  size_t length = 100;
   double c = 0.1;
   double a = Uniform(0, 10).rand();
+  double b = 1;
 
   // Generate data:
   Matrix states, obs;
-  PG_Model model(GammaPotential(a, 1), c);
+  PG_Model model(GammaPotential(a, b), c);
   std::tie(states, obs) = model.generateData(length);
 
   double init_c = 0.0001;
   double init_a = Uniform(0, 10).rand();
+  double init_b = 1;
 
-  PG_Model init_model(GammaPotential(init_a, 1), init_c);
+  PG_Model init_model(GammaPotential(init_a, init_b), init_c);
   PG_ForwardBackward fb(init_model);
 
   auto result = fb.learn_parameters(obs);
   result.first.saveTxt("/tmp/mean2.txt");
   result.second.saveTxt("/tmp/cpp2.txt");
 
+  std::cout << "Original parameters: a = " << a << ", b = " << b << std::endl;
+  std::cout << "Estimated parameters: a = " << fb.model.prior.a
+            << ", b = " << fb.model.prior.b <<  std::endl;
+
   cout << "done.\n";
 }
 
 int main() {
 
-  //test_pg();
+  // test_dm();
+  // test_dm_em();
 
+  // test_pg();
   test_pg_em();
-
-  //test_dm();
-
-  //test_dm_em();
-
 
   return 0;
 }
