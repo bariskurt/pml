@@ -98,7 +98,7 @@ namespace pml{
 
       friend bool operator==(const Tensor3D &t1, const Tensor3D &t2) {
           if(t1.shape() == t2.shape()){
-              return operator==((Vector) t1, (Vector) t2);
+              return Vector(t1).equals(Vector(t2));
           }
           return false;
       }

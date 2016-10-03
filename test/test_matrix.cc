@@ -95,7 +95,6 @@ void test_matrix_functions(){
   Matrix m3 = Matrix(3, 4, 0.5);
   assert(all(log(m3) == -0.6931471));
   assert(all(exp(m3) == 1.64872127));
-  assert(all(psi(m3) == -1.96351002));
 
   // Normalizations
   Matrix m4(2,2, {1, 2, 3, 4});

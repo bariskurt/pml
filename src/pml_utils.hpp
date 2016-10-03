@@ -47,7 +47,7 @@ namespace pml {
       return std::string();
     }
     std::string path = parts[0];
-    for(int i=1; i<parts.size(); ++i){
+    for(unsigned i=1; i<parts.size(); ++i){
       if(path.back() != '/'){
         path.push_back('/');
       }

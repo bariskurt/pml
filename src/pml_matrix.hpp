@@ -100,6 +100,13 @@ namespace pml {
         return data_.empty();
       }
 
+      friend Matrix apply(const Matrix &m, double (*func)(double)){
+        Matrix result(m.shape());
+        for(size_t i=0; i < m.size(); ++i)
+          result[i] = func(m[i]);
+        return result;
+      }
+
       void apply(double (*func)(double)){
         for(double &d : data_)
           d = func(d);
@@ -712,62 +719,45 @@ namespace pml {
     return for_each_rows(x, max);
   }
 
+  inline double mean(const Matrix &x){
+    return sum(x) / x.size();
+  }
+
+  inline Vector mean(const Matrix &x, int axis){
+    ASSERT_TRUE(axis==0 || axis==1, "Matrix::max axis out of bounds.");
+    if (axis == 0)
+      return sum(x, 0) / x.nrows();
+    return sum(x,1) / x.ncols();
+  }
+
   // Absolute value of x
   inline Matrix abs(const Matrix &x){
-    Matrix result = x;
-    result.apply(std::fabs);
-    return result;
+    return apply(x, std::fabs);
   }
 
   // Round to nearest integer
   inline Matrix round(const Matrix &x){
-    Matrix result = x;
-    result.apply(std::round);
-    return result;
+    return apply(x, std::round);
   }
 
   // Ceiling
   inline Matrix ceil(const Matrix &x){
-    Matrix result = x;
-    result.apply(std::ceil);
-    return result;
+    return apply(x, std::ceil);
   }
 
   // Floor
   inline Matrix floor(const Matrix &x){
-    Matrix result = x;
-    result.apply(std::floor);
-    return result;
-  }
-
-  // Log Gamma function.
-  inline Matrix lgamma(const Matrix &x){
-    Matrix result = x;
-    result.apply(std::lgamma);
-    return result;
-  }
-
-  // Polygamma Function.
-  inline Matrix psi(const Matrix &x, int n = 0){
-    Matrix y(x.shape());
-    for(size_t i=0; i < y.size(); i++) {
-      y(i) = gsl_sf_psi_n(n, x(i));
-    }
-    return y;
+    return apply(x, std::floor);
   }
 
   // Exponential
   inline Matrix exp(const Matrix &x){
-    Matrix result = x;
-    result.apply(std::exp);
-    return result;
+    return apply(x, std::exp);
   }
 
   // Logarithm
   inline Matrix log(const Matrix &x){
-    Matrix result = x;
-    result.apply(std::log);
-    return result;
+    return apply(x, std::log);
   }
 
   // Normalize

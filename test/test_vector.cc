@@ -82,15 +82,6 @@ void test_vector_functions() {
   Vector normalize_v1 = {0.066667, 0.133333, 0.2, 0.266667, 0.333333};
   assert(normalize(v1).equals(normalize_v1));
 
-  Vector lgamma_v1 = {0, 0, 0.693147, 1.791759, 3.178053};
-  assert(lgamma(v1).equals(lgamma_v1));
-
-  Vector psi_v1 = {-0.577215, 0.422784, 0.922784, 1.256117, 1.506117};
-  assert(psi(v1).equals(psi_v1));
-
-  Vector psi_v11 = {1.644934, 0.644934 ,0.394934 ,0.283822 ,0.221322};
-  assert(psi(v1,1).equals(psi_v11));
-
   Vector z = log(v1);
   assert(normalizeExp(z).equals(normalize(v1)));
   assert(logSumExp(z) == std::log(sum(v1)));

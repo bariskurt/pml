@@ -2,6 +2,7 @@
 #define MATLIB_PML_RAND_H
 
 #include "pml_matrix.hpp"
+#include "pml_special.hpp"
 
 #include <ctime>
 
@@ -21,16 +22,21 @@ namespace pml {
 
   class Distribution1D{
     public:
-      virtual double rand() = 0;
 
-      Vector rand(size_t length){
+      virtual double randgen() const = 0;
+
+      double rand() const{
+        return randgen();
+      };
+
+      Vector rand(size_t length) const{
         Vector result(length);
         for(auto &d : result)
           d = rand();
         return result;
       }
 
-      Matrix rand(size_t nrows, size_t ncols) {
+      Matrix rand(size_t nrows, size_t ncols) const {
         Matrix result(nrows, ncols);
         for(auto &d : result)
           d = rand();
@@ -40,7 +46,11 @@ namespace pml {
 
   class DistributionND{
     public:
-      virtual Vector rand() = 0;
+      virtual Vector randgen() = 0;
+
+      Vector rand() {
+        return randgen();
+      }
 
       Matrix rand(size_t ncols) {
         Matrix result;
@@ -56,21 +66,21 @@ namespace pml {
         range = high - low;
       }
 
-      double rand() override{
+      double randgen() const override{
         return low + gsl_rng_uniform(rnd_get_rng()) * range;
       }
 
       // Integer versions:
       int randi(){
-        return rand();
+        return randgen();
       }
 
       Vector randi(size_t length) {
-        return ceil(Distribution1D::rand(length));
+        return ceil(rand(length));
       }
 
       Matrix randi(size_t nrows, size_t ncols) {
-        return ceil(Distribution1D::rand(nrows, ncols));
+        return ceil(rand(nrows, ncols));
       }
 
     private:
@@ -81,7 +91,7 @@ namespace pml {
     public:
       Bernoulli(double pi_) : pi(pi_){}
 
-      double rand() override {
+      double randgen() const override {
         return gsl_rng_uniform(rnd_get_rng()) < pi;
       }
 
@@ -93,7 +103,7 @@ namespace pml {
     public:
       Binomial(double pi_, size_t trials_) : pi(pi_), trials(trials_) {}
 
-      double rand() override {
+      double randgen() const override {
         return gsl_ran_binomial(rnd_get_rng(), pi, trials);
       }
 
@@ -118,7 +128,7 @@ namespace pml {
         trials = trials_;
       }
 
-      Vector rand() override {
+      Vector randgen() override {
         Vector samples(p.size());
         unsigned buf[p.size()];
         gsl_ran_multinomial(rnd_get_rng(), p.size(), trials, p.data(), buf);
@@ -150,7 +160,7 @@ namespace pml {
     public:
       Gaussian(double mu_, double sigma_) : mu(mu_), sigma(sigma_) {}
 
-      double rand() override {
+      double randgen() const override {
         return mu + gsl_ran_gaussian(rnd_get_rng(), sigma);
       }
 
@@ -162,7 +172,7 @@ namespace pml {
     public:
       Poisson(double lambda_) : lambda(lambda_) {}
 
-      double rand() override {
+      double randgen() const override {
         return gsl_ran_poisson(rnd_get_rng(), lambda);
       }
 
@@ -175,22 +185,46 @@ namespace pml {
   // b = scale parameter
   // log p(x|a,b) = (a-1) log(x) - x/b - log(Gamma(a) - a log(b)
   class Gamma : public Distribution1D{
+    private:
+      static const size_t MAX_ITER = 5;
+
     public:
       Gamma(double a_, double b_) : a(a_), b(b_) {}
 
-      double rand() override {
+      double randgen() const override {
         return gsl_ran_gamma_knuth(rnd_get_rng(), a, b);
       }
+
+      static Gamma fit(const Vector &data){
+        return Gamma::fit(mean(data), mean(log(data)));
+      }
+
+      static Gamma fit(double mean_x, double mean_log_x){
+        double log_mean_x = std::log(mean_x);
+        double a = 0.5 / (log_mean_x - mean_log_x);
+        for(size_t iter = 0; iter < MAX_ITER; ++iter){
+          double temp = mean_log_x - log_mean_x + std::log(a) - psi(a);
+          temp /= a * a *(1/a - psi(a,1));
+          a = 1/(1/a + temp);
+        }
+        double b = mean_x / a;
+        return Gamma(a,b);
+      }
+
     public:
       double a, b;
   };
 
 
   class Dirichlet : public DistributionND {
+    private:
+      static const size_t MIN_ITER = 100;
+      static const size_t MAX_ITER = 1000;
+
     public:
       Dirichlet(const Vector &alpha_) : alpha(alpha_) { }
 
-      Vector rand() override {
+      Vector randgen() override {
         Vector result(alpha.size());
         gsl_ran_dirichlet(rnd_get_rng(), alpha.size(),
                           alpha.data(), result.data());
@@ -198,7 +232,21 @@ namespace pml {
       }
 
       static Dirichlet fit(const Matrix &data){
-        Vector ss =  sum(log(data),
+        Vector ss = mean(log(data),1); // sufficient statistics
+        return fit(ss);
+      }
+
+      static Dirichlet fit(const Vector &ss){
+        Vector alpha = normalize(ss);
+        Vector alpha_new;
+        for(size_t iter=0; iter < MAX_ITER; iter++) {
+          alpha_new = inv_psi( ss + psi(sum(alpha)) );
+          // Break if converged.
+          if( iter > MIN_ITER && sum(abs(alpha-alpha_new)) < 1e-6 )
+            break;
+          alpha = alpha_new;
+        }
+        return Dirichlet(alpha);
       }
 
     public:

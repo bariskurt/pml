@@ -112,6 +112,13 @@ namespace pml {
         data_.insert(data_.end(), v.data_.begin(), v.data_.end());
       }
 
+      friend Vector apply(const Vector &x, double (*func)(double)){
+        Vector result;
+        for(double d : x)
+          result.append(func(d));
+        return result;
+      }
+
       void apply(double (*func)(double)){
         for(double &d : data_)
           d = func(d);
@@ -544,77 +551,32 @@ namespace pml {
 
   // Absolute value of x
   inline Vector abs(const Vector &x){
-    Vector v = x;
-    v.apply(std::fabs);
-    return v;
+    return apply(x, std::fabs);
   }
 
   // Round to nearest integer
   inline Vector round(const Vector &x){
-    Vector v = x;
-    v.apply(std::round);
-    return v;
+    return apply(x, std::round);
   }
 
   // Ceiling
   inline Vector ceil(const Vector &x){
-    Vector v = x;
-    v.apply(std::ceil);
-    return v;
+    return apply(x, std::ceil);
   }
 
   // Floor
   inline Vector floor(const Vector &x){
-    Vector v = x;
-    v.apply(std::floor);
-    return v;
-  }
-
-  // Log Gamma function.
-  inline Vector lgamma(const Vector &x){
-    Vector v = x;
-    v.apply(std::lgamma);
-    return v;
-  }
-
-  // Polygamma Function.
-  inline Vector psi(const Vector &x, int n = 0){
-    Vector y(x.size());
-    for(size_t i=0; i<y.size(); i++) {
-      y(i) = gsl_sf_psi_n(n, x(i));
-    }
-    return y;
-  }
-
-  // Inverse Polygamma with Newton Method
-  inline Vector inv_psi(const Vector &y){
-    Vector x;
-    double eta = 0.577215; // -psi(1);
-    for(auto &d : y){
-      if (d > -2.22) {
-        x.append(std::exp(d)+0.5);
-      } else {
-        x.append(-1/(d + eta));
-      }
-    }
-    // make 5 newton iterations
-    for(int i=0; i < 5; ++i)
-      x -= (psi(x)-y) / psi(x,1);
-    return x;
+    return apply(x, std::floor);
   }
 
   // Exponential
   inline Vector exp(const Vector &x){
-    Vector v = x;
-    v.apply(std::exp);
-    return v;
+    return apply(x, std::exp);
   }
 
   // Logarithm
   inline Vector log(const Vector &x){
-    Vector v = x;
-    v.apply(std::log);
-    return v;
+    return apply(x, std::log);
   }
 
   // Normalize

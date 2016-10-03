@@ -1,4 +1,4 @@
-#include <pml_bcpm.hpp>
+#include <ml/pml_bcpm.hpp>
 
 using namespace std;
 using namespace pml;
@@ -104,7 +104,7 @@ void test_dm_em(){
   size_t K = 25;
   size_t length = 200;
   double c = 0.1;
-  Vector alpha = uniform::rand(K) * 3;
+  Vector alpha = Uniform(0, 3).rand(K);
 
   // Generate data:
   Matrix states, obs;
@@ -113,7 +113,8 @@ void test_dm_em(){
   // Real Change Points
   Vector cps = Vector::zeros(length);
   for(size_t t = 1; t < length; ++t) {
-    cps[t] = (states.getColumn(t) != states.getColumn(t-1));
+    Vector diff = (states.getColumn(t) - states.getColumn(t-1)) > 0;
+    cps[t] = any(diff);
   }
   obs.saveTxt("/tmp/obs.txt");
   states.saveTxt("/tmp/states.txt");
@@ -128,7 +129,7 @@ void test_dm_em(){
 
   // Learn parameters
   double c_init = 0.0001;
-  Vector alpha_init = uniform::rand(K) * 10;
+  Vector alpha_init = Uniform(0, 10).rand(K);
   DM_Model init_model(DirichletPotential(alpha_init), c_init);
   DM_ForwardBackward fb2(init_model);
   result = fb2.learn_parameters(obs);
@@ -175,13 +176,12 @@ void test_pg(){
   result = fb.smoothing(obs);
   result.first.saveTxt("/tmp/mean2.txt");
   result.second.saveTxt("/tmp/cpp2.txt");
-/*
+
 
   std::cout << "Online smoothing...\n";
   result = fb.online_smoothing(obs, 100);
   result.first.saveTxt("/tmp/mean3.txt");
   result.second.saveTxt("/tmp/cpp3.txt");
-*/
 
   cout << "done.\n";
 }
@@ -190,7 +190,7 @@ void test_pg_em(){
   cout << "test_pg_em...\n";
   size_t length = 10;
   double c = 0.1;
-  double a = uniform::rand()*10;
+  double a = Uniform(0, 10).rand();
 
   // Generate data:
   Matrix states, obs;
@@ -198,10 +198,14 @@ void test_pg_em(){
   std::tie(states, obs) = model.generateData(length);
 
   double init_c = 0.0001;
-  double init_a = uniform::rand()*10;
+  double init_a = Uniform(0, 10).rand();
+
   PG_Model init_model(GammaPotential(init_a, 1), init_c);
   PG_ForwardBackward fb(init_model);
-  fb.learn_parameters(obs);
+
+  auto result = fb.learn_parameters(obs);
+  result.first.saveTxt("/tmp/mean2.txt");
+  result.second.saveTxt("/tmp/cpp2.txt");
 
   cout << "done.\n";
 }
@@ -214,26 +218,7 @@ int main() {
 
   //test_dm();
 
-  test_dm_em();
-
-  /*
-  DirichletPotential dp1(Vector::ones(5), 0);
-  DirichletPotential dp2(uniform::rand(5), -0.4);
-  DirichletPotential dp3 = dp1 * dp2;
-
-  dp1.print();
-  dp2.print();
-  dp3.print();
-
-
-  GammaPotential gp1(1, 1, 0);
-  GammaPotential gp2(10, 1, -0.4);
-  GammaPotential gp3 = gp1 * gp2;
-
-  gp1.print();
-  gp2.print();
-  gp3.print();
-*/
+  //test_dm_em();
 
 
   return 0;

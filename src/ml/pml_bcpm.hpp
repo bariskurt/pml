@@ -2,94 +2,11 @@
 #define MATLIB_PML_BCPM_H
 
 #include "pml.hpp"
-#include "pml_rand.hpp"
+#include "pml_random.hpp"
 
 #include <algorithm>
 
 namespace pml {
-
-  double my_digamma(double x, double THRESHOLD=1e-3) {
-    if (std::fabs(x) <= THRESHOLD) {
-      std::cout << "too small for digamma\n";
-    }
-    return gsl_sf_psi(x);
-  }
-
-  Vector my_digamma(Vector vec, double THRESHOLD=1e-3) {
-    Vector y;
-    for(size_t i=0; i<vec.size(); i++) {
-      y.append(my_digamma(vec(i),THRESHOLD));
-    }
-    return y;
-  }
-
-  double my_polygamma(double x, double THRESHOLD=1e-5) {
-    if (x <= THRESHOLD) {
-      std::cout <<"too small for polygamma\n";
-    }
-    return gsl_sf_psi_1(x);
-  }
-
-  Vector my_polygamma(Vector vec) {
-    Vector y;
-    for(size_t i=0; i<vec.size(); i++) {
-      y.append(my_polygamma(vec(i)));
-    }
-    return y;
-  }
-
-  /*
-  Vector inv_digamma(Vector y, double THRESHOLD=10, double eps_=1e-5) {
-    // check if params are valid
-    for(size_t i=0; i<y.size(); i++) {
-      if (y(i) >= THRESHOLD) {
-        std::cout << "too big for inv_digamma\n";
-        std::cout << y(i) << "\n";
-      }
-    }
-    // find the initial x
-    Vector x;
-    for(size_t i=0; i<y.size(); i++) {
-      if (y(i) > -2.22) {
-        x.append(std::exp(y(i))+0.5);
-      }
-      else {
-        x.append(-1/(y(i)-my_digamma(1)));
-      }
-    }
-    // newton iterations
-    x -= (my_digamma(x)-y) / my_polygamma(x);
-    x -= (my_digamma(x)-y) / my_polygamma(x);
-    x -= (my_digamma(x)-y) / my_polygamma(x);
-
-    return x;
-  }
-  */
-
-  double my_sign(double x){
-    if (x > 0) return 1;
-    if (x < 0) return -1;
-    return 0;
-  }
-
-  double inv_digamma(double x) {
-    double L = 1;
-    double y = std::exp(x);
-    while( L > 1e-8){
-      y = y + L * my_sign(x-my_digamma(y));
-      L /= 2;
-    }
-    return y;
-  }
-
-  Vector inv_digamma(Vector y) {
-    Vector result;
-    for(auto &v : y){
-      result.append(inv_digamma(v));
-    }
-    return result;
-  }
-
   // ----------- POTENTIALS ----------- //
 
   class Potential {
@@ -144,7 +61,7 @@ namespace pml {
       }
 
       Vector rand() const override {
-        return dirichlet::rand(alpha);
+        return Dirichlet(alpha).rand();
       }
 
       Vector mean() const override {
@@ -155,15 +72,12 @@ namespace pml {
         std::cout << alpha << " log_c:" << log_c << std::endl;
       }
 
-
       Vector get_ss() const{
-        return my_digamma(alpha) - my_digamma(sum(alpha));
+        return psi(alpha) - psi(sum(alpha));
       }
 
       void update(const Vector &ss){
-        for(int iter=0; iter<100; iter++) {
-          alpha = inv_digamma( ss + my_digamma(sum(alpha)) );
-        }
+        alpha = Dirichlet::fit(ss).alpha;
       }
 
   public:
@@ -197,7 +111,7 @@ namespace pml {
       }
 
       Vector rand() const override {
-        return gamma::rand(a, b, 1);
+        return Gamma(a, b).rand(1);
       }
 
       Vector mean() const override {
@@ -210,12 +124,12 @@ namespace pml {
       }
 
       Vector get_ss() const{
-        return Vector(1, my_digamma(a) + std::log(b));
+        return Vector(1, psi(a) + std::log(b));
 
       }
 
       void update(const Vector &ss){
-        a = inv_digamma(ss).first();
+        a = inv_psi(ss.first());
         std::cout << "a : " << a << std::endl;
       }
 
@@ -248,8 +162,9 @@ namespace pml {
       std::pair<Matrix, Matrix> generateData(size_t length){
         Matrix states, obs;
         Vector state = prior.rand();
+        Bernoulli bernoulli(p1);
         for (size_t t=0; t<length; t++) {
-          if (t == 0 || uniform::rand() < p1) {
+          if (t == 0 || bernoulli.rand()) {
             state = prior.rand();
           }
           states.appendColumn(state);
@@ -271,7 +186,7 @@ namespace pml {
           : Model(prior_, p1_) { }
 
       Vector rand(const Vector &state) const override {
-        return poisson::rand(state.first(), 1);
+        return Poisson(state.first()).rand(1);
       }
   };
 
@@ -282,7 +197,7 @@ namespace pml {
               : Model(prior_, p1_){ }
 
       Vector rand(const Vector &state) const override {
-        return multinomial::rand(state, 100);
+        return Multinomial(state, 100).rand();
       }
   };
 
@@ -321,7 +236,7 @@ namespace pml {
         }
         consts = normalizeExp(consts);
         // Calculate mean
-        Vector mean = sumRows(transpose(transpose(params)*consts));
+        Vector mean = sum(transpose(transpose(params)*consts), 1);
         // Calculate cpp as the sum of last N probabilities
         double cpp = 0;
         for(int i=0; i < N; ++i)
@@ -523,12 +438,11 @@ namespace pml {
         }
         norm_consts = normalizeExp(norm_consts);
         tmp = tmp * tileRows(norm_consts, tmp.nrows());
-        std::cout << " compute ss: " << sumRows(tmp) << std::endl;
-        return sumRows(tmp);
+        return sum(tmp, 1);
       }
 
       std::pair<Matrix, Vector> learn_parameters(const Matrix& obs){
-        size_t MAX_ITER = 5;
+        size_t MAX_ITER = 100;
         Vector ll;
 
         for(size_t iter = 0; iter < MAX_ITER; ++iter){
@@ -546,8 +460,7 @@ namespace pml {
             cpp_sum += cpp;
             E_log_pi_weighted.appendColumn(compute_ss(gamma)*cpp);
           }
-          Vector ss = sumRows(E_log_pi_weighted) / cpp_sum;
-          std::cout << ss << std::endl;
+          Vector ss = sum(E_log_pi_weighted, 1) / cpp_sum;
 
           // Log-likelihood
           ll.append(alpha.back().log_likelihood());
