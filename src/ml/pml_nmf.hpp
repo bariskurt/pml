@@ -6,7 +6,7 @@
 #define PML_NMF_H
 
 #include "pml.hpp"
-#include "pml_rand.hpp"
+#include "pml_random.hpp"
 
 namespace pml {
 
@@ -30,24 +30,28 @@ namespace pml {
           Vector kl;
       };
 
-    static Matrix randgen(size_t dim1, size_t dim2, size_t rank){
-      Matrix T = dirichlet::rand(Vector::ones(dim1), rank);
-      Matrix V = dirichlet::rand(Vector::ones(rank), dim2);
-      Matrix X = dot(T,V);
-      return  X + abs(gaussian::rand(0,0.1,dim1,dim2));
+    NMF(double at_=1, double bt_=1, double av_=1, double bv_=1)
+        : at(at_), bt(bt_), av(av_), bv(bv_) {}
+
+    Matrix randgen(size_t dim1, size_t dim2, size_t rank){
+      Matrix T = Gamma(at, bt).rand(dim1, rank);
+      Matrix V = Gamma(av, bv).rand(rank, dim2);
+      return dot(T,V);
     }
 
+  public:
     // Maximum Likelihood Solution
-    static Solution ml(const Matrix &X, size_t rank,
-                      size_t max_iter = MAX_ITER){
+    Solution ml(const Matrix &X, size_t rank, size_t max_iter = MAX_ITER){
 
       // Initialize T,V
       //Matrix X = X_ + std::numeric_limits<double>::epsilon();
-      Vector kl;
-      Matrix T = dirichlet::rand(Vector::ones(X.nrows()), rank);
-      Matrix V = dirichlet::rand(Vector::ones(rank), X.ncols());
+      size_t dim1 = X.nrows();
+      size_t dim2 = X.ncols();
 
-      Matrix M = Matrix::ones(X.nrows(), X.ncols());
+      Vector kl;
+      Matrix T = Dirichlet(Vector::ones(dim1)).rand(rank);
+      Matrix V = Dirichlet(Vector::ones(rank)).rand(dim2);
+      Matrix M = Matrix::ones(dim1, dim2);
 
       for(unsigned i = 0; i < max_iter; ++i){
 
@@ -61,7 +65,7 @@ namespace pml {
 
         // Update T and normalize its columns to avoid degeneracy
         T = (T * dot((X / TV), V, false, true)) / dot(M, V, false, true);
-        T = normalizeCols(T);
+        T = normalize(T, 0);
 
         // Update V
         V = (V * dot(T, (X / TV ), true)) / (dot(T, M, true));
@@ -71,37 +75,22 @@ namespace pml {
     }
 
   public:
-    NMF(size_t dim1, size_t dim2, size_t rank,
-        double at=1, double bt=1, double av=1, double bv=1) {
-      At = Matrix (dim1, rank, at);
-      Bt = Matrix (dim1, rank, bt);
-      Av = Matrix (rank, dim2, av);
-      Bv = Matrix (rank, dim2, bv);
-    }
-
-    NMF(const Matrix &At_, const Matrix &Bt_,
-        const Matrix &Av_, const Matrix &Bv_)
-        : At(At_), Bt(Bt_), Av(Av_), Bv(Bv_) {}
-
-    Matrix randgen(){
-      Matrix T = gamma::rand(At, Bt);
-      Matrix V = gamma::rand(Av, Bv);
-      return dot(T,V);
-    }
-
     // Variational Bayes Solution
-    Solution vb(const Matrix &X, size_t max_iter = MAX_ITER){
+    Solution vb(const Matrix &X, size_t rank, size_t max_iter = MAX_ITER){
+
+      size_t dim1 = X.nrows();
+      size_t dim2 = X.ncols();
 
       // Initialize T,V
-      Matrix Lt = gamma::rand(At, Bt);
+      Matrix Lt = Gamma(at, bt).rand(dim1, rank);
       Matrix Et = Lt;
 
-      Matrix Lv = gamma::rand(Av, Bv);
+      Matrix Lv = Gamma(av, bv).rand(rank, dim2);
       Matrix Ev = Lv;
 
-      Matrix M = Matrix::ones(X.nrows(), X.ncols());
-      Matrix Mt = Matrix::ones(At.nrows(), At.ncols());
-      Matrix Mv = Matrix::ones(Av.nrows(), Av.ncols());
+      Matrix M = Matrix::ones(dim1, dim2);
+      Matrix Mt = Matrix::ones(dim1, rank);
+      Matrix Mv = Matrix::ones(rank, dim2);
 
       Vector kl;
 
@@ -112,12 +101,12 @@ namespace pml {
         Matrix Z = X / dot(Lt,Lv);
 
         // 2. Means
-        Matrix alpha_t = At + (Lt * dot( Z, Lv, false, true));
-        Matrix beta_t = Mt / ((At/Bt) + dot(M, Ev, false, true));
+        Matrix alpha_t = at + (Lt * dot( Z, Lv, false, true));
+        Matrix beta_t = Mt / ((at/bt) + dot(M, Ev, false, true));
         Et = alpha_t * beta_t;
 
-        Matrix alpha_v = Av + (Lv * dot( Lt, Z, true, false));
-        Matrix beta_v = Mv / ((Av/Bv) + dot(Et, M, true, false));
+        Matrix alpha_v = av + (Lv * dot( Lt, Z, true, false));
+        Matrix beta_v = Mv / ((av/bv) + dot(Et, M, true, false));
         Ev = alpha_v * beta_v;
 
         // 3. Means of Logs
@@ -137,16 +126,19 @@ namespace pml {
       }
 
       // Normalize T_ columns to get basis vectors:
-      Matrix V = Ev * sumCols(Et);
-      Matrix T = normalizeCols(Et);
+      Matrix V = Ev * sum(Et, 0);
+      Matrix T = normalize(Et, 0);
       return {T, V, kl};
     }
 
-    Solution icm(const Matrix &X, size_t max_iter = MAX_ITER){
+    Solution icm(const Matrix &X, size_t rank, size_t max_iter = MAX_ITER){
+
+      size_t dim1 = X.nrows();
+      size_t dim2 = X.ncols();
 
       // Initialize T,V
-      Matrix T = gamma::rand(At, Bt);
-      Matrix V = gamma::rand(Av, Bv);
+      Matrix T = Gamma(at, bt).rand(dim1, rank);
+      Matrix V = Gamma(av, bv).rand(rank, dim2);
 
       Vector kl;
       Matrix M = Matrix::ones(X.nrows(), X.ncols());
@@ -160,19 +152,18 @@ namespace pml {
           break;
         }
 
-        T = (At + (T * dot((X / TV), V, false, true)))
-            / ((At / Bt) + dot(M, V, false, true));
-        T = normalizeCols(T);
+        T = (at + (T * dot((X / TV), V, false, true)))
+            / ((at / bt) + dot(M, V, false, true));
+        T = normalize(T, 0);
 
-        V = (Av + (V * dot(T, (X / TV ), true)))
-             / ((Av / Bv) + dot(T, M, true));
+        V = (av + (V * dot(T, (X / TV ), true)))
+             / ((av / bv) + dot(T, M, true));
       }
-
       return {T, V, kl};
     }
 
   public:
-      Matrix At, Bt, Av, Bv;
+      double at, bt, av, bv;
   };
 
 }

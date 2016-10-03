@@ -2,7 +2,7 @@
 // Created by bariskurt on 26.03.2016.
 //
 
-#include "pml_rand.hpp"
+#include "pml_random.hpp"
 #include <cassert>
 
 using namespace pml;
@@ -19,9 +19,11 @@ void test_dirichlet() {
 
   Dirichlet dir_est = Dirichlet::fit(data);
 
-  std::cout << dir_est.alpha << std::endl;
+  std::cout << "Original parameters : " << dir.alpha << std::endl;
 
-  std::cout << "OK.\n";
+  std::cout << "Estimated parameters: " << dir_est.alpha << std::endl;
+
+  std::cout << "OK.\n\n";
 }
 
 void test_gamma() {
@@ -36,7 +38,10 @@ void test_gamma() {
 
   Gamma gamma_est = Gamma::fit(data);
 
-  std::cout << gamma_est.a << " " << gamma_est.b << std::endl;
+  std::cout << "Original parameters : a = " << a << ", b = " << b << std::endl;
+
+  std::cout << "Estimated parameters: a = "
+            << gamma_est.a << ", b = " << gamma_est.b << std::endl;
 
   std::cout << "OK.\n";
 }

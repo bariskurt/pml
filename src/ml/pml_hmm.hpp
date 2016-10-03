@@ -12,7 +12,7 @@
 #include <fstream>
 #include <algorithm>
 #include <pml.hpp>
-#include <pml_rand.hpp>
+#include <pml_random.hpp>
 
 using namespace pml;
 
@@ -56,17 +56,17 @@ namespace hmm {
       // transition matrix and observation matrix.
       DiscreteHMM(const Vector& pi_, const Matrix& A_, const Matrix& B_) {
         pi = normalize(pi_);
-        A = normalize(A_, Matrix::COLS);
-        B = normalize(B_, Matrix::COLS);
+        A = normalize(A_, 0);
+        B = normalize(B_, 0);
       }
 
       // Randomly generates a DiscreteHMM with given cardinalities.
       //   H  = number of hidden states
       //   V  = number of discrete observations
       DiscreteHMM(unsigned H, unsigned V) {
-        pi = dirichlet::rand(Vector::ones(H));
-        A = dirichlet::rand(Vector::ones(H),H);
-        B = dirichlet::rand(Vector::ones(V),H);
+        pi = Dirichlet(Vector::ones(H)).rand();
+        A = Dirichlet(Vector::ones(H)).rand(H);
+        B = Dirichlet(Vector::ones(V)).rand(H);
       }
 
       // Getters:
@@ -88,11 +88,11 @@ namespace hmm {
       }
 
       void set_A(const Matrix& A_) {
-        A = normalize(A_, Matrix::COLS);
+        A = normalize(A_, 0);
       }
 
       void set_B(const Matrix& B_){
-        B = normalize(B_, Matrix::COLS);
+        B = normalize(B_, 0);
       }
 
       // Saves HMM matrices seperately.
