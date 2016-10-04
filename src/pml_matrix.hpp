@@ -667,19 +667,17 @@ namespace pml {
     return result;
   }
 
-  // Copies column x, n times
-  Matrix tileCols(const Vector &x, size_t n){
+  // Copies column x, n times along the axis.
+  // tile(x, n, 0)  --> appendRow(x) n times
+  // tile(x, n, 1)  --> appendColumn(x) n times
+  Matrix tile(const Vector &x, size_t n, int axis = 0){
+    ASSERT_TRUE(axis==0 || axis==1, "Matrix::tile axis out of bounds.");
     Matrix result;
-    for(size_t i = 0; i < n; ++i)
-      result.appendColumn(x);
-    return result;
-  }
-
-  // Copies row x, n times
-  Matrix tileRows(const Vector &x, size_t n){
-    Matrix result = Matrix(n, x.size());
     for(size_t i = 0; i < n; ++i){
-      result.setRow(i, x);
+      if ( axis == 0)
+        result.appendRow(x);
+      else
+        result.appendColumn(x);
     }
     return result;
   }
@@ -782,11 +780,11 @@ namespace pml {
   inline Matrix normalize(const Matrix  &x, int axis = 2) {
     ASSERT_TRUE(axis>=0 && axis<=2, "Matrix::normalize axis out of bounds.");
     if( axis == 0){
-      Matrix col_sums = tileRows(sum(x,0), x.nrows());
+      Matrix col_sums = tile(sum(x,0), x.nrows());
       return x / col_sums;
     }
     if( axis == 1){
-      Matrix row_sums = tileCols(sum(x,1), x.ncols());
+      Matrix row_sums = tile(sum(x,1), x.ncols(), 1);
       return x / row_sums;
     }
     return x / sum(x);
@@ -796,11 +794,11 @@ namespace pml {
   inline Matrix normalizeExp(const Matrix &x, int axis = 2) {
     ASSERT_TRUE(axis>=0 && axis<=2, "Matrix::normalizeExp axis out of bounds.");
     if( axis == 0){
-      Matrix max_cols = tileRows(max(x,0), x.nrows());
+      Matrix max_cols = tile(max(x,0), x.nrows());
       return normalize(exp(x - max_cols), 0);
     }
     if( axis == 1){
-      Matrix max_rows = tileCols(max(x,1), x.ncols());
+      Matrix max_rows = tile(max(x,1), x.ncols(), 1);
       return normalize(exp(x - max_rows),1);
     }
     return normalize(exp(x - max(x)));
@@ -817,10 +815,10 @@ namespace pml {
     ASSERT_TRUE(axis==0 || axis==1, "Matrix::logSumExp axis out of bounds.");
     if(axis == 0){
       Vector col_max = max(x,0);
-      return col_max + log(sum(exp(x-tileRows(col_max, x.nrows())),0));
+      return col_max + log(sum(exp(x-tile(col_max, x.nrows())),0));
     }
     Vector row_max = max(x,1);
-    return row_max + log(sum(exp(x-tileCols(row_max, x.ncols())),1));
+    return row_max + log(sum(exp(x-tile(row_max, x.ncols(), 1)),1));
   }
 
   double kl_div(const Matrix &x, const Matrix &y){

@@ -115,8 +115,8 @@ void test_matrix_functions(){
 
   // Tile
   Vector v = {1,2};
-  assert(tileRows(v, 2).equals(Matrix(2,2, {1,1,2,2})));
-  assert(tileCols(v, 2).equals(Matrix(2,2, {1,2,1,2})));
+  assert(tile(v, 2).equals(Matrix(2,2, {1,1,2,2})));
+  assert(tile(v, 2, 1).equals(Matrix(2,2, {1,2,1,2})));
   assert(repmat(v, 2, 2).equals(Matrix(4,2, {1,2,1,2,1,2,1,2})));
 
    std::cout << "OK\n";

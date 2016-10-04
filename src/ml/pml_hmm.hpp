@@ -107,7 +107,7 @@ namespace pml {
           if( t == 0){
             alpha_last = log(p1) + logB.getRow(obs(t));
           } else {
-            Matrix temp = tileRows(alpha_last, alpha_last.size());
+            Matrix temp = tile(alpha_last, alpha_last.size());
             alpha_last = logSumExp(logA + temp, 1) + logB.getRow(obs(t));
           }
           alpha.appendColumn(alpha_last);
