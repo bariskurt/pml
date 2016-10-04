@@ -605,8 +605,26 @@ namespace pml {
 
   };
 
+  // Flip Left-Right
+  Matrix fliplr(const Matrix &x){
+    Matrix result;
+    for(size_t i = x.ncols() ; i > 0; --i){
+      result.appendColumn(x.getColumn(i-1));
+    }
+    return result;
+  }
+
+  // Flip Up-Down
+  Matrix flipud(const Matrix &x){
+    Matrix result;
+    for(size_t i = x.nrows() ; i > 0; --i){
+      result.appendRow(x.getRow(i-1));
+    }
+    return result;
+  }
+
   // Returns a flat vector from Matrix x
-  Vector vectorize(const Matrix &x){
+  Vector flatten(const Matrix &x){
     return Vector(x.size(), x.data());
   }
 
@@ -806,7 +824,7 @@ namespace pml {
   }
 
   double kl_div(const Matrix &x, const Matrix &y){
-    return kl_div(vectorize(x), vectorize(y));
+    return kl_div(flatten(x), flatten(y));
   }
 
   // Matrix - Vector Product

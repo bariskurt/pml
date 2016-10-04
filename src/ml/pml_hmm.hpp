@@ -14,48 +14,18 @@
 #include <pml.hpp>
 #include <pml_random.hpp>
 
-using namespace pml;
-
 //
 // We use the notation of the book "Bayesian Machine Learning" from David Barber
 //
-namespace hmm {
-
-  // Discrete HMM Sequence
-  //  - Contains both hidden states vector and observations vector
-  struct DiscreteHMMSequence {
-    Vector states;  // h_{1:T}
-    Vector obs;     // v_{1:T}
-
-    // Default constructor.
-    DiscreteHMMSequence(size_t T = 0){
-      states.resize(T);
-      obs.resize(T);
-    }
-
-    // Constructs sequence from a saved sequence file.
-    DiscreteHMMSequence(const std::string& filename){
-      Matrix temp = Matrix::loadTxt(filename);
-      states = temp.getColumn(0);
-      obs = temp.getColumn(1);
-    }
-
-    // Saves sequence in a single text file
-    void save(const std::string& filename){
-      Matrix temp;
-      temp.appendColumn(states);
-      temp.appendColumn(obs);
-      temp.saveTxt(filename);
-    }
-  };
+namespace pml {
 
   class DiscreteHMM {
 
     public:
       // Constructs DiscreteHMM with the given prior probabilities,
       // transition matrix and observation matrix.
-      DiscreteHMM(const Vector& pi_, const Matrix& A_, const Matrix& B_) {
-        pi = normalize(pi_);
+      DiscreteHMM(const Vector& p1_, const Matrix& A_, const Matrix& B_) {
+        p1 = normalize(p1_);
         A = normalize(A_, 0);
         B = normalize(B_, 0);
       }
@@ -64,14 +34,14 @@ namespace hmm {
       //   H  = number of hidden states
       //   V  = number of discrete observations
       DiscreteHMM(unsigned H, unsigned V) {
-        pi = Dirichlet(Vector::ones(H)).rand();
+        p1 = Dirichlet(Vector::ones(H)).rand();
         A = Dirichlet(Vector::ones(H)).rand(H);
         B = Dirichlet(Vector::ones(V)).rand(H);
       }
 
       // Getters:
       const Vector& get_pi() {
-        return pi;
+        return p1;
       }
 
       const Matrix& get_A() {
@@ -83,8 +53,8 @@ namespace hmm {
       }
 
       // Setters:
-      void set_pi(const Vector& pi_) {
-        pi = normalize(pi_);
+      void set_pi(const Vector& p1_) {
+        p1 = normalize(p1_);
       }
 
       void set_A(const Matrix& A_) {
@@ -97,83 +67,94 @@ namespace hmm {
 
       // Saves HMM matrices seperately.
       void save(const std::string &dir){
-        pi.saveTxt(dir + "/pi.txt");
+        p1.saveTxt(dir + "/p1.txt");
         A.saveTxt(dir + "/A.txt");
         B.saveTxt(dir + "/B.txt");
       }
 
       // Generates a sequence of length T.
-      std::pair<Vector, Vector> generateSequence(size_t T) {
+      std::pair<Vector, Vector> generateData(size_t T) {
         Vector states, obs;
-        unsigned current_state;
-        for (size_t t=0; t<T; t++) {
-          if( t == 0){
-            current_state = categorical::rand(pi);
-          } else {
-            current_state = categorical::rand(A.getColumn(current_state));
-          }
-          states.append(current_state);
-          obs.append(categorical::rand(B.getColumn(current_state)));
+        // Generate Hidden Sequence
+        std::vector<Categorical> a_dist;
+        for(size_t i=0; i < A.ncols(); ++i){
+          a_dist.emplace_back(A.getColumn(i));
         }
+        states.append(Categorical(p1).rand());
+        for (size_t t=1; t<T; t++)
+          states.append(a_dist[states.last()].rand());
+
+        // Generate Observations:
+        std::vector<Categorical> b_dist;
+        for(size_t i=0; i < B.ncols(); ++i){
+          b_dist.emplace_back(B.getColumn(i));
+        }
+        for (size_t t=0; t<T; t++)
+          obs.append(b_dist[states[t]].rand());
+
         return {states, obs};
       }
 
       // Returns log of alpha messages
-      //  alpha(t) = p(h_t, v_{1:t}) as in David Barber's book, page 455
-      Matrix forwardRecursion(const Vector& obs){
-        Matrix log_Alpha;
-        Vector log_alpha;
+      //  alpha(t) = log p(h_t, v_{1:t}) as in David Barber's book, page 455
+      Matrix forward(const Vector& obs){
+        ASSERT_TRUE(!obs.empty(),
+                    "DiscreteHMM::forwardRecursion Error: no observations");
+        Matrix alpha;
+        Vector alpha_last;
         Matrix logA = log(A), logB = log(B);
         for(size_t t = 0; t < obs.size(); ++t){
-          if(t == 0){
-            log_alpha = log(pi) + logB.getRow(obs(t));
+          if( t == 0){
+            alpha_last = log(p1) + logB.getRow(obs(t));
           } else {
-            Matrix temp = tile(log_alpha, log_alpha.size(), Matrix::ROWS);
-            log_alpha = logSumExp(logA + temp, 1) + logB.getRow(obs(t));
+            Matrix temp = tileRows(alpha_last, alpha_last.size());
+            alpha_last = logSumExp(logA + temp, 1) + logB.getRow(obs(t));
           }
-          log_Alpha.appendColumn(log_alpha);
+          alpha.appendColumn(alpha_last);
         }
-        return log_Alpha;
+        return alpha;
       }
 
       // Returns log of beta messages
-      //  beta(t) = p(v_{t+1:T} | h_t) as in David Barber's book, page 456
-      Matrix backwardRecursion(const Vector& obs){
-        Matrix log_Beta;
-        Vector log_beta;
+      //  beta(t) = log p(v_{t+1:T} | h_t) as in David Barber's book, page 456
+      Matrix backward(const Vector& obs){
+        ASSERT_TRUE(!obs.empty(),
+                    "DiscreteHMM::backwardRecursion Error: no observations");
+        Matrix beta;
+        Vector beta_last;
         Matrix logA = log(A), logB = log(B);
         for(size_t t = obs.size(); t > 0; --t){
-          if(t == obs.size()){
-            log_beta = Vector::zeros(pi.size());
+          if( t == obs.size() ){
+            beta_last = Vector::zeros(p1.size());
           } else {
-            Matrix temp = tile(logB.getRow(obs(t)), log_beta.size());
-            log_beta = logSumExp(logA + log_beta + temp, 0);
+            Matrix temp = tile(logB.getRow(obs(t)), beta_last.size());
+            beta_last = logSumExp(logA + beta_last + temp, 0);
           }
-          log_Beta.appendColumn(log_beta);
+          beta.appendColumn(beta_last);
         }
-        return fliplr(log_Beta);
+        return fliplr(beta);
       }
 
       // Runs forward and bacward recursion and calculates the gamma messages.
-      // gamma(t) = p(h_t , v_{1:T})
-      //          = p(h_t, v_{1:t}) * p(v_{t+1:T} | h_t)
+      // gamma(t) = log p(h_t , v_{1:T})
+      //          = log p(h_t, v_{1:t}) + log  p(v_{t+1:T} | h_t)
       //          = alpha(t) * beta(t)
       Matrix FB_Smoother(const Vector &obs){
-        auto log_Alpha = forwardRecursion(obs);
-        auto log_Beta = backwardRecursion(obs);
-        return log_Alpha + log_Beta;
+        auto alpha = forward(obs);
+        auto beta = backward(obs);
+        return alpha + beta;
       }
 
       // Log Likelihood of observing the given sequence under the model
       // p(v_{1:T}) = \sum_{h_t} p(h_t, v_{1:T})
       //            = \sum_{h_t} gamma(t)
       double log_likelihood(const Vector &obs){
-        Matrix log_gamma = FB_Smoother(obs);
-        return logSumExp(log_gamma.getColumn(0));
+        Matrix gamma = FB_Smoother(obs);
+        return logSumExp(gamma.getColumn(0));
       }
 
-  protected:
-      Vector pi;      // [1 x H] initial state distribution
+    protected:
+      Vector p1;      // [1 x H] initial state distribution
       Matrix A;       // [H x H] state transition matrix
       Matrix B;       // [V x H] observation matrix
   };

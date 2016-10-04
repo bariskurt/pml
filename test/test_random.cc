@@ -46,16 +46,31 @@ void test_gamma() {
   std::cout << "OK.\n";
 }
 
+void test_categorical(){
+
+  std::cout << "test_categorical...\n";
+
+  Categorical cat(Vector({1,2,3,4}));
+
+  Vector data = cat.rand(1000);
+
+  Categorical cat_est = Categorical::fit(data, 4);
+
+  std::cout << "Original parameters : a = " << cat.p << std::endl;
+
+  std::cout << "Estimated parameters : a = " << cat_est.p << std::endl;
+
+  std::cout << "OK.\n";
+
+}
+
 
 int main(){
 
-  // test_dirichlet();
-  // test_gamma();
+  test_dirichlet();
+  test_gamma();
+  test_categorical();
 
-
-  Gamma gamma_est = Gamma::fit(6.42962, 1.86089);
-  std::cout << "Estimated parameters: a = "
-            << gamma_est.a << ", b = " << gamma_est.b << std::endl;
 
   return 0;
 }

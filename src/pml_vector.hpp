@@ -476,6 +476,12 @@ namespace pml {
       std::vector<double> data_;
   };
 
+  Vector reverse(const Vector &v){
+    Vector result = v;
+    std::reverse(result.begin(), result.end());
+    return result;
+  }
+
   // Returns the set of indices i of v, such that v[i] == 1.
   Vector find(const Vector &v){
     Vector result;

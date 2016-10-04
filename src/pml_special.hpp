@@ -38,7 +38,7 @@ namespace pml{
     return y;
   }
 
-  // Inverse Polygamma with Newton Method
+  // Inverse Polygamma Function with Newton Method
   double inv_psi(double d){
     double x = d > -2.22 ? std::exp(d)+0.5 : -1/(d + 0.577215);
     // make 5 newton iterations
@@ -46,7 +46,6 @@ namespace pml{
       x -= (psi(x)-d) / psi(x,1);
     return x;
   }
-
 
   inline Vector inv_psi(const Vector &v){
     return apply(v, inv_psi);

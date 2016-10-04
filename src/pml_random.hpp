@@ -20,9 +20,9 @@ namespace pml {
     return rng;
   }
 
+  // Abstract Class for Uni-variate Distributions.
   class Distribution1D{
     public:
-
       virtual double randgen() const = 0;
 
       double rand() const{
@@ -44,6 +44,7 @@ namespace pml {
       }
   };
 
+  // Abstract Class for Multi-variate Distributions.
   class DistributionND{
     public:
       virtual Vector randgen() = 0;
@@ -89,14 +90,36 @@ namespace pml {
 
   class Bernoulli : public Distribution1D{
     public:
-      Bernoulli(double pi_) : pi(pi_){}
+      Bernoulli(double p_) : p(p_){}
 
       double randgen() const override {
-        return gsl_rng_uniform(rnd_get_rng()) < pi;
+        return gsl_rng_uniform(rnd_get_rng()) < p;
       }
 
     public:
-      double pi;
+      double p;
+  };
+
+  class Categorical : public Distribution1D{
+    public:
+      Categorical(const Vector &p_) {
+        p = normalize(p_);
+        ptable = gsl_ran_discrete_preproc (p.size(), p.data());
+      }
+
+      double randgen() const override {
+        return gsl_ran_discrete(rnd_get_rng(), ptable);
+      }
+
+      static Categorical fit(const Vector &data, size_t K){
+        Vector h = Vector::zeros(K);
+        for(auto d : data) ++h[d];
+        return Categorical(h);
+      }
+
+    public:
+      Vector p;
+      gsl_ran_discrete_t *ptable;
   };
 
   class Binomial : public Distribution1D{
