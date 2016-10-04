@@ -206,7 +206,16 @@ void test_pg_em(){
 
   std::cout << "Original parameters: a = " << a << ", b = " << b << std::endl;
   std::cout << "Estimated parameters: a = " << fb_em.model.prior.a
-            << ", b = " << fb_em.model.prior.b <<  std::endl;
+            << ", b = " << fb_em.model.prior.b
+            << ", c = " << fb_em.model.p1 << std::endl;
+
+
+  // Filtering with dummy parameters
+  PG_Model dummy_model(GammaPotential(1, 1), 0.01);
+  PG_ForwardBackward fb_dummy(dummy_model);
+  auto result_dummy = fb_dummy.smoothing(obs);
+  result_dummy.first.saveTxt("/tmp/mean3.txt");
+  result_dummy.second.saveTxt("/tmp/cpp3.txt");
 
   if(system("anaconda3 ../test/python/visualize_pg_em.py")){
     std::cout <<"plotting error...\n";
