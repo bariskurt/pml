@@ -1,5 +1,5 @@
-#ifndef MATLIB_PML_RAND_H
-#define MATLIB_PML_RAND_H
+#ifndef PML_RAND_H_
+#define PML_RAND_H_
 
 #include "pml_matrix.hpp"
 #include "pml_special.hpp"

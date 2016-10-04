@@ -1,5 +1,5 @@
-#ifndef PML_PML_H_
-#define PML_PML_H_
+#ifndef PML_H_
+#define PML_H_
 
 
 #include "pml_vector.hpp"

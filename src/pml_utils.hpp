@@ -1,5 +1,5 @@
-#ifndef MATLIB_PML_UTILS_H
-#define MATLIB_PML_UTILS_H
+#ifndef PML_UTILS_H_
+#define PML_UTILS_H_
 
 #include <dirent.h>
 #include <iostream>
@@ -111,4 +111,4 @@ namespace pml {
   }
 
 }
-#endif // MATLIB_PML_UTILS_H
+#endif // PML_UTILS_H_
