@@ -86,7 +86,7 @@ void test_dm_em(){
   size_t K = 25;
   size_t length = 200;
   double c = 0.1;
-  Vector alpha = Uniform(0, 3).rand(K);
+  Vector alpha = Uniform(0, 10).rand(K);
 
   // Generate data:
   Matrix states, obs;
@@ -148,7 +148,6 @@ void test_pg(){
   // Estimate with true parameters
   PG_ForwardBackward fb(model);
 
-
   std::cout << "Filtering...\n";
   auto result = fb.filtering(obs);
   result.first.saveTxt("/tmp/mean.txt");
@@ -173,9 +172,9 @@ void test_pg(){
 
 void test_pg_em(){
   cout << "test_pg_em...\n";
-  size_t length = 100;
-  double c = 0.1;
-  double a = Uniform(0, 10).rand();
+  size_t length = 200;
+  double c = 0.01;
+  double a = 10; //Uniform(0, 10).rand();
   double b = 1;
 
   // Generate data:
@@ -183,22 +182,36 @@ void test_pg_em(){
   PG_Model model(GammaPotential(a, b), c);
   std::tie(states, obs) = model.generateData(length);
 
+  // Save data:
+  obs.saveTxt("/tmp/obs.txt");
+  states.saveTxt("/tmp/states.txt");
+
+  // Filtering with true parameters
+  PG_ForwardBackward fb(model);
+  auto result = fb.smoothing(obs);
+  result.first.saveTxt("/tmp/mean.txt");
+  result.second.saveTxt("/tmp/cpp.txt");
+
+
   double init_c = 0.0001;
   double init_a = Uniform(0, 10).rand();
   double init_b = 1;
 
   PG_Model init_model(GammaPotential(init_a, init_b), init_c);
-  PG_ForwardBackward fb(init_model);
+  PG_ForwardBackward fb_em(init_model);
 
-  auto result = fb.learn_parameters(obs);
-  result.first.saveTxt("/tmp/mean2.txt");
-  result.second.saveTxt("/tmp/cpp2.txt");
+  auto result_em = fb_em.learn_parameters(obs);
+  result_em.first.saveTxt("/tmp/mean2.txt");
+  result_em.second.saveTxt("/tmp/cpp2.txt");
 
   std::cout << "Original parameters: a = " << a << ", b = " << b << std::endl;
-  std::cout << "Estimated parameters: a = " << fb.model.prior.a
-            << ", b = " << fb.model.prior.b <<  std::endl;
+  std::cout << "Estimated parameters: a = " << fb_em.model.prior.a
+            << ", b = " << fb_em.model.prior.b <<  std::endl;
 
-  cout << "done.\n";
+  if(system("anaconda3 ../test/python/visualize_pg_em.py")){
+    std::cout <<"plotting error...\n";
+  }
+  cout << "OK.\n";
 }
 
 int main() {

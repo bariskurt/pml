@@ -92,18 +92,17 @@ namespace pml {
 
     public:
       void operator*=(const GammaPotential &other){
-        *this = this->operator*(other);
+        *this = *this * other;
       }
 
-      GammaPotential operator*(const GammaPotential &other) const{
-        double delta = std::lgamma(a + other.a - 1)
-                       - std::lgamma(a) - std::lgamma(other.a)
-                       + std::log(b + other.b)
-                       + a * std::log(b/(b + other.b))
-                       + other.a * std::log(other.b/(b + other.b));
-        return GammaPotential(a + other.a - 1,
-                              b + other.b,
-                              log_c + other.log_c + delta);
+      friend GammaPotential operator*(const GammaPotential &g1,
+                                      const GammaPotential &g2) {
+        double a = g1.a + g2.a - 1;
+        double b = (g1.b * g2.b) / (g1.b + g2.b);
+        double log_c = std::lgamma(a) + a * std::log(b)
+                       - std::lgamma(g1.a) - g1.a * std::log(g1.b)
+                       - std::lgamma(g2.a) - g2.a * std::log(g2.b);
+        return GammaPotential(a, b, g1.log_c + g2.log_c + log_c);
       }
 
       static GammaPotential obs2Potential(const Vector& obs){
@@ -115,7 +114,7 @@ namespace pml {
       }
 
       Vector mean() const override {
-        return Vector(1, a / b);
+        return Vector(1, a * b);
       }
 
       void print(){
@@ -135,8 +134,8 @@ namespace pml {
       }
 
     public:
-      double a;
-      double b;
+      double a;  // shape parameter
+      double b;  // scale parameter (!!! NOT THE RATE PARAMETER !!!!)
   };
 
   // ----------- MODEL ----------- //
@@ -444,6 +443,7 @@ namespace pml {
 
       std::pair<Matrix, Vector> learn_parameters(const Matrix& obs){
         size_t MAX_ITER = 100;
+        size_t MIN_ITER = 10;
         Vector ll;
 
         for(size_t iter = 0; iter < MAX_ITER; ++iter){
@@ -471,6 +471,9 @@ namespace pml {
                       << ll[iter-1] - ll[iter] << std::endl;
           }
 
+          if( iter > MIN_ITER && (ll[iter] - ll[iter-1] < 1e-6)){
+            break;
+          }
 
           // M-Step:
           model.prior.update(ss);

@@ -29,8 +29,8 @@ void test_dirichlet() {
 void test_gamma() {
   std::cout << "test_gamma...\n";
 
-  double a = 10;
-  double b = 2;
+  double a = 20;
+  double b = 3;
 
   Gamma gamma(a,b);
 
@@ -49,8 +49,14 @@ void test_gamma() {
 
 int main(){
 
-  test_dirichlet();
-  test_gamma();
+  // test_dirichlet();
+  // test_gamma();
+
+
+  Gamma gamma_est = Gamma::fit(6.42962, 1.86089);
+  std::cout << "Estimated parameters: a = "
+            << gamma_est.a << ", b = " << gamma_est.b << std::endl;
+
   return 0;
 }
 

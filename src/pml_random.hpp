@@ -200,6 +200,7 @@ namespace pml {
       }
 
       static Gamma fit(double mean_x, double mean_log_x){
+        //std::cout << "ss : " << mean_x << ", " << mean_log_x << std::endl;
         double log_mean_x = std::log(mean_x);
         double a = 0.5 / (log_mean_x - mean_log_x);
         for(size_t iter = 0; iter < MAX_ITER; ++iter){
@@ -208,7 +209,7 @@ namespace pml {
           a = 1/(1/a + temp);
         }
         double b = mean_x / a;
-        return Gamma(a,b);
+        return Gamma(a, b);
       }
 
     public:
