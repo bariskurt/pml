@@ -43,7 +43,7 @@ void test_gamma() {
   std::cout << "Estimated parameters: a = "
             << gamma_est.a << ", b = " << gamma_est.b << std::endl;
 
-  std::cout << "OK.\n";
+  std::cout << "OK.\n\n";
 }
 
 void test_categorical(){
@@ -60,7 +60,7 @@ void test_categorical(){
 
   std::cout << "Estimated parameters : a = " << cat_est.p << std::endl;
 
-  std::cout << "OK.\n";
+  std::cout << "OK.\n\n";
 
 }
 
