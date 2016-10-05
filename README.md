@@ -6,17 +6,20 @@ Written in C++, PML uses the powerful features of C++11 (such as rvalue optimiza
 
 Disclaimer: This is not a stable version of the library, yet.
 
+## Compiling and Testing
+You don't need to compile the library, since it's header only. But it's recommended that you compile the tests. 
+The following commands builds and run the tests:
 
-## Testing...
-
-You can run the unit tests by running:
-
-./test
-
-this will create directories build and bin and run the unit tests in bin.
+> mkdir build
+> cd build
+> cmake ..
+> make
+> make test
 
 ## Installing (Optional)
 
-You can install the library under /usr/include/pml by:
+You can just copy the include folder to your project, and use the header files. 
 
-sudo ./install
+If you've completed the previous step (compiling and testing), you can install the library under /usr/local/include/pml by typing the following command:
+
+> sudo make install

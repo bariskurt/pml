@@ -187,6 +187,7 @@ int main(){
   test_vector();
   test_vector_functions();
   test_vector_algebra();
-  test_vector_comparison();
+  test_vector_comparison();  
   return 0;
+
 }

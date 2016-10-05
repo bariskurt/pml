@@ -1,5 +1,5 @@
-include_directories(../src)
-include_directories(../src/ml)
+include_directories(../include)
+include_directories(../include/ml)
 
 link_libraries(gsl)
 link_libraries(gslcblas)
