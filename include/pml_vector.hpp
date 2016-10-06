@@ -269,6 +269,15 @@ namespace pml {
         return data_.back();
       }
 
+      // Vector slice
+      Vector getSlice(size_t start, size_t stop, size_t step = 1) {
+        Vector result;
+        for(size_t i = start; i < stop; i+=step){
+          result.append(data_[i]);
+        }
+        return result;
+      }
+
     public:
 
       // ------ Self Assignment Operators -------
@@ -599,15 +608,6 @@ namespace pml {
   inline double logSumExp(const Vector &x) {
     double x_max = max(x);
     return x_max + std::log(sum(exp(x - x_max)));
-  }
-
-  // Vector slice
-  inline Vector slice(const Vector &v, const Range &range){
-    Vector result;
-    for(size_t i = range.start; i < range.stop; i+=range.step){
-      result.append(v[i]);
-    }
-    return result;
   }
 
   // KL Divergence Between Vectors
