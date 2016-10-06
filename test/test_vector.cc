@@ -53,8 +53,8 @@ void test_vector(){
   Vector v8; v8 = v6;  assert(v6.equals(v8));
 
   // Load and Save
-  v6.saveTxt("/tmp/dummy.txt");
-  Vector v9 = Vector::loadTxt("/tmp/dummy.txt");
+  v6.saveTxt("/tmp/test_vector.txt");
+  Vector v9 = Vector::loadTxt("/tmp/test_vector.txt");
   assert(v6.equals(v9));
 
   std::cout << "OK.\n";
@@ -94,11 +94,11 @@ void test_vector_functions() {
 
   // Test slice
   Vector v4 = {0,1,2,3,4,5,6,7,8};
-  assert(slice(v4, {0, v4.size()}).equals(v4));
-  assert(slice(v4, {0, 4}).equals(Vector({0,1,2,3})));
-  assert(slice(v4, {0, 0}).equals(Vector()));
-  assert(slice(v4, {0, v4.size(), 2}).equals(Vector({0,2,4,6,8})));
-  assert(slice(v4, {1, v4.size(), 2}).equals(Vector({1,3,5,7})));
+  assert(v4.getSlice(0, v4.size()).equals(v4));
+  assert(v4.getSlice(0, 4).equals(Vector({0,1,2,3})));
+  assert(v4.getSlice(0, 0).equals(Vector()));
+  assert(v4.getSlice(0, v4.size(), 2).equals(Vector({0,2,4,6,8})));
+  assert(v4.getSlice(1, v4.size(), 2).equals(Vector({1,3,5,7})));
 
   std::cout << "OK.\n";
 }
