@@ -11,8 +11,8 @@
 #include <sstream>
 #include <fstream>
 #include <algorithm>
-#include <pml.hpp>
-#include <pml_random.hpp>
+
+#include "../pml.hpp"
 
 //
 // We use the notation of the book "Bayesian Machine Learning" from David Barber

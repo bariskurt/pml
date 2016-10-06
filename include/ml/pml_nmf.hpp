@@ -5,8 +5,7 @@
 #ifndef PML_NMF_H
 #define PML_NMF_H
 
-#include "pml.hpp"
-#include "pml_random.hpp"
+#include "../pml.hpp"
 
 namespace pml {
 
