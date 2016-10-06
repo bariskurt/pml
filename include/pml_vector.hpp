@@ -270,7 +270,7 @@ namespace pml {
       }
 
       // Vector slice
-      Vector getSlice(size_t start, size_t stop, size_t step = 1) {
+      Vector getSlice(size_t start, size_t stop, size_t step = 1) const {
         Vector result;
         for(size_t i = start; i < stop; i+=step){
           result.append(data_[i]);

@@ -8,33 +8,6 @@ const int K = 10;
 const int T = 100;
 const int LAG = 10;
 
-
-
-/*
-pair<Matrix, Vector> readData(const string& obs_path="../etc/simulator_logs/log_low_250.txt",
-                              const string& cps_path="../etc/simulator_logs/log_low_250_cps.txt") {
-  Matrix obs = Matrix::loadTxt(obs_path);
-  // if path contains the word "simulator", take the transpose
-  if (obs_path.find("simulator") != string::npos) { obs = transpose(obs); }
-  Vector cps;
-  if(cps_path=="") { cps = Vector::zeros(obs.ncols()); }
-  else { cps = Vector::loadTxt(cps_path); }
-  return make_pair(obs, cps);
-}
-
-pair<Matrix, Vector> crop(const pair<Matrix, Vector>& data, size_t start, size_t end) {
-  Matrix obs = data.first;
-  Vector cps = data.second;
-  Matrix retMat;
-  Vector retVec;
-  for(size_t i=start; i<end; i++) {
-    retMat.appendColumn(obs.getColumn(i));
-    retVec.append(cps(i));
-  }
-  return make_pair(retMat,retVec);
-}
-*/
-
 void test_dm(){
   cout << "test_dm()...\n";
 

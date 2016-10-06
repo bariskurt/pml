@@ -1,8 +1,7 @@
 #ifndef MATLIB_PML_BCPM_H
 #define MATLIB_PML_BCPM_H
 
-#include "pml.hpp"
-#include "pml_random.hpp"
+#include "../pml.hpp"
 
 #include <algorithm>
 
