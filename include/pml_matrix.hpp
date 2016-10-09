@@ -519,9 +519,11 @@ namespace pml {
       void append(const Matrix &m, size_t axis = 1){
         ASSERT_TRUE(axis == 0 || axis == 1,
                     "Matrix::append(const Matrix &):: axis out of bounds");
+        if(m.empty())
+          return;
         if(axis == 0){
           // Append rowwise
-          ASSERT_TRUE(ncols() == m.ncols(),
+          ASSERT_TRUE(empty() || ncols() == m.ncols(),
               "Matrix::append(const Matrix &, 1):: column sizes mismatch.");
           std::vector<double> new_data(size() + m.size());
           size_t nrows_new = nrows() + m.nrows();
@@ -535,7 +537,7 @@ namespace pml {
           nrows_ = nrows_new;
         } else {
           // Append columnwise
-          ASSERT_TRUE(nrows() == m.nrows(),
+          ASSERT_TRUE(empty() || nrows() == m.nrows(),
               "Matrix::append(const Matrix &, 0):: row sizes mismatch.");
           std::vector<double> new_data(size() + m.size());
           memcpy(new_data.data(), data(), sizeof(double) * size());

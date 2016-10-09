@@ -53,7 +53,7 @@ namespace pml {
                                   log_c + p.log_c + delta);
       }
 
-      static DirichletPotential obs2Potential(const Vector& obs){
+      DirichletPotential obs2Potential(const Vector& obs) const{
         double log_c = std::lgamma(sum(obs)+1)
                        - std::lgamma(sum(obs)+obs.size());
         return DirichletPotential(obs+1, log_c);
@@ -104,7 +104,7 @@ namespace pml {
         return GammaPotential(a, b, g1.log_c + g2.log_c + log_c);
       }
 
-      static GammaPotential obs2Potential(const Vector& obs){
+      GammaPotential obs2Potential(const Vector& obs) const {
         return GammaPotential(obs.first()+1, 1);
       }
 
@@ -157,6 +157,14 @@ namespace pml {
       virtual Vector rand(const Vector &state) const {
         return Vector();
       }
+
+      P obs2Potential(const Vector& obs) const {
+        return prior.obs2Potential(obs);
+      }
+
+      virtual void saveTxt(const std::string &fname) const {}
+
+      virtual void loadTxt(const std::string &fname) {}
 
       std::pair<Matrix, Matrix> generateData(size_t length){
         Matrix states, obs;
@@ -295,7 +303,7 @@ namespace pml {
       Message<P> update(const Message<P> &prev, const Vector &obs){
         Message<P> message = prev;
         for(auto &potential : message.potentials) {
-          potential *= P::obs2Potential(obs);
+          potential *= model.obs2Potential(obs);
         }
         return message;
       }
@@ -366,7 +374,7 @@ namespace pml {
               potential.log_c += model.log_p0;
             }
           }
-          P pot = P::obs2Potential(obs.getColumn(idx));
+          P pot = model.obs2Potential(obs.getColumn(idx));
           pot.log_c += c;
           message.add_potential(pot);
           message.prune(max_components);
