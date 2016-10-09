@@ -516,6 +516,36 @@ namespace pml {
       }
 
       // Appends a column to the right.
+      void append(const Matrix &m, size_t axis = 1){
+        ASSERT_TRUE(axis == 0 || axis == 1,
+                    "Matrix::append(const Matrix &):: axis out of bounds");
+        if(axis == 0){
+          // Append rowwise
+          ASSERT_TRUE(ncols() == m.ncols(),
+              "Matrix::append(const Matrix &, 1):: column sizes mismatch.");
+          std::vector<double> new_data(size() + m.size());
+          size_t nrows_new = nrows() + m.nrows();
+          for(size_t i=0; i < ncols(); ++i){
+            memcpy(&new_data[nrows_new*i], &data_[nrows() * i],
+                   sizeof(double) * nrows());
+            memcpy(&new_data[nrows_new*i + nrows()], &m.data_[m.nrows() * i],
+                   sizeof(double) * m.nrows());
+          }
+          data_ = new_data;
+          nrows_ = nrows_new;
+        } else {
+          // Append columnwise
+          ASSERT_TRUE(nrows() == m.nrows(),
+              "Matrix::append(const Matrix &, 0):: row sizes mismatch.");
+          std::vector<double> new_data(size() + m.size());
+          memcpy(new_data.data(), data(), sizeof(double) * size());
+          memcpy(new_data.data() + size(), m.data(), sizeof(double) * m.size());
+          data_ = new_data;
+          ncols_ += m.ncols();
+        }
+      }
+
+      // Appends a column to the right.
       void appendColumn(const Vector &v){
         ASSERT_TRUE( empty() | (nrows_ == v.size()),
                     "Matrix::appendColumn:: Vector size mismatch");
@@ -635,8 +665,15 @@ namespace pml {
 
   };
 
+  // Concatanate two matrices as in Matlab
+  inline Matrix cat(const Matrix &m1, const Matrix &m2, size_t axis = 1){
+    Matrix result(m1);
+    result.append(m2, axis);
+    return result;
+  }
+
   // Flip Left-Right
-  Matrix fliplr(const Matrix &x){
+  inline Matrix fliplr(const Matrix &x){
     Matrix result;
     for(size_t i = x.ncols() ; i > 0; --i){
       result.appendColumn(x.getColumn(i-1));
@@ -645,7 +682,7 @@ namespace pml {
   }
 
   // Flip Up-Down
-  Matrix flipud(const Matrix &x){
+  inline Matrix flipud(const Matrix &x){
     Matrix result;
     for(size_t i = x.nrows() ; i > 0; --i){
       result.appendRow(x.getRow(i-1));
@@ -654,7 +691,7 @@ namespace pml {
   }
 
   // Returns a flat vector from Matrix x
-  Vector flatten(const Matrix &x){
+  inline Vector flatten(const Matrix &x){
     return Vector(x.size(), x.data());
   }
 
@@ -685,7 +722,7 @@ namespace pml {
   */
 
   // repmat function of Matlab
-  Matrix repmat(const Vector &x, int n, int m ){
+  inline Matrix repmat(const Vector &x, int n, int m ){
     // Prepare initial column.
     Vector initial_column;
     for(int i=0; i < n; ++i)
@@ -700,7 +737,7 @@ namespace pml {
   // Copies column x, n times along the axis.
   // tile(x, n, 0)  --> appendRow(x) n times
   // tile(x, n, 1)  --> appendColumn(x) n times
-  Matrix tile(const Vector &x, size_t n, int axis = 0){
+  inline Matrix tile(const Vector &x, size_t n, int axis = 0){
     ASSERT_TRUE(axis==0 || axis==1, "Matrix::tile axis out of bounds.");
     Matrix result;
     for(size_t i = 0; i < n; ++i){
@@ -712,7 +749,7 @@ namespace pml {
     return result;
   }
 
-  Vector for_each_rows(const Matrix& x, double (*func)(const Vector &)){
+  inline Vector for_each_rows(const Matrix& x, double (*func)(const Vector &)){
     Vector result;
     for(size_t i=0; i < x.nrows(); ++i){
       result.append(func(x.getRow(i)));
@@ -720,7 +757,7 @@ namespace pml {
     return result;
   }
 
-  Vector for_each_cols(const Matrix& x, double (*func)(const Vector &)){
+  inline Vector for_each_cols(const Matrix& x, double (*func)(const Vector &)){
     Vector result;
     for(size_t i=0; i < x.ncols(); ++i){
       result.append(func(x.getColumn(i)));

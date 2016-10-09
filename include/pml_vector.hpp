@@ -512,6 +512,12 @@ namespace pml {
       std::vector<double> data_;
   };
 
+  Vector cat(const Vector &v1, const Vector &v2){
+    Vector result(v1);
+    result.append(v2);
+    return result;
+  }
+
   Vector reverse(const Vector &v){
     Vector result = v;
     std::reverse(result.begin(), result.end());
