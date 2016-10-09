@@ -52,10 +52,24 @@ void test_vector(){
   Vector v7(v6);  assert(v6.equals(v7));
   Vector v8; v8 = v6;  assert(v6.equals(v8));
 
-  // Load and Save
-  v6.saveTxt("/tmp/test_vector.txt");
-  Vector v9 = Vector::loadTxt("/tmp/test_vector.txt");
-  assert(v6.equals(v9));
+  std::cout << "OK.\n";
+}
+
+
+void test_load_save(){
+  std::cout << "test_load_save...\n";
+
+  Vector x({1,2,3,4,5,6,7,8});
+
+  // Load and Save in Binary
+  x.save("/tmp/test_vector.pml");
+  Vector y = Vector::load("/tmp/test_vector.pml");
+  assert(x.equals(y));
+
+  // Load and Save in Text
+  x.saveTxt("/tmp/test_vector.txt");
+  Vector z = Vector::loadTxt("/tmp/test_vector.txt");
+  assert(x.equals(z));
 
   std::cout << "OK.\n";
 }
@@ -187,7 +201,8 @@ int main(){
   test_vector();
   test_vector_functions();
   test_vector_algebra();
-  test_vector_comparison();  
+  test_vector_comparison();
+  test_load_save();
   return 0;
 
 }

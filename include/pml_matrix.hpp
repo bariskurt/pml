@@ -568,6 +568,19 @@ namespace pml {
         return in;
       }
 
+      void save(const std::string &filename){
+        std::ofstream ofs(filename, std::ios::binary | std::ios::out);
+        if (ofs.is_open()) {
+          double dim = 2;
+          double dim1 = nrows(), dim2 = ncols();
+          ofs.write(reinterpret_cast<char*>(&dim), sizeof(double));
+          ofs.write(reinterpret_cast<char*>(&dim1), sizeof(double));
+          ofs.write(reinterpret_cast<char*>(&dim2), sizeof(double));
+          ofs.write(reinterpret_cast<char*>(data()), sizeof(double)*size());
+          ofs.close();
+        }
+      }
+
       void saveTxt(const std::string &filename) const {
         std::ofstream ofs(filename);
         if (ofs.is_open()) {
@@ -578,6 +591,23 @@ namespace pml {
             ofs << value << std::endl;
           ofs.close();
         }
+      }
+
+      static Matrix load(const std::string &filename){
+        Matrix result;
+        std::ifstream ifs(filename, std::ios::binary | std::ios::in);
+        if (ifs.is_open()) {
+          double dim, nrows, ncols;
+          ifs.read(reinterpret_cast<char*>(&dim), sizeof(double));
+          ASSERT_TRUE(dim == 2, "Matrix::load:: Dimension mismatch.");
+          ifs.read(reinterpret_cast<char*>(&nrows), sizeof(double));
+          ifs.read(reinterpret_cast<char*>(&ncols), sizeof(double));
+          result.reshape(nrows, ncols);
+          ifs.read(reinterpret_cast<char*>(result.data()),
+                   sizeof(double)*result.size());
+          ifs.close();
+        }
+        return result;
       }
 
       static Matrix loadTxt(const std::string &filename) {

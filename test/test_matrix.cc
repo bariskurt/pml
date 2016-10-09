@@ -60,11 +60,22 @@ void test_matrix(){
   assert(m(1,2) == 1);
   assert(m(1,3) == 1);
 
-  // Test File operations
-  m.saveTxt("/tmp/dummy.txt");
-  Matrix m2 = Matrix::loadTxt("/tmp/dummy.txt");
+  std::cout << "OK\n";
+}
+
+void test_load_save(){
+  std::cout << "test_load_save...\n";
+
+  Matrix m(3,4, {0,1,2,3,4,5,6,7,8,9,10,11});
+  // Save and load in binary
+  m.save("/tmp/test_matrix.pml");
+  Matrix m2 = Matrix::load("/tmp/test_matrix.pml");
   assert(m.equals(m2));
 
+  // Save and load in text
+  m.saveTxt("/tmp/test_matrix.txt");
+  Matrix m3 = Matrix::loadTxt("/tmp/test_matrix.txt");
+  assert(m.equals(m3));
 
   std::cout << "OK\n";
 }
@@ -208,6 +219,7 @@ int main(){
   test_matrix_functions();
   test_matrix_algebra();
   test_matrix_append();
+  test_load_save();
   return 0;
 }
 

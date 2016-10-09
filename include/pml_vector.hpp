@@ -450,6 +450,18 @@ namespace pml {
         return in;
       }
 
+      void save(const std::string &filename){
+        std::ofstream ofs(filename, std::ios::binary | std::ios::out);
+        if (ofs.is_open()) {
+          double dim = 1;
+          double length = size();
+          ofs.write(reinterpret_cast<char*>(&dim), sizeof(double));
+          ofs.write(reinterpret_cast<char*>(&length), sizeof(double));
+          ofs.write(reinterpret_cast<char*>(data()), sizeof(double)*length);
+          ofs.close();
+        }
+      }
+
       void saveTxt(const std::string &filename,
                    int precision = DEFAULT_PRECISION) const {
         std::ofstream ofs(filename);
@@ -462,6 +474,21 @@ namespace pml {
           }
           ofs.close();
         }
+      }
+
+      static Vector load(const std::string &filename){
+        Vector result;
+        std::ifstream ifs(filename, std::ios::binary | std::ios::in);
+        if (ifs.is_open()) {
+          double dim, size;
+          ifs.read(reinterpret_cast<char*>(&dim), sizeof(double));
+          ASSERT_TRUE(dim == 1, "Vector::load:: Dimension mismatch.");
+          ifs.read(reinterpret_cast<char*>(&size), sizeof(double));
+          result.resize(size);
+          ifs.read(reinterpret_cast<char*>(result.data()), sizeof(double)*size);
+          ifs.close();
+        }
+        return result;
       }
 
       static Vector loadTxt(const std::string &filename) {
