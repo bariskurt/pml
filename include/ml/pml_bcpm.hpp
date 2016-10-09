@@ -196,7 +196,7 @@ namespace pml {
           : Model(prior_, p1_){ }
 
       Vector rand(const Vector &state) const override {
-        return Multinomial(state, 100).rand();
+        return Multinomial(state, 20).rand();
       }
   };
 

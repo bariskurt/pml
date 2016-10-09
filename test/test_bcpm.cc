@@ -199,10 +199,10 @@ void test_pg_em(){
 int main() {
 
   // test_dm();
-  // test_dm_em();
+  test_dm_em();
 
   // test_pg();
-  test_pg_em();
+  // test_pg_em();
 
   return 0;
 }
