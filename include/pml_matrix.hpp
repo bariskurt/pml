@@ -531,7 +531,7 @@ namespace pml {
             memcpy(&new_data[nrows_new*i + nrows()], &m.data_[m.nrows() * i],
                    sizeof(double) * m.nrows());
           }
-          data_ = new_data;
+          data_ = std::move(new_data);
           nrows_ = nrows_new;
         } else {
           // Append columnwise
@@ -540,7 +540,7 @@ namespace pml {
           std::vector<double> new_data(size() + m.size());
           memcpy(new_data.data(), data(), sizeof(double) * size());
           memcpy(new_data.data() + size(), m.data(), sizeof(double) * m.size());
-          data_ = new_data;
+          data_ = std::move(new_data);
           ncols_ += m.ncols();
         }
       }
