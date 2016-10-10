@@ -205,13 +205,34 @@ void test_pg_em(){
   cout << "OK.\n";
 }
 
+void test_matlab(){
+
+  Matrix states = Matrix::loadTxt("/tmp/states.txt");
+  Matrix obs = Matrix::loadTxt("/tmp/obs.txt");
+
+  double a = 10;
+  double b = 1;
+  double p1 = 0.05;
+
+  PG_Model model(GammaPotential(a, b), p1);
+
+  PG_ForwardBackward fb(model);
+  auto result = fb.smoothing(obs);
+
+  result.first.saveTxt("/tmp/mean.txt");
+  result.second.saveTxt("/tmp/cpp.txt");
+
+}
+
 int main() {
 
   // test_dm();
   // test_dm_em();
 
   // test_pg();
-  test_pg_em();
+  // test_pg_em();
+
+  test_matlab();
 
   return 0;
 }

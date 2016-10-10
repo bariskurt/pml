@@ -11,37 +11,41 @@
 % Department of Computer Engineering, Bogazici University 
 % e-mail : taylan.cemgil@boun.edu.tr
 
-% Set the Hyperparameters 
-M = 100; 
-data.M = M; 
-data.nu = 0.9; 
-data.B = 0.2; 
-data.a0 = 5; 
-data.b0 = 2; 
-data.log_p1 = log(0.05); 
-data.log_p0 = log(1 - exp(data.log_p1));
+function [data] = gen_data()
 
-data.r = double(rand(1, M) < exp(data.log_p1)); 
-data.lambda0 = gamrnd(data.a0, 1/data.b0); 
-data.lambda = zeros(1, M); 
+  % Set the Hyperparameters 
+  data.M = 100; 
+  data.a = 10; 
+  data.b = 1; 
+  data.p1 = 0.05;
+  data.log_p1 = log(data.p1); 
+  data.log_p0 = log(1 - data.p1);
 
-for t=1:M,
-    if data.r(t)==1, 
-        data.lambda(t) = gamrnd(data.nu, 1/data.B);
-    else if t>1,
-        data.lambda(t) = data.lambda(t-1);         
-        else
-            data.lambda(t) = data.lambda0; 
-        end;
-    end;
+  data.r = double(rand(1, data.M) < exp(data.log_p1));   
+  data.lambda = zeros(1, data.M); 
+  data.lambda(1) = gamrnd(data.a, data.b);
+  
+
+  for t=2:data.M,
+      if data.r(t)==1,
+          data.lambda(t) = gamrnd(data.a, data.b);
+      else 
+          data.lambda(t) = data.lambda(t-1);                   
+      end;
+  end;
+
+  data.x = poissrnd(data.lambda);
+
+  % Plot data 
+  stem(data.x)
+  hold on 
+  plot(1:data.M, [data.lambda], 'r.') 
+  %ln= grid_line(find(data.r)); set(ln, 'lines', ':') 
+  hold off
+  legend('x','\lambda'); xlabel('t'); ylabel('x_t')
+  
+  % Save Data
+  saveTxt('/tmp/states.txt', data.lambda);
+  saveTxt('/tmp/obs.txt', data.x);
+  
 end;
-
-data.x = poissrnd(data.lambda);
-
-% Plot data 
-stem(data.x)
-hold on 
-plot(0:M, [data.lambda0 data.lambda], 'r.') 
-%ln= grid_line(find(data.r)); set(ln, 'lines', ':') 
-hold off
-legend('x','\lambda'); xlabel('t'); ylabel('x_t')
