@@ -470,9 +470,6 @@ namespace pml {
           }
           Vector ss = sum(E_log_pi_weighted, 1) / cpp_sum;
 
-          // Log-likelihood
-          for(auto &message: alpha)
-
           ll.append(alpha.back().log_likelihood());
           std::cout << "ll is " <<  ll.last() << std::endl;
           if(iter > 0 && ll[iter] < ll[iter-1]){
