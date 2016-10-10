@@ -3,20 +3,20 @@
 using namespace std;
 using namespace pml;
 
-// constants for bcpm
-const int K = 10;
-const int T = 100;
-const int LAG = 10;
-
 void test_dm(){
   cout << "test_dm()...\n";
 
+  size_t K = 5;
+  int lag = 10;
+  double p1 = 0.1;
+  Vector alpha = Vector::ones(K);
+  size_t length = 100;
+
   // Generate Model
-  DM_Model model(DirichletPotential(Vector::ones(10)*5), 0.01);
+  DM_Model model(DirichletPotential(alpha), p1);
 
   // Generate Sequence
   Matrix states, obs;
-  size_t length = 99;
   std::tie(states, obs) = model.generateData(length);
   states.saveTxt("/tmp/states.txt");
   obs.saveTxt("/tmp/obs.txt");
@@ -24,8 +24,7 @@ void test_dm(){
   // Filtering and Smoothing
   Matrix mean;
   Vector cpp;
-  int max_components = 100;
-  DM_ForwardBackward fb(model, max_components);
+  DM_ForwardBackward fb(model);
 
   // Filtering
   std::cout << "Filtering...\n";
@@ -40,13 +39,12 @@ void test_dm(){
   cpp.saveTxt("/tmp/cpp2.txt");
 
   // Fixed Lag
-  int lag = 10;
   std::cout << "Online smoothing...\n";
   std::tie(mean, cpp) = fb.online_smoothing(obs, lag);
   mean.saveTxt("/tmp/mean3.txt");
   cpp.saveTxt("/tmp/cpp3.txt");
 
-  if(system("anaconda3 ../test/python/visualizeMultinomialReset.py")){
+  if(system("anaconda3 ../test/python/test_bcpm_dm.py False")){
     std::cout <<"plotting error...\n";
   }
   cout << "OK.\n";
@@ -56,9 +54,9 @@ void test_dm_em(){
 
   cout << "test_dm_em()...\n";
 
-  size_t K = 25;
+  size_t K = 8;
   size_t length = 200;
-  double c = 0.1;
+  double c = 0.01;
   Vector alpha = Uniform(0, 10).rand(K);
 
   // Generate data:
@@ -92,11 +90,21 @@ void test_dm_em(){
   result.first.saveTxt("/tmp/mean2.txt");
   result.second.saveTxt("/tmp/cpp2.txt");
 
+  // Smoothing with dummy parameters
+  DM_ForwardBackward fb_dummy(init_model);
+  auto result_dummy = fb_dummy.smoothing(obs);
+  result_dummy.first.saveTxt("/tmp/mean3.txt");
+  result_dummy.second.saveTxt("/tmp/cpp3.txt");
+
   std::cout << "-----------\n";
   std::cout << alpha << std::endl;
   fb2.model.prior.print();
   std::cout << fb2.model.p1 << std::endl;
   std::cout << "-----------\n";
+
+  if(system("anaconda3 ../test/python/test_bcpm_dm.py True")){
+    std::cout <<"plotting error...\n";
+  }
 
   cout << "OK.\n";
 }
@@ -133,11 +141,12 @@ void test_pg(){
 
 
   std::cout << "Online smoothing...\n";
-  result = fb.online_smoothing(obs, 100);
+  size_t lag = 10;
+  result = fb.online_smoothing(obs, lag);
   result.first.saveTxt("/tmp/mean3.txt");
   result.second.saveTxt("/tmp/cpp3.txt");
 
-  if(system("anaconda3 ../test/python/visualizePoissonReset.py")){
+  if(system("anaconda3 ../test/python/test_bcpm_pg.py False")){
     std::cout <<"plotting error...\n";
   }
   cout << "OK.\n";
@@ -183,14 +192,14 @@ void test_pg_em(){
   << ", c = " << fb_em.model.p1 << std::endl;
 
 
-  // Filtering with dummy parameters
+  // Smoothing with dummy parameters
   PG_Model dummy_model(GammaPotential(1, 1), 0.01);
   PG_ForwardBackward fb_dummy(dummy_model);
   auto result_dummy = fb_dummy.smoothing(obs);
   result_dummy.first.saveTxt("/tmp/mean3.txt");
   result_dummy.second.saveTxt("/tmp/cpp3.txt");
 
-  if(system("anaconda3 ../test/python/test_bcpm_pg.py")){
+  if(system("anaconda3 ../test/python/test_bcpm_pg.py True")){
     std::cout <<"plotting error...\n";
   }
   cout << "OK.\n";
@@ -199,10 +208,10 @@ void test_pg_em(){
 int main() {
 
   // test_dm();
-  test_dm_em();
+  // test_dm_em();
 
   // test_pg();
-  // test_pg_em();
+  test_pg_em();
 
   return 0;
 }
