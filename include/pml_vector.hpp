@@ -13,7 +13,7 @@
 #include <iostream>
 #include <vector>
 
-#define DEFAULT_PRECISION 6
+#define DEFAULT_PRECISION 15
 
 namespace pml {
 

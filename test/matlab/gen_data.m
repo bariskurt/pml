@@ -14,10 +14,10 @@
 function [data] = gen_data()
 
   % Set the Hyperparameters 
-  data.M = 100; 
+  data.M = 90; 
   data.a = 10; 
   data.b = 1; 
-  data.p1 = 0.05;
+  data.p1 = 0.2;
   data.log_p1 = log(data.p1); 
   data.log_p0 = log(1 - data.p1);
 
@@ -37,12 +37,12 @@ function [data] = gen_data()
   data.x = poissrnd(data.lambda);
 
   % Plot data 
-  stem(data.x)
-  hold on 
-  plot(1:data.M, [data.lambda], 'r.') 
-  %ln= grid_line(find(data.r)); set(ln, 'lines', ':') 
-  hold off
-  legend('x','\lambda'); xlabel('t'); ylabel('x_t')
+  close all;
+  stem(data.x);
+  hold on;
+  plot(1:data.M, [data.lambda], 'r.');
+  hold off;
+  legend('x','\lambda'); xlabel('t'); ylabel('x_t');
   
   % Save Data
   saveTxt('/tmp/states.txt', data.lambda);
