@@ -218,9 +218,22 @@ void test_matlab(){
 
   PG_ForwardBackward fb(model);
   auto result = fb.smoothing(obs);
+  /*
+  fb.backward(obs);
+  Matrix mean;
+  Vector cpp;
+  for(auto &message : fb.beta){
+    auto result = message.evaluate();
+    mean.appendColumn(result.first);
+    cpp.append(result.second);
+  }
+   */
+  cout << result.second << endl;
+  cout << result.first << endl;
 
   result.first.saveTxt("/tmp/mean.txt");
   result.second.saveTxt("/tmp/cpp.txt");
+
 
 }
 

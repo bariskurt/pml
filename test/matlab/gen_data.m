@@ -1,4 +1,4 @@
-% B.1 Data generation
+ % B.1 Data generation
 
 % CMPE58N_MCP_POISS Script to generate data from the model 
 %
@@ -48,4 +48,4 @@ function [data] = gen_data()
   saveTxt('/tmp/states.txt', data.lambda);
   saveTxt('/tmp/obs.txt', data.x);
   
-end;
+end
