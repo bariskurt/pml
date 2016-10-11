@@ -137,6 +137,50 @@ namespace pml {
       double b;  // scale parameter (!!! NOT THE RATE PARAMETER !!!!)
   };
 
+
+  class GaussianPotential : public Potential {
+    public:
+      GaussianPotential(double mu_ = 0, double sigma_ = 1, double log_c = 0) :
+          Potential(log_c), mu(mu_), sigma(sigma_){}
+
+    public:
+      void operator*=(const GaussianPotential &other){
+        *this = *this * other;
+      }
+
+      friend GaussianPotential operator*(const GaussianPotential &g1,
+                                         const GaussianPotential &g2) {
+        double s1 = std::pow(g1.sigma ,2);
+        double s2 = std::pow(g2.sigma ,2);
+        double mu = (g1.mu * s1 + g2.mu * s2 )/ (s1 + s2);
+        double sigma = ( s1 * s2 ) / (s1 + s2);
+        return GaussianPotential(mu, sigma, g1.log_c + g2.log_c);
+      }
+
+      GaussianPotential obs2Potential(const Vector& obs) const {
+        return GaussianPotential(obs.first(), sigma);
+      }
+
+      Vector rand() const override {
+        return Gaussian(mu, sigma).rand(1);
+      }
+
+      Vector mean() const override {
+        return Vector(1, mu);
+      }
+
+      Vector get_ss() const {
+        return Vector({mu, std::pow(sigma,2)});
+      }
+
+      void update(const Vector &ss) {
+        mu = ss(0);
+        sigma = std::sqrt(ss(1));
+      }
+
+    public:
+      double mu, sigma;
+  };
   // ----------- MODEL ----------- //
 
   template <class P>
@@ -205,6 +249,17 @@ namespace pml {
 
       Vector rand(const Vector &state) const override {
         return Multinomial(state, 20).rand();
+      }
+  };
+
+  class G_Model: public Model<GaussianPotential> {
+
+  public:
+      G_Model(const GaussianPotential &prior_, double p1_)
+          : Model(prior_, p1_){ }
+
+      Vector rand(const Vector &state) const override {
+        return Gaussian(state.first()).rand(1);
       }
   };
 
@@ -504,6 +559,7 @@ namespace pml {
 
   using PG_ForwardBackward = ForwardBackward<GammaPotential>;
   using DM_ForwardBackward = ForwardBackward<DirichletPotential>;
+  using G_ForwardBackward = ForwardBackward<GaussianPotential>;
 
 } // namespace
 

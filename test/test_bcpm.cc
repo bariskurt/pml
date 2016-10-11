@@ -233,7 +233,49 @@ void test_matlab(){
 
   result.first.saveTxt("/tmp/mean.txt");
   result.second.saveTxt("/tmp/cpp.txt");
+}
 
+void test_g(){
+
+  double p1 = 0.01;
+  double mu = 3;
+  double sigma = 2;
+  size_t length = 200;
+
+  // Generate data:
+  Matrix states, obs;
+  G_Model model(GaussianPotential(mu, sigma), p1);
+  std::tie(states, obs) = model.generateData(length);
+
+  // Save data:
+  obs.saveTxt("/tmp/obs.txt");
+  states.saveTxt("/tmp/states.txt");
+
+  // Estimate with true parameters
+  G_ForwardBackward fb(model);
+
+  std::cout << "Filtering...\n";
+  auto result = fb.filtering(obs);
+  result.first.saveTxt("/tmp/mean.txt");
+  result.second.saveTxt("/tmp/cpp.txt");
+
+  std::cout << "Smoothing...\n";
+  result = fb.smoothing(obs);
+  result.first.saveTxt("/tmp/mean2.txt");
+  result.second.saveTxt("/tmp/cpp2.txt");
+
+
+  std::cout << "Online smoothing...\n";
+  size_t lag = 10;
+  result = fb.online_smoothing(obs, lag);
+  result.first.saveTxt("/tmp/mean3.txt");
+  result.second.saveTxt("/tmp/cpp3.txt");
+
+  //std::cout << "Visualizing...\n";
+  //if(system("python3 ../test/python/test_bcpm_pg.py False")){
+  //  std::cout <<"plotting error...\n";
+  //}
+  cout << "OK.\n";
 
 }
 
@@ -245,7 +287,9 @@ int main() {
   // test_pg();
   // test_pg_em();
 
-  test_matlab();
+  // test_matlab();
+
+  test_g();
 
   return 0;
 }

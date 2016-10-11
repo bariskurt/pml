@@ -64,12 +64,29 @@ void test_categorical(){
 
 }
 
+void test_gaussian(){
+  std::cout << "test_gaussian...\n";
+  Gaussian g(5, 2);
+
+  Vector data = g.rand(1000);
+
+  Gaussian g_est = Gaussian::fit(data);
+
+  std::cout << "Original parameters : mu = " << g.mu
+            << ", sigma = " << g.sigma << "\n";
+
+  std::cout << "Estimated parameters : mu = " << g_est.mu
+            << ", sigma = " << g_est.sigma << "\n";
+
+  std::cout << "OK.\n\n";
+}
 
 int main(){
 
   test_dirichlet();
   test_gamma();
   test_categorical();
+  test_gaussian();
 
 
   return 0;

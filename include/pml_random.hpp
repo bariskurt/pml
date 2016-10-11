@@ -181,10 +181,20 @@ namespace pml {
 
   class Gaussian : public Distribution1D{
     public:
-      Gaussian(double mu_, double sigma_) : mu(mu_), sigma(sigma_) {}
+      Gaussian(double mu_ = 0, double sigma_ = 1) : mu(mu_), sigma(sigma_) {}
 
       double randgen() const override {
         return mu + gsl_ran_gaussian(rnd_get_rng(), sigma);
+      }
+
+      static Gaussian fit(const Vector &data){
+        double mean_x = mean(data);
+        double var_x = sum(pow(data - mean_x, 2)) / data.size();
+        return Gaussian::fit(mean_x, var_x);
+      }
+
+      static Gaussian fit(double mean_x, double var_x){
+        return Gaussian(mean_x, std::sqrt(var_x));
       }
 
     public:
