@@ -154,8 +154,8 @@ void test_pg(){
 
 void test_pg_em(){
   cout << "test_pg_em...\n";
-  size_t length = 500;
-  double c = 0.01;
+  size_t length = 99;
+  double c = 0.05;
   double a = 20; //Uniform(0, 10).rand();
   double b = 16;
 
@@ -180,21 +180,21 @@ void test_pg_em(){
   double init_b = 1;
 
   PG_Model init_model(GammaPotential(init_a, init_b), init_c);
-  PG_ForwardBackward fb_em(init_model);
+  PG_ForwardBackward fb_em(model);
 
   auto result_em = fb_em.learn_parameters(obs);
   result_em.first.saveTxt("/tmp/mean2.txt");
   result_em.second.saveTxt("/tmp/cpp2.txt");
 
-  std::cout << "Original parameters: a = " << a << ", b = " << b << std::endl;
+  std::cout << "Original parameters: a = " << a << ", b = " << b
+            << ", c = " << c << std::endl;
   std::cout << "Estimated parameters: a = " << fb_em.model.prior.a
-  << ", b = " << fb_em.model.prior.b
-  << ", c = " << fb_em.model.p1 << std::endl;
+            << ", b = " << fb_em.model.prior.b
+            << ", c = " << fb_em.model.p1 << std::endl;
 
 
   // Smoothing with dummy parameters
-  PG_Model dummy_model(GammaPotential(1, 1), 0.01);
-  PG_ForwardBackward fb_dummy(dummy_model);
+  PG_ForwardBackward fb_dummy(init_model);
   auto result_dummy = fb_dummy.smoothing(obs);
   result_dummy.first.saveTxt("/tmp/mean3.txt");
   result_dummy.second.saveTxt("/tmp/cpp3.txt");
@@ -212,22 +212,13 @@ void test_matlab(){
 
   double a = 10;
   double b = 1;
-  double p1 = 0.05;
+  double p1 = 0.2;
 
   PG_Model model(GammaPotential(a, b), p1);
 
   PG_ForwardBackward fb(model);
-  auto result = fb.smoothing(obs);
-  /*
-  fb.backward(obs);
-  Matrix mean;
-  Vector cpp;
-  for(auto &message : fb.beta){
-    auto result = message.evaluate();
-    mean.appendColumn(result.first);
-    cpp.append(result.second);
-  }
-   */
+  auto result = fb.learn_parameters(obs);
+
   cout << result.second << endl;
   cout << result.first << endl;
 
