@@ -154,10 +154,10 @@ void test_pg(){
 
 void test_pg_em(){
   cout << "test_pg_em...\n";
-  size_t length = 500;
-  double c = 0.01;
-  double a = 20; //Uniform(0, 10).rand();
-  double b = 16;
+  size_t length = 200;
+  double c = 0.05;
+  double a = 20;
+  double b = 10;
 
   // Generate data:
   Matrix states, obs;
@@ -167,6 +167,9 @@ void test_pg_em(){
   // Save data:
   obs.saveTxt("/tmp/obs.txt");
   states.saveTxt("/tmp/states.txt");
+
+//  obs = Matrix::loadTxt("/tmp/obs.txt");
+//  states = Matrix::loadTxt("/tmp/states.txt");
 
   // Filtering with true parameters
   PG_ForwardBackward fb(model);
@@ -186,15 +189,15 @@ void test_pg_em(){
   result_em.first.saveTxt("/tmp/mean2.txt");
   result_em.second.saveTxt("/tmp/cpp2.txt");
 
-  std::cout << "Original parameters: a = " << a << ", b = " << b << std::endl;
+  std::cout << "Original parameters: a = " << a << ", b = " << b
+            << ", c = " << c << std::endl;
   std::cout << "Estimated parameters: a = " << fb_em.model.prior.a
-  << ", b = " << fb_em.model.prior.b
-  << ", c = " << fb_em.model.p1 << std::endl;
+            << ", b = " << fb_em.model.prior.b
+            << ", c = " << fb_em.model.p1 << std::endl;
 
 
   // Smoothing with dummy parameters
-  PG_Model dummy_model(GammaPotential(1, 1), 0.01);
-  PG_ForwardBackward fb_dummy(dummy_model);
+  PG_ForwardBackward fb_dummy(init_model);
   auto result_dummy = fb_dummy.smoothing(obs);
   result_dummy.first.saveTxt("/tmp/mean3.txt");
   result_dummy.second.saveTxt("/tmp/cpp3.txt");
@@ -205,13 +208,59 @@ void test_pg_em(){
   cout << "OK.\n";
 }
 
+void test_g(){
+
+  double p1 = 0.01;
+  double mu = 3;
+  double sigma = 2;
+  size_t length = 200;
+
+  // Generate data:
+  Matrix states, obs;
+  G_Model model(GaussianPotential(mu, sigma), p1);
+  std::tie(states, obs) = model.generateData(length);
+
+  // Save data:
+  obs.saveTxt("/tmp/obs.txt");
+  states.saveTxt("/tmp/states.txt");
+
+  // Estimate with true parameters
+  G_ForwardBackward fb(model);
+
+  std::cout << "Filtering...\n";
+  auto result = fb.filtering(obs);
+  result.first.saveTxt("/tmp/mean.txt");
+  result.second.saveTxt("/tmp/cpp.txt");
+
+  std::cout << "Smoothing...\n";
+  result = fb.smoothing(obs);
+  result.first.saveTxt("/tmp/mean2.txt");
+  result.second.saveTxt("/tmp/cpp2.txt");
+
+
+  std::cout << "Online smoothing...\n";
+  size_t lag = 10;
+  result = fb.online_smoothing(obs, lag);
+  result.first.saveTxt("/tmp/mean3.txt");
+  result.second.saveTxt("/tmp/cpp3.txt");
+
+  //std::cout << "Visualizing...\n";
+  //if(system("python3 ../test/python/test_bcpm_pg.py False")){
+  //  std::cout <<"plotting error...\n";
+  //}
+  cout << "OK.\n";
+
+}
+
 int main() {
 
   // test_dm();
   // test_dm_em();
 
-  // test_pg();
+  //test_pg();
   test_pg_em();
+
+  // test_g();
 
   return 0;
 }

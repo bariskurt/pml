@@ -181,10 +181,20 @@ namespace pml {
 
   class Gaussian : public Distribution1D{
     public:
-      Gaussian(double mu_, double sigma_) : mu(mu_), sigma(sigma_) {}
+      Gaussian(double mu_ = 0, double sigma_ = 1) : mu(mu_), sigma(sigma_) {}
 
       double randgen() const override {
         return mu + gsl_ran_gaussian(rnd_get_rng(), sigma);
+      }
+
+      static Gaussian fit(const Vector &data){
+        double mean_x = mean(data);
+        double var_x = sum(pow(data - mean_x, 2)) / data.size();
+        return Gaussian::fit(mean_x, var_x);
+      }
+
+      static Gaussian fit(double mean_x, double var_x){
+        return Gaussian(mean_x, std::sqrt(var_x));
       }
 
     public:
@@ -230,6 +240,16 @@ namespace pml {
           double temp = mean_log_x - log_mean_x + std::log(a) - psi(a);
           temp /= a * a *(1/a - psi(a,1));
           a = 1/(1/a + temp);
+        }
+        double b = mean_x / a;
+        return Gamma(a, b);
+      }
+
+      static Gamma fit2(double mean_x, double mean_log_x){
+        double log_mean_x = std::log(mean_x);
+        double a = 0.5 / (log_mean_x - mean_log_x);
+        for(size_t iter = 0; iter < 250; ++iter){
+          a = inv_psi(mean_log_x - log_mean_x + std::log(a));
         }
         double b = mean_x / a;
         return Gamma(a, b);

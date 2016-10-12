@@ -11,6 +11,7 @@
 #include <gsl/gsl_sf_psi.h>
 #include <iomanip>
 #include <iostream>
+#include <numeric>
 #include <vector>
 
 #define DEFAULT_PRECISION 6

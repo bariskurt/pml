@@ -137,6 +137,50 @@ namespace pml {
       double b;  // scale parameter (!!! NOT THE RATE PARAMETER !!!!)
   };
 
+
+  class GaussianPotential : public Potential {
+    public:
+      GaussianPotential(double mu_ = 0, double sigma_ = 1, double log_c = 0) :
+          Potential(log_c), mu(mu_), sigma(sigma_){}
+
+    public:
+      void operator*=(const GaussianPotential &other){
+        *this = *this * other;
+      }
+
+      friend GaussianPotential operator*(const GaussianPotential &g1,
+                                         const GaussianPotential &g2) {
+        double s1 = std::pow(g1.sigma ,2);
+        double s2 = std::pow(g2.sigma ,2);
+        double mu = (g1.mu * s1 + g2.mu * s2 )/ (s1 + s2);
+        double sigma = ( s1 * s2 ) / (s1 + s2);
+        return GaussianPotential(mu, sigma, g1.log_c + g2.log_c);
+      }
+
+      GaussianPotential obs2Potential(const Vector& obs) const {
+        return GaussianPotential(obs.first(), sigma);
+      }
+
+      Vector rand() const override {
+        return Gaussian(mu, sigma).rand(1);
+      }
+
+      Vector mean() const override {
+        return Vector(1, mu);
+      }
+
+      Vector get_ss() const {
+        return Vector({mu, std::pow(sigma,2)});
+      }
+
+      void update(const Vector &ss) {
+        mu = ss(0);
+        sigma = std::sqrt(ss(1));
+      }
+
+    public:
+      double mu, sigma;
+  };
   // ----------- MODEL ----------- //
 
   template <class P>
@@ -208,6 +252,17 @@ namespace pml {
       }
   };
 
+  class G_Model: public Model<GaussianPotential> {
+
+  public:
+      G_Model(const GaussianPotential &prior_, double p1_)
+          : Model(prior_, p1_){ }
+
+      Vector rand(const Vector &state) const override {
+        return Gaussian(state.first()).rand(1);
+      }
+  };
+
   template <class P>
   class Message {
 
@@ -233,23 +288,23 @@ namespace pml {
         return msg;
       }
 
-      // Returns mean and cpp (Maybe renamed)
-      std::pair<Vector, double> evaluate(int N = 1){
-        Vector consts;
+      Vector mean(){
         Matrix params;
         for(auto &potential: potentials){
-          consts.append(potential.log_c);
           params.appendColumn(potential.mean());
         }
-        consts = normalizeExp(consts);
-        // Calculate mean
-        Vector mean = sum(transpose(transpose(params)*consts), 1);
-        // Calculate cpp as the sum of last N probabilities
-        double cpp = 0;
-        for(int i=0; i < N; ++i)
-          cpp += consts(consts.size() - i - 1);
-        return {mean, cpp};
-      };
+        Vector consts = normalizeExp(get_consts());
+        return sum(transpose(transpose(params)*consts), 1);
+      }
+
+      double cpp(int num_change_components = 1){
+        Vector consts = normalizeExp(get_consts());
+        if(num_change_components == 1){
+          return consts.last();
+        }
+        return sum(consts.getSlice(consts.size()-num_change_components,
+                                   consts.size()));
+      }
 
       void prune(size_t max_components){
         while(size() > max_components){
@@ -265,11 +320,15 @@ namespace pml {
       }
 
       double log_likelihood(){
-        Vector consts;
-        for(auto &potential: potentials){
-          consts.append(potential.log_c);
+        return logSumExp(get_consts());
+      }
+
+      Vector get_consts(){
+        Vector consts(potentials.size());
+        for(size_t i = 0; i < potentials.size(); ++i){
+          consts[i] = potentials[i].log_c;
         }
-        return logSumExp(consts);
+        return consts;
       }
 
     public:
@@ -318,9 +377,8 @@ namespace pml {
         Matrix mean;
         Vector cpp;
         for(auto &message : alpha){
-          auto result = message.evaluate();
-          mean.appendColumn(result.first);
-          cpp.append(result.second);
+          mean.appendColumn(message.mean());
+          cpp.append(message.cpp());
         }
         return {mean, cpp};
       }
@@ -394,9 +452,8 @@ namespace pml {
         Vector cpp;
         for(size_t i=0; i < obs.ncols(); ++i) {
           Message<P> gamma = alpha_predict[i] * beta[i];
-          auto result = gamma.evaluate(beta[i].size());
-          mean.appendColumn(result.first);
-          cpp.append(result.second);
+          mean.appendColumn(gamma.mean());
+          cpp.append(gamma.cpp(beta[i].size()));
         }
         return {mean, cpp};
       }
@@ -420,17 +477,16 @@ namespace pml {
         for(size_t t=0; t <= obs.ncols()-lag; ++t){
           backward(obs, t+lag-1, lag);
           gamma = alpha[t] * beta.front();
-          auto result = gamma.evaluate(beta.front().size());
-          mean.appendColumn(result.first);
-          cpp.append(result.second);
+          mean.appendColumn(gamma.mean());
+          cpp.append(gamma.cpp(beta.front().size()));
         }
 
         // Smooth alpha[T-lag+1:T] with last beta
         for(size_t i = 1; i < lag; ++i){
           gamma = alpha[obs.ncols()-lag+i] * beta[i];
-          auto result = gamma.evaluate(beta[i].size());
-          mean.appendColumn(result.first);
-          cpp.append(result.second);
+          mean.appendColumn(gamma.mean());
+          cpp.append(gamma.cpp(beta[i].size()));
+
         }
 
         return {mean, cpp};
@@ -463,8 +519,7 @@ namespace pml {
           Matrix E_log_pi_weighted;
           for(size_t i=0; i < obs.ncols(); ++i) {
             Message<P> gamma = alpha_predict[i] * beta[i];
-            auto result = gamma.evaluate(beta[i].size());
-            cpp = result.second;
+            cpp = gamma.cpp(beta[i].size());
             cpp_sum += cpp;
             E_log_pi_weighted.appendColumn(compute_ss(gamma)*cpp);
           }
@@ -473,13 +528,18 @@ namespace pml {
           // Log-likelihood
           ll.append(alpha.back().log_likelihood());
           std::cout << "ll is " <<  ll.last() << std::endl;
-          if(iter > 0 && ll[iter] < ll[iter-1]){
-            std::cout << "step: " << iter << " likelihood decreased: "
-            << ll[iter-1] - ll[iter] << std::endl;
-          }
 
-          if( iter > MIN_ITER && (ll[iter] - ll[iter-1] < 1e-6)){
-            break;
+          if(iter > 0 ){
+            double ll_diff = ll[iter] - ll[iter-1];
+            if( ll_diff < 0 ){
+              std::cout << "step: " << iter << " likelihood decreased: "
+                        << ll[iter-1] - ll[iter] << std::endl;
+              break;
+            }
+            if( iter > MIN_ITER && ( ll_diff < 1e-6)){
+              std::cout << "converged at step: " << iter << std::endl;
+              break;
+            }
           }
 
           // M-Step:
@@ -505,6 +565,7 @@ namespace pml {
 
   using PG_ForwardBackward = ForwardBackward<GammaPotential>;
   using DM_ForwardBackward = ForwardBackward<DirichletPotential>;
+  using G_ForwardBackward = ForwardBackward<GaussianPotential>;
 
 } // namespace
 

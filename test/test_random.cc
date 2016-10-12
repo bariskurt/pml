@@ -34,7 +34,7 @@ void test_gamma() {
 
   Gamma gamma(a,b);
 
-  Vector data = gamma.rand(1000);
+  Vector data = gamma.rand(2);
 
   Gamma gamma_est = Gamma::fit(data);
 
