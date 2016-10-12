@@ -504,7 +504,8 @@ namespace pml {
         return sum(tmp, 1);
       }
 
-      std::pair<Matrix, Vector> learn_parameters(const Matrix& obs){
+      std::pair<Matrix, Vector> learn_parameters(const Matrix& obs,
+                                                 bool verbose = true){
         size_t MAX_ITER = 100;
         size_t MIN_ITER = 10;
         Vector ll;
@@ -527,17 +528,23 @@ namespace pml {
 
           // Log-likelihood
           ll.append(alpha.back().log_likelihood());
-          std::cout << "ll is " <<  ll.last() << std::endl;
+          if(verbose) {
+            std::cout << "ll is " << ll.last() << std::endl;
+          }
 
           if(iter > 0 ){
             double ll_diff = ll[iter] - ll[iter-1];
             if( ll_diff < 0 ){
-              std::cout << "step: " << iter << " likelihood decreased: "
-                        << ll[iter-1] - ll[iter] << std::endl;
+              if(verbose) {
+                std::cout << "step: " << iter << " likelihood decreased: "
+                          << ll[iter - 1] - ll[iter] << std::endl;
+              }
               break;
             }
             if( iter > MIN_ITER && ( ll_diff < 1e-6)){
-              std::cout << "converged at step: " << iter << std::endl;
+              if(verbose) {
+                std::cout << "converged at step: " << iter << std::endl;
+              }
               break;
             }
           }
