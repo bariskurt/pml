@@ -41,8 +41,6 @@ void test_vector(){
   // Test append, push_back
   Vector v6({1,2,3,4});
   v6.append(5);
-  v6.push_back(6);  assert(v6.size() == 6);
-  v6.pop_back();    assert(v6.size() == 5);
 
   // Test append 2 Vectors
   v6.append(Vector()); assert(v6.size() == 5);
@@ -55,6 +53,30 @@ void test_vector(){
   std::cout << "OK.\n";
 }
 
+void test_vector_slice(){
+
+  std::cout << "test_vector_slice...\n";
+
+  // Test slice
+  Vector v = {0,1,2,3,4,5,6,7,8};
+
+  assert(v.slice(0, v.size()).equals(v));
+  assert(v.slice(0, 4).equals(Vector({0,1,2,3})));
+  assert(v.slice(0, 0).equals(Vector()));
+  assert(v.slice(0, v.size(), 2).equals(Vector({0,2,4,6,8})));
+  assert(v.slice(1, v.size(), 2).equals(Vector({1,3,5,7})));
+
+  Vector v2 = v.slice(0, 5);
+  assert(v2.equals(Vector({0,1,2,3,4})));
+  assert(v2.data() == v.data());
+
+  Vector v3 = v.slice(0, 5, 1, true);
+  assert(v3.equals(v2));
+  assert(v3.data() != v.data());
+
+  std::cout << "OK.\n";
+
+}
 
 void test_load_save(){
   std::cout << "test_load_save...\n";
@@ -74,48 +96,6 @@ void test_load_save(){
   std::cout << "OK.\n";
 }
 
-void test_vector_functions() {
-
-  std::cout << "test_vector_functions...\n";
-
-  Vector v1 = {1, 2, 3, 4, 5};
-  assert(fequal(min(v1), 1));
-  assert(fequal(max(v1), 5));
-  assert(fequal(sum(v1), 15));
-  assert(fequal(mean(v1), 3));
-  assert(fequal(var(v1), 2.5));
-  assert(fequal(stdev(v1), 1.581138));
-
-
-  Vector exp_v1 = {2.718281, 7.389056, 20.085536, 54.598150, 148.413159};
-  assert(exp(v1).equals(exp_v1));
-
-  Vector log_v1 = {0, 0.693147, 1.098612, 1.386294, 1.609437};
-  assert(log(v1).equals(log_v1));
-
-  Vector normalize_v1 = {0.066667, 0.133333, 0.2, 0.266667, 0.333333};
-  assert(normalize(v1).equals(normalize_v1));
-
-  Vector z = log(v1);
-  assert(normalizeExp(z).equals(normalize(v1)));
-  assert(logSumExp(z) == std::log(sum(v1)));
-
-  Vector v2 = {-1,-2,-3,-4,-5};
-  assert(v1.equals(abs(v2)));
-
-  Vector v3 = {1.1, 2.4, 2.9, 4, 4.8};
-  assert(v1.equals(round(v3)));
-
-  // Test slice
-  Vector v4 = {0,1,2,3,4,5,6,7,8};
-  assert(v4.getSlice(0, v4.size()).equals(v4));
-  assert(v4.getSlice(0, 4).equals(Vector({0,1,2,3})));
-  assert(v4.getSlice(0, 0).equals(Vector()));
-  assert(v4.getSlice(0, v4.size(), 2).equals(Vector({0,2,4,6,8})));
-  assert(v4.getSlice(1, v4.size(), 2).equals(Vector({1,3,5,7})));
-
-  std::cout << "OK.\n";
-}
 
 void test_vector_algebra(){
   std::cout << "test_vector_algebra...\n";
@@ -162,6 +142,40 @@ void test_vector_algebra(){
   std::cout << "OK.\n";
 }
 
+void test_vector_functions() {
+
+  std::cout << "test_vector_functions...\n";
+
+  Vector v1 = {1, 2, 3, 4, 5};
+  assert(fequal(min(v1), 1));
+  assert(fequal(max(v1), 5));
+  assert(fequal(sum(v1), 15));
+  assert(fequal(mean(v1), 3));
+  assert(fequal(var(v1), 2.5));
+  assert(fequal(stdev(v1), 1.581138));
+
+
+  Vector exp_v1 = {2.718281, 7.389056, 20.085536, 54.598150, 148.413159};
+  assert(exp(v1).equals(exp_v1));
+
+  Vector log_v1 = {0, 0.693147, 1.098612, 1.386294, 1.609437};
+  assert(log(v1).equals(log_v1));
+
+  Vector normalize_v1 = {0.066667, 0.133333, 0.2, 0.266667, 0.333333};
+  assert(normalize(v1).equals(normalize_v1));
+
+  Vector z = log(v1);
+  assert(normalizeExp(z).equals(normalize(v1)));
+  assert(logSumExp(z) == std::log(sum(v1)));
+
+  Vector v2 = {-1,-2,-3,-4,-5};
+  assert(v1.equals(abs(v2)));
+
+  Vector v3 = {1.1, 2.4, 2.9, 4, 4.8};
+  assert(v1.equals(round(v3)));
+
+  std::cout << "OK.\n";
+}
 
 
 void test_vector_comparison() {
@@ -199,6 +213,7 @@ void test_vector_comparison() {
 
 int main(){
   test_vector();
+  test_vector_slice();
   test_vector_functions();
   test_vector_algebra();
   test_vector_comparison();

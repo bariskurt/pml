@@ -12,19 +12,12 @@
 #include <iomanip>
 #include <iostream>
 #include <numeric>
-#include <vector>
+
+#include "pml_block.hpp"
 
 #define DEFAULT_PRECISION 6
 
 namespace pml {
-
-  // Helpers:
-  inline void ASSERT_TRUE(bool condition, const std::string &message) {
-    if (!condition) {
-      std::cout << "FATAL ERROR: " << message << std::endl;
-      exit(-1);
-    }
-  }
 
   // Defines a series from start to stop exclusively with step size step:
   // [start, start+step, start+2*step, ...]
@@ -44,23 +37,24 @@ namespace pml {
       Vector() { }
 
       // Vector of given length and default value.
-      explicit Vector(size_t length, double value = 0)
-          : data_(length, value) { }
+      explicit Vector(size_t length, double value = 0) : data_(length) {
+        std::fill_n(data_.begin(), length, value);
+      }
 
       // Vector from given array
-      Vector(size_t length, const double *values)
-          : data_(length) {
-        memcpy(this->data(), values, sizeof(double) * length);
+      Vector(size_t length, const double *values) : data_(length) {
+        memcpy(data_.data(), values, sizeof(double) * length);
       }
 
       // Vector from initializer lsit
-      Vector(const std::initializer_list<double> &values)
-          : data_(values) { }
+      Vector(const std::initializer_list<double> &values) : data_(values) { }
 
-      // Vector from range
-      explicit Vector(Range range) {
-        for (double d = range.start; d < range.stop; d += range.step) {
-          data_.push_back(d);
+
+      // Extract vector slice
+      Vector(double *data, size_t length, size_t stride,
+             bool deep_copy = false) : data_(data, length, stride) {
+        if(deep_copy){
+          data_ = Block(data, length, stride);
         }
       }
 
@@ -92,31 +86,19 @@ namespace pml {
       }
 
     public:
-
-      // Push to the end.
-      void push_back(double value) {
-        data_.push_back(value);
-      }
-
-      // Pop from end.
-      void pop_back() {
-        data_.pop_back();
-      }
-
       // Append a single value. (same as push_back)
       void append(double value) {
-        data_.push_back(value);
+        data_.append(value);
       }
 
       // Append a Vector
       void append(const Vector &v) {
-        data_.insert(data_.end(), v.data_.begin(), v.data_.end());
+        data_.append(v.data_);
       }
 
       friend Vector apply(const Vector &x, double (*func)(double)){
-        Vector result;
-        for(double d : x)
-          result.append(func(d));
+        Vector result = x;
+        result.apply(func);
         return result;
       }
 
@@ -126,24 +108,27 @@ namespace pml {
       }
 
     public:
-      friend bool any(const Vector &v){
+
+      friend bool any(const Vector &v, double value = 1){
         for(size_t i = 0; i < v.size(); ++i)
-          if( v[i] == 1 )
+          if( v[i] == value )
             return true;
         return false;
       }
 
-      friend bool all(const Vector &v){
+      friend bool all(const Vector &v, double value = 1){
         for(size_t i = 0; i < v.size(); ++i)
-          if( v[i] == 0 )
+          if( v[i] != value )
             return false;
         return true;
       }
 
       friend Vector operator==(const Vector &x, double v) {
         Vector result(x.size());
-        for(size_t i = 0; i < x.size(); ++i)
-          result[i] = fequal(x[i], v);
+        Block::iterator in = x.begin();
+        Block::iterator out = result.begin();
+        for(size_t i = 0; i < x.size(); ++i, ++in, ++out)
+          *out = fequal(*in, v);
         return result;
       }
 
@@ -153,11 +138,13 @@ namespace pml {
             "Vector::operator== cannot compare vectors of different size" );
         // Check element-wise
         Vector result(x.size());
-        for(size_t i = 0; i < x.size(); ++i)
-          result[i] = fequal(x[i], y[i]);
+        Block::iterator in1 = x.begin();
+        Block::iterator in2 = y.begin();
+        Block::iterator out = result.begin();
+        for(size_t i = 0; i < x.size(); ++i, ++in1, ++in2, ++out)
+          *out = fequal(*in1, *in2);
         return result;
       }
-
 
       friend Vector operator<(const Vector &x, double d) {
         // Check element-wise
@@ -212,20 +199,20 @@ namespace pml {
 
     public:
       //  -------- Iterators--------
-      std::vector<double>::iterator begin() {
+      Block::iterator begin() {
         return data_.begin();
       }
 
-      std::vector<double>::const_iterator begin() const {
-        return data_.cbegin();
+      Block::iterator begin() const {
+        return data_.begin();
       }
 
-      std::vector<double>::iterator end() {
+        Block::iterator end() {
         return data_.end();
       }
 
-      std::vector<double>::const_iterator end() const {
-        return data_.cend();
+        Block::iterator end() const {
+        return data_.end();
       }
 
       // ------- Accessors -------
@@ -271,12 +258,13 @@ namespace pml {
       }
 
       // Vector slice
-      Vector getSlice(size_t start, size_t stop, size_t step = 1) const {
-        Vector result;
-        for(size_t i = start; i < stop; i+=step){
-          result.append(data_[i]);
-        }
-        return result;
+      Vector slice(size_t start, size_t stop, size_t step = 1,
+                   bool deep_copy = false) const {
+        double *data_start = data_.data_ + (data_.stride() * start);
+        size_t slice_size = std::ceil((double)(stop - start) / step);
+        ASSERT_TRUE(slice_size <= size(),
+                    "Vector::slice() size exceeds actual size.");
+        return Vector(data_start, slice_size, step, deep_copy);
       }
 
     public:
@@ -510,18 +498,12 @@ namespace pml {
       }
 
     public:
-      std::vector<double> data_;
+      Block data_;
   };
 
   Vector cat(const Vector &v1, const Vector &v2){
     Vector result(v1);
     result.append(v2);
-    return result;
-  }
-
-  Vector reverse(const Vector &v){
-    Vector result = v;
-    std::reverse(result.begin(), result.end());
     return result;
   }
 

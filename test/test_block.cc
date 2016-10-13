@@ -49,6 +49,12 @@ void test_constructors(){
     assert(b4[i] == i);
   }
 
+  // Initializer list
+  Block b5({0,1,2,3});
+  for(size_t i = 0; i < 4; ++i){
+    assert(b5[i] == i);
+  }
+
   std::cout << "OK.\n";
 }
 
@@ -56,32 +62,30 @@ void test_size(){
 
   std::cout << "test_size...\n";
 
-  Block b(5);
-  for(size_t i = 0; i < 5; ++i){
-    b[i] = i;
-  }
-  b.append(5);
-  b.append(6);
-  b.append(7);
-  b.append(8);
-  b.append(9);
+  Block b;
 
-  assert(b.size() == 10);
+  b.append(0);
+  b.append(1);
+  b.append(2);
+  b.append(3);
+  b.append(4);
+
+  assert(b.size() == 5);
   assert(b.stride() == 1);
   assert(b.is_owner());
-  for(size_t i = 0; i < 10; ++i){
+  for(size_t i = 0; i < 5; ++i){
     assert(b[i] == i);
   }
 
-  b.resize(4);
-  assert(b.size() == 4);
-  for(size_t i = 0; i < 4; ++i){
+  b.resize(3);
+  assert(b.size() == 3);
+  for(size_t i = 0; i < 3; ++i){
     assert(b[i] == i);
   }
 
   b.resize(20);
   assert(b.size() == 20);
-  for(size_t i = 0; i < 4; ++i){
+  for(size_t i = 0; i < 3; ++i){
     assert(b[i] == i);
   }
 
