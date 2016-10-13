@@ -19,3 +19,5 @@ add_executable(test_hmm test_hmm.cc)
 add_executable(test_nmf test_nmf.cc)
 
 add_executable(test_bcpm test_bcpm.cc)
+
+add_executable(test_block test_block.cc)
