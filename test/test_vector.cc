@@ -74,6 +74,24 @@ void test_vector_slice(){
   assert(v3.equals(v2));
   assert(v3.data() != v.data());
 
+  // Modify v2
+  for(auto &value : v2){
+    value = 11;
+  }
+
+  // Modify v3
+  for(auto &value : v3){
+    value = 15;
+  }
+
+  for(size_t i=0; i < 5; ++i){
+    assert( v[i] == 11);
+  }
+  for(size_t i=5; i < v.size(); ++i){
+    assert( v[i] == i);
+  }
+
+
   std::cout << "OK.\n";
 
 }
