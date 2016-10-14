@@ -529,21 +529,22 @@ namespace pml {
           // Log-likelihood
           ll.append(alpha.back().log_likelihood());
           if(verbose) {
-            std::cout << "ll is " << ll.last() << std::endl;
+            std::cout << "iter: " << iter
+                      << ", loglikelihood : " << ll.last() << std::endl;
           }
 
           if(iter > 0 ){
             double ll_diff = ll[iter] - ll[iter-1];
             if( ll_diff < 0 ){
               if(verbose) {
-                std::cout << "step: " << iter << " likelihood decreased: "
+                std::cout << "!!! loglikelihood decreased: "
                           << ll[iter - 1] - ll[iter] << std::endl;
               }
               break;
             }
             if( iter > MIN_ITER && ( ll_diff < 1e-6)){
               if(verbose) {
-                std::cout << "converged at step: " << iter << std::endl;
+                std::cout << "converged.\n";
               }
               break;
             }
