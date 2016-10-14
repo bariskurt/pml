@@ -41,8 +41,6 @@ void test_vector(){
   // Test append, push_back
   Vector v6({1,2,3,4});
   v6.append(5);
-  v6.push_back(6);  assert(v6.size() == 6);
-  v6.pop_back();    assert(v6.size() == 5);
 
   // Test append 2 Vectors
   v6.append(Vector()); assert(v6.size() == 5);
@@ -203,6 +201,7 @@ int main(){
   test_vector_algebra();
   test_vector_comparison();
   test_load_save();
+
   return 0;
 
 }
