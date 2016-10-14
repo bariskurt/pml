@@ -51,11 +51,10 @@ namespace pml {
 
 
       // Extract vector slice
-      Vector(double *data, size_t length, size_t stride,
-             bool deep_copy = false) : data_(data, length, stride) {
-        if(deep_copy){
+      Vector(double *data, size_t length, size_t stride, bool deep_copy = false)
+          : data_(data, length, stride) {
+        if(deep_copy)
           data_ = Block(data, length, stride);
-        }
       }
 
       // Vector of zeros of given length.
@@ -125,8 +124,8 @@ namespace pml {
 
       friend Vector operator==(const Vector &x, double v) {
         Vector result(x.size());
-        Block::iterator in = x.begin();
-        Block::iterator out = result.begin();
+        auto in = x.begin();
+        auto out = result.begin();
         for(size_t i = 0; i < x.size(); ++i, ++in, ++out)
           *out = fequal(*in, v);
         return result;
@@ -138,8 +137,8 @@ namespace pml {
             "Vector::operator== cannot compare vectors of different size" );
         // Check element-wise
         Vector result(x.size());
-        Block::iterator in1 = x.begin();
-        Block::iterator in2 = y.begin();
+        Block::const_iterator in1 = x.begin();
+        Block::const_iterator in2 = y.begin();
         Block::iterator out = result.begin();
         for(size_t i = 0; i < x.size(); ++i, ++in1, ++in2, ++out)
           *out = fequal(*in1, *in2);
@@ -203,16 +202,16 @@ namespace pml {
         return data_.begin();
       }
 
-      Block::iterator begin() const {
-        return data_.begin();
+      Block::const_iterator begin() const {
+        return data_.cbegin();
       }
 
         Block::iterator end() {
         return data_.end();
       }
 
-        Block::iterator end() const {
-        return data_.end();
+      Block::const_iterator end() const {
+        return data_.cend();
       }
 
       // ------- Accessors -------
@@ -258,14 +257,19 @@ namespace pml {
       }
 
       // Vector slice
-      Vector slice(size_t start, size_t stop, size_t step = 1,
-                   bool deep_copy = false) const {
+      Vector slice(size_t start, size_t stop, size_t step = 1) {
         double *data_start = data_.data_ + (data_.stride() * start);
         size_t slice_size = std::ceil((double)(stop - start) / step);
         ASSERT_TRUE(slice_size <= size(),
                     "Vector::slice() size exceeds actual size.");
-        return Vector(data_start, slice_size, step, deep_copy);
+        return Vector(data_start, slice_size, step);
       }
+
+
+      const Vector slice(size_t start, size_t stop, size_t step = 1) const {
+        return Vector();
+      }
+
 
     public:
 

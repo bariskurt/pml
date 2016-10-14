@@ -4,8 +4,6 @@
 
 using namespace pml;
 
-std::string test_dir = "/tmp/";
-
 void test_constructors(){
 
   std::cout << "test_constructors...\n";
@@ -101,7 +99,7 @@ void test_stride(){
   }
   double *b_data_old = b.data();
 
-  Block b2(b.data(), b.size() / 2, 2);
+  Block b2(b.data(), b.size()/2, 2);
   assert(b2.size() == size / 2);
   assert(b2.stride() == 2);
   assert(!b2.is_owner());
@@ -127,9 +125,55 @@ void test_stride(){
   std::cout << "OK.\n";
 }
 
+void test_iterators(){
+  std::cout << "test_iterators...\n";
+
+  Block b({1,2,3,4,5});
+  Block::iterator it = b.begin();
+  Block::iterator it2(it);
+  Block::iterator it3 = it;
+  assert(it == it2);
+  assert(it2 == it3);
+
+  Block::const_iterator cit = b.cbegin();
+  Block::const_iterator cit2(cit);
+  Block::const_iterator cit3 = cit;
+  Block::const_iterator cit4 = it;  //convert from non-const iterator.
+  assert(cit == cit2);
+  assert(cit2 == cit3);
+  assert(cit3 == cit4);
+  assert(cit4 == it);  // compare const and non-const iterators.
+
+  // Commenting out the next two lines should give compile errors
+  // Block::iterator it4 = cit;
+  // Block::iterator it5(cit);
+
+  // Test Random Access:
+  assert(*it == 1);
+  assert(*it++ == 1);
+  assert(*++it == 3);
+  assert(*(it+2) == 5);
+  assert(*(it-2) == 1);
+  it += 1;
+  assert(*it == 4);
+  it -= 2;
+  assert(*it == 2);
+
+  // Test write access
+  *it = 8;
+
+  // Commenting out the next line should give compile error.
+  // *cit = 5;
+
+  std::cout << "OK.\n";
+}
+
 
 int main(){
+
   test_constructors();
   test_size();
   test_stride();
+  test_iterators();
+
 }

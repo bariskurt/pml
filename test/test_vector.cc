@@ -10,6 +10,10 @@ std::string test_dir = "/tmp/";
 void test_vector(){
   std::cout << "test_vector...\n";
 
+  // Constructor 0 : Empty vector
+  Vector v;
+  assert(v.empty());
+
   // Constructor 1
   Vector v1(5, 3);
   assert(v1.size() == 5);
@@ -91,9 +95,7 @@ void test_vector_slice(){
     assert( v[i] == i);
   }
 
-
   std::cout << "OK.\n";
-
 }
 
 void test_load_save(){
@@ -232,10 +234,12 @@ void test_vector_comparison() {
 int main(){
   test_vector();
   test_vector_slice();
+  /*
   test_vector_functions();
   test_vector_algebra();
   test_vector_comparison();
   test_load_save();
+   */
   return 0;
 
 }

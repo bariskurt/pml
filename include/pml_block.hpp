@@ -26,71 +26,101 @@ namespace pml {
     }
   }
 
+
+
   class Block{
     friend class Vector;
 
     public:
-      class iterator {
+      template <bool is_const>
+      class block_iterator {
+
+        // Const and non-const iterators are friends.
+        template <bool is_other_const>
+        friend class block_iterator;
+
+        // Return type is "const double&" if the iterator is const.
+        typedef typename std::conditional<is_const,
+            const double&, double&>::type ReturnType;
 
         public:
-          iterator(double *data_, size_t stride_)
+          block_iterator(double *data_, size_t stride_)
               : data(data_), stride(stride_) {}
 
-          iterator(const iterator& it)
+          // Can convert non-const iterator to const. But not the other way.
+          block_iterator(const block_iterator<false>& it)
               : data(it.data), stride(it.stride) {}
 
-          iterator& operator=(const iterator& it){
+          // Can assign non-const iterator to const. But not the other way.
+          block_iterator& operator=(const block_iterator<false>&it){
             data = it.data;
             stride = it.stride;
             return *this;
           }
 
-          bool operator==(const iterator& it){
+          template <bool is_other_const>
+          bool operator==(const block_iterator<is_other_const>& it){
             return data == it.data;
           }
 
-          bool operator!=(const iterator& it){
+          template <bool is_other_const>
+          bool operator!=(const block_iterator<is_other_const>& it){
             return data != it.data;
           }
 
-          iterator& operator++(){
+          block_iterator<is_const>& operator++(){
             data+=stride;
             return *this;
           }
 
-          iterator operator++(int){
+          block_iterator<is_const> operator++(int){
             iterator temp(*this);
             data+=stride;
             return temp;
           }
 
-          iterator& operator--(){
+          block_iterator<is_const>& operator--(){
             data-=stride;
             return *this;
           }
 
-          iterator operator--(int){
+          block_iterator<is_const> operator--(int){
             iterator temp(*this);
             data-=stride;
             return temp;
           }
 
-          iterator& operator+(size_t step){
-            data+= step * stride;
-            return *this;
+          void operator+=(size_t step){
+            data += step * stride;
           }
 
-          double& operator*(){
+          void operator-=(size_t step){
+            data -= step * stride;
+          }
+
+          block_iterator<is_const> operator+(size_t step){
+            block_iterator<is_const> result(*this);
+            result += step;
+            return result;
+          }
+
+          block_iterator<is_const> operator-(size_t step){
+            block_iterator<is_const> result(*this);
+            result -= step;
+            return result;
+          }
+
+          ReturnType operator*(){
             return *data;
           }
 
-          double operator*() const{
-            return *data;
-          }
         private:
           double *data;
           size_t stride;
       };
+
+      typedef block_iterator<true> const_iterator;
+      typedef block_iterator<false> iterator;
 
     public:
       // Allocate a new block, as the owner.
@@ -110,13 +140,20 @@ namespace pml {
       }
 
       // Create a block referencing to another memory location
-      Block(double *data, size_t size, size_t stride) :
-          data_(data), size_(size), capacity_(0),
-          stride_(stride), owner_(false) { }
+      Block(double *data, size_t size, size_t stride, bool owner = false){
+        if(!owner){
+          data_ = data, size_ = size, stride_ = stride, owner_ = false;
+        } else {
+          owner_ = true;
+          resize(size);
+          copyFrom(data, size, stride);
+        }
+      }
+
 
       // Creates a new block from another block
       Block(const Block &block): Block(block.size_) {
-        copyFrom(block);
+        copyFrom(block.data(), block.size(), block.stride());
       }
 
       // Assigns contents from another block.
@@ -126,51 +163,66 @@ namespace pml {
       Block operator=(const Block &block) {
         release();
         resize(block.size_);
-        copyFrom(block);
+        copyFrom(block.data(), block.size(), block.stride());
         return *this;
+      }
+
+      // Only the owner of the data block can delete data segment.
+      // ToDo: use unique pointer
+      ~Block(){
+        if(owner_){
+          delete[] data_;
+        }
       }
 
 
       //  -------- Iterators--------
       iterator begin() {
         return iterator(data_, stride_);
-        return iterator(data_, stride_);
       }
 
-      iterator begin() const {
-        return iterator(data_, stride_);
+      const_iterator begin() const {
+        return const_iterator(data_, stride_);
+      }
+
+      const_iterator cbegin() const {
+        return const_iterator(data_, stride_);
       }
 
       iterator end() {
         return iterator(data_ + (size_ * stride_) , stride_);
       }
 
-      iterator end() const {
-        return iterator(data_ + (size_ * stride_) , stride_);
+      const_iterator end() const {
+        return const_iterator(data_ + (size_ * stride_) , stride_);
+      }
+
+      const_iterator cend() const {
+        return const_iterator(data_ + (size_ * stride_) , stride_);
       }
 
       // -------- Accessors --------
-      inline double& operator[](const size_t i) {
+      double& operator[](const size_t i){
         return data_[i * stride_];
       }
 
-      inline double operator[](const size_t i) const {
+      double operator[](const size_t i) const{
         return data_[i * stride_];
-      }
-
-      double front() const{
-        return data_[0];
       }
 
       double& front() {
         return data_[0];
       }
 
-      double back() const{
-        return data_[(size_-1) * stride_];
+      double front() const{
+        return data_[0];
       }
 
       double& back() {
+        return data_[(size_-1) * stride_];
+      }
+
+      double back() const {
         return data_[(size_-1) * stride_];
       }
 
@@ -213,16 +265,16 @@ namespace pml {
         capacity_ = new_capacity;
       }
 
-      void copyFrom(const Block &block){
-        ASSERT_TRUE(size_ == block.size_, "Block::copyFrom() size mismatch");
-        if(stride_ == 1 && block.stride_ == 1){
-          memcpy(data_, block.data_, sizeof(double) * size_);
+      void copyFrom(const double *source, size_t size, size_t stride){
+        ASSERT_TRUE(size_ == size, "Block::copyFrom() size mismatch");
+        if(stride_ == 1 && stride == 1){
+          memcpy(data_, source, sizeof(double) * size_);
         } else {
-          Block::iterator it_this = begin();
-          Block::iterator it_other = block.begin();
-          while(it_this != end()){
-            *it_this = *it_other;
-            ++it_this, ++it_other;
+          size_t i = 0, j = 0;
+          for(size_t iter = 0; iter < size_; ++iter){
+            data_[i] = source[j];
+            i += stride_;
+            j += stride;
           }
         }
       }
