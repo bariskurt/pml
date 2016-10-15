@@ -47,7 +47,7 @@ namespace pml {
   class Vector {
 
     public:
-      class ConstVectorView{
+      class ConstVectorView {
 
         public:
           ConstVectorView(const double *data_, size_t size_,size_t stride_ = 1):
@@ -79,7 +79,7 @@ namespace pml {
 
         public:
 
-          // ------ Assignment Operators -------
+          // ------ Operators -------
           Vector operator+(double value) const { return apply(value, add); }
           Vector operator-(double value) const { return apply(value, sub); }
           Vector operator*(double value) const { return apply(value, mul); }
@@ -99,6 +99,30 @@ namespace pml {
 
           Vector operator/(const ConstVectorView &cview) const {
             return apply(cview, div);
+          }
+
+          // ----- Comparison -------
+          bool equals(const ConstVectorView &other) const {
+            if( size != other.size )
+              return false;
+            for(size_t i=0, j=0; i < size * stride; i+=stride, j+=other.stride)
+              if( ! fequal(cdata[i], other.cdata[j]) )
+                return false;
+            return true;
+          }
+
+          bool equals(const Vector &v) const {
+            return this->equals(ConstVectorView(v));
+          }
+
+          // -----  Load and Save -------
+          friend std::ostream &operator<<(std::ostream &out,
+                                          const ConstVectorView &w) {
+            out << std::setprecision(DEFAULT_PRECISION) << std::fixed;
+            for (auto &value : x) {
+              out << value << "  ";
+            }
+            return out;
           }
 
         public:
@@ -128,7 +152,8 @@ namespace pml {
 
           void apply(const ConstVectorView &view,
                      double (*func)(double, double)){
-            ASSERT_TRUE(size == view.size, "apply:: Vector view sizes mismatch.");
+            ASSERT_TRUE(size == view.size,
+                        "apply:: Vector view sizes mismatch.");
             for(size_t i=0, j=0; i < size * stride; i+=stride, j+=view.stride)
               data[i] = func(data[i], view.cdata[j]);
           }
@@ -144,6 +169,13 @@ namespace pml {
           void operator-=(const ConstVectorView &other) { apply(other, sub); }
           void operator*=(const ConstVectorView &other) { apply(other, mul); }
           void operator/=(const ConstVectorView &other) { apply(other, div); }
+
+          void operator=(ConstVectorView &other){
+            ASSERT_TRUE(size == other.size,
+                        "apply:: Vector view sizes mismatch.");
+            for(size_t i=0, j=0; i < size * stride; i+=stride, j+=other.stride)
+              data[i] = other.cdata[j];
+          }
 
         public:
           double *data;
@@ -292,9 +324,7 @@ namespace pml {
       }
 
       bool equals(const Vector &other){
-        if(size() != other.size())
-          return false;
-        return all(*this == other);
+        return ConstVectorView(*this).equals(ConstVectorView(other));
       }
 
     public:
@@ -317,33 +347,67 @@ namespace pml {
 
       // ------- Accessors -------
 
-      double &operator[](const size_t i0) { return data_[i0]; }
+      double &operator[](const size_t i0) {
+        return data_[i0];
+      }
 
-      double operator[](const size_t i0) const { return data_[i0]; }
+      double operator[](const size_t i0) const {
+        return data_[i0];
+      }
 
-      double &operator()(const size_t i0) { return data_[i0]; }
+      double &operator()(const size_t i0) {
+        return data_[i0];
+      }
 
-      double operator()(const size_t i0) const { return data_[i0]; }
+      double operator()(const size_t i0) const {
+        return data_[i0];
+      }
 
-      double* data() { return data_.data(); }
+      double* data() {
+        return data_.data();
+      }
 
-      const double *data() const { return data_.data(); }
+      const double *data() const {
+        return data_.data();
+      }
 
-      double first() const { return data_.front(); }
+      double first() const {
+        return data_.front();
+      }
 
-      double& first() { return data_.front(); }
+      double& first() {
+        return data_.front();
+      }
 
-      double last() const { return data_.back(); }
+      double last() const {
+        return data_.back();
+      }
 
-      double& last() { return data_.back(); }
+      double& last() {
+        return data_.back();
+      }
 
       // Vector slice
+      /*
       Vector getSlice(size_t start, size_t stop, size_t step = 1) const {
         Vector result;
         for(size_t i = start; i < stop; i+=step){
           result.append(data_[i]);
         }
         return result;
+      }
+       */
+
+      VectorView slice(size_t start, size_t stop, size_t step = 1) {
+        double *slice_start = &data_[start];
+        size_t slice_length = std::ceil((stop - start) / step);
+        return VectorView(slice_start, slice_length, step);
+      }
+
+      ConstVectorView slice(size_t start, size_t stop, size_t step = 1) const {
+        const double *slice_start = &data_[start];
+        size_t slice_length = std::ceil((stop - start) / step);
+        return ConstVectorView(slice_start, slice_length, step);
       }
 
     public:

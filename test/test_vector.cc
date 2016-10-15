@@ -104,14 +104,6 @@ void test_vector_functions() {
   Vector v3 = {1.1, 2.4, 2.9, 4, 4.8};
   assert(v1.equals(round(v3)));
 
-  // Test slice
-  Vector v4 = {0,1,2,3,4,5,6,7,8};
-  assert(v4.getSlice(0, v4.size()).equals(v4));
-  assert(v4.getSlice(0, 4).equals(Vector({0,1,2,3})));
-  assert(v4.getSlice(0, 0).equals(Vector()));
-  assert(v4.getSlice(0, v4.size(), 2).equals(Vector({0,2,4,6,8})));
-  assert(v4.getSlice(1, v4.size(), 2).equals(Vector({1,3,5,7})));
-
   std::cout << "OK.\n";
 }
 
@@ -160,8 +152,6 @@ void test_vector_algebra(){
   std::cout << "OK.\n";
 }
 
-
-
 void test_vector_comparison() {
   std::cout << "test_vector_comparison...\n";
 
@@ -195,12 +185,23 @@ void test_vector_comparison() {
 }
 
 
+void test_slice(){
+  // Test slice
+  Vector v4 = {0,1,2,3,4,5,6,7,8};
+  assert(v4.slice(0, v4.size()).equals(v4));
+  assert(v4.slice(0, 4).equals(Vector({0,1,2,3})));
+  assert(v4.slice(0, 0).equals(Vector()));
+  assert(v4.slice(0, v4.size(), 2).equals(Vector({0,2,4,6,8})));
+  assert(v4.slice(1, v4.size(), 2).equals(Vector({1,3,5,7})));
+}
+
 int main(){
   test_vector();
   test_vector_functions();
   test_vector_algebra();
   test_vector_comparison();
   test_load_save();
+  test_slice();
 
   return 0;
 
