@@ -6,14 +6,15 @@ using namespace pml;
 
 std::string test_dir = "/tmp/";
 
-
 void test_vector(){
+
   std::cout << "test_vector...\n";
 
   // Constructor 1
   Vector v1(5, 3);
   assert(v1.size() == 5);
-  assert(all(v1 == 3));
+  for(double value : v1)
+    assert(value == 3);
   assert(!v1.empty());
 
   // Constructor 2
@@ -28,27 +29,80 @@ void test_vector(){
   // Constructor 3
   Vector v3({5,6,7});
   assert(v3.size() == 3);
+  assert(v3[0] == 5);
+  assert(v3[1] == 6);
+  assert(v3(2) == 7);
 
-  // Zeros & Ones
+  // Zeros
   Vector v4 = Vector::zeros(5);
   assert(v4.size() == 5);
-  assert(all(v4 == 0));
+  for(double value : v4)
+    assert(value == 0);
 
+  // Ones
   Vector v5 = Vector::ones(7);
   assert(v5.size() == 7);
-  assert(all(v5 == 1));
+  for(double value : v5)
+    assert(value == 1);
 
-  // Test append, push_back
+  // Test append
   Vector v6({1,2,3,4});
-  v6.append(5);
-
-  // Test append 2 Vectors
+  v6.append(5); assert(v6.size() == 5);
   v6.append(Vector()); assert(v6.size() == 5);
   v6.append(Vector({10,11})); assert(v6.size() == 7);
 
-  // Assign, Copy
-  Vector v7(v6);  assert(v6.equals(v7));
-  Vector v8; v8 = v6;  assert(v6.equals(v8));
+  std::cout << "OK.\n";
+}
+
+void test_const_view(){
+  std::cout << "test_const_view...\n";
+
+  Vector v({0,1,2,3,4,5,6,7});
+  Vector::const_view cv(v);
+  size_t i = 0;
+  for(double value : cv)
+    assert(value == v[i++]);
+
+  // Apply and create new
+  Vector v2 = cv + 1;
+  assert(v2[0] == 1);
+
+  Vector v3 = cv - 1;
+  assert(v3[0] == -1);
+
+  Vector v4 = cv * 2;
+  assert(v4[1] == 2);
+
+  Vector v5 = cv / 2;
+  assert(v5[1] == 0.5);
+
+  Vector a({0,1,2});
+  Vector::const_view cva(a);
+  Vector b({3,4,5});
+  Vector::const_view cvb(b);
+  Vector result = cva + cvb;
+  assert(result.size() == 3);
+  assert(result[0] == 3);
+  assert(result[1] == 5);
+  assert(result[2] == 7);
+  assert(cva.equals(a));
+  assert(cvb.equals(b));
+
+  std::cout << "OK.\n";
+}
+
+
+/*
+void test_vector(){
+
+
+// Assign, Copy
+  Vector v7(v6);  assert(v6 == v7);
+  Vector v8; v8 = v6;  assert(v6 == v8);
+
+
+
+
 
   std::cout << "OK.\n";
 }
@@ -193,19 +247,24 @@ void test_slice(){
   assert(v4.slice(0, 0).equals(Vector()));
 
   print(v4.slice(0, v4.size(), 2));
-  /*
+
   assert(v4.slice(0, v4.size(), 2).equals(Vector({0,2,4,6,8})));
   assert(v4.slice(1, v4.size(), 2).equals(Vector({1,3,5,7})));
-  */
+
 }
+*/
 
 int main(){
+
   test_vector();
+  test_const_view();
+      /*
   test_vector_functions();
   test_vector_algebra();
   test_vector_comparison();
   test_load_save();
   test_slice();
+       */
 
   return 0;
 
