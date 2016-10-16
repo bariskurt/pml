@@ -347,8 +347,14 @@ namespace pml {
           : data_(values) { }
 
       // Vector from const view
-      explicit Vector(const const_view &v) : data_(v.size()){
+      Vector(const const_view &v) : data_(v.size()){
         view(*this) = v;
+      }
+
+      Vector& operator=(const const_view &v){
+        data_.resize(v.size());
+        view(*this) = v;
+        return *this;
       }
 
       // Vector of zeros of given length.

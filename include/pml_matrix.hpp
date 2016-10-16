@@ -114,86 +114,28 @@ namespace pml {
 
     public:
 
-      friend bool any(const Matrix &m){
-        for(size_t i = 0; i < m.size(); ++i)
-          if( m[i] == 1 )
-            return true;
-        return false;
-      }
-
-      friend bool all(const Matrix &m){
-        for(size_t i = 0; i < m.size(); ++i)
-          if( m[i] == 0 )
+      friend bool operator==(const Matrix &x, double v) {
+        for(double value : x)
+          if( !fequal(value, v) )
             return false;
         return true;
       }
 
-      friend Matrix operator==(const Matrix &x, double v) {
-        Matrix result(x.shape());
-        for(size_t i = 0; i < x.size(); ++i)
-          result[i] = fequal(x[i], v);
-        return result;
+      friend bool operator!=(const Matrix &x, double v) {
+        return !(x == v);
       }
 
-      friend Matrix operator==(const Matrix &x, const Matrix &y) {
-        // Check sizes
-        ASSERT_TRUE(x.shape() == y.shape(),
-            "Matrix::operator== cannot compare matrices of different shape" );
-        // Check element-wise
-        Matrix result(x.shape());
-        for(size_t i = 0; i < x.size(); ++i)
-          result[i] = fequal(x[i], y[i]);
-        return result;
-      }
-
-      friend Matrix operator<(const Matrix &x, double v) {
-        Matrix result(x.shape());
-        for(size_t i = 0; i < x.size(); ++i)
-          result[i] = x[i] <  v;
-        return result;
-      }
-
-      friend Matrix operator<(double v, const Matrix &x) {
-        return x > v;
-      }
-
-      friend Matrix operator<(const Matrix &x, const Matrix &y) {
-        // Check sizes
-        ASSERT_TRUE(x.shape() == y.shape(),
-            "Matrix::operator== cannot compare matrices of different shape" );
-        // Check element-wise
-        Matrix result(x.shape());
-        for(size_t i = 0; i < x.size(); ++i)
-          result[i] = x[i] <  y[i];
-        return result;
-      }
-
-      friend Matrix operator>(const Matrix &x, double v) {
-        Matrix result(x.shape());
-        for(size_t i = 0; i < x.size(); ++i)
-          result[i] = x[i] > v;
-        return result;
-      }
-
-      friend Matrix operator>(double v, const Matrix &x) {
-        return x < v;
-      }
-
-      friend Matrix operator>(const Matrix &x, const Matrix &y) {
-        // Check sizes
-        ASSERT_TRUE(x.shape() == y.shape(),
-            "Matrix::operator== cannot compare matrices of different shape" );
-        // Check element-wise
-        Matrix result(x.shape());
-        for(size_t i = 0; i < x.size(); ++i)
-          result[i] = x[i] > y[i];
-        return result;
-      }
-
-      bool equals(const Matrix &other){
-        if(shape() != other.shape())
+      friend bool operator==(const Matrix &x, const Matrix &y) {
+        if(x.shape() != y.shape())
           return false;
-        return all(*this == other);
+        for(size_t i = 0; i < x.size(); ++i)
+          if( !fequal(x[i], y[i]) )
+            return false;
+        return true;
+      }
+
+      friend bool operator!=(const Matrix &x, const Matrix &y) {
+        return !(x == y);
       }
 
     public:
@@ -465,55 +407,67 @@ namespace pml {
       // --------- Row and Column Operations -----------
 
     public:
-      // Returns a single column as Vector
-      Vector getColumn(size_t col_num) const {
-        Vector column(nrows_);
-        memcpy(column.data(), &data_[col_num * nrows_],
-               sizeof(double) * nrows_);
-        return column;
+      Vector::view col(size_t col_num){
+        return Vector::view(&data_[col_num * nrows_], nrows_);
+      }
+
+      Vector::const_view col(size_t col_num) const{
+        return Vector::const_view(&data_[col_num * nrows_], nrows_);
+      }
+
+      Vector::view row(size_t row_num){
+        return Vector::view(&data_[row_num], ncols_, nrows_);
+      }
+
+      Vector::const_view row(size_t row_num) const{
+        return Vector::const_view(&data_[row_num], ncols_, nrows_);
       }
 
       // Returns several columns as Matrix
-      Matrix getColumns(Range range) const {
+      Matrix cols(Range range) const {
         Matrix result;
         for(size_t i = range.start; i < range.stop; i+=range.step){
-          result.appendColumn(getColumn(i));
+          result.append(col(i));
         }
         return result;
       }
 
-      // Sets a single column
-      void setColumn(size_t col_num, const Vector &v) {
-        ASSERT_TRUE(col_num < ncols(),
-                    "Matrix::setColumn:: col_num exceeds number of columns");
-        ASSERT_TRUE(nrows() == v.size(),
-                    "Matrix::setColumn:: Vector size mismatch");
-        memcpy(&data_[col_num * nrows_], v.data(), sizeof(double) * nrows_);
+      // Append vector
+      void append(const Vector::const_view &cv, size_t axis = 1){
+        ASSERT_TRUE(axis == 0 || axis == 1,
+                    "Matrix::append(const Matrix &):: axis out of bounds");
+        if(axis == 1) {
+          if (empty()) {
+            nrows_ = cv.size();
+          } else {
+            ASSERT_TRUE(nrows_ == cv.size(),
+                        "Matrix::append:: Vector size mismatch");
+          }
+          for (auto it = cv.begin(); it != cv.end(); ++it)
+            data_.push_back(*it);
+          ncols_++;
+        } else{
+          if(empty()) {
+            for (auto it = cv.begin(); it != cv.end(); ++it)
+              data_.push_back(*it);
+            ncols_ = cv.size();
+          } else {
+            ASSERT_TRUE(ncols_ == cv.size(),
+                        "Matrix::append:: Vector size mismatch");
+            Matrix temp(nrows_+1, ncols_);
+            double *temp_data = temp.data();
+            auto it = cv.begin();
+            for(size_t i=0; i < ncols_; ++i){
+              memcpy(&temp_data[i * (nrows_+1)], &data_[i * nrows_],
+                     sizeof(double) * nrows_);
+              temp(nrows_, i) = *it++;
+            }
+            data_ = std::move(temp.data_);
+          }
+          nrows_++;
+        }
       }
 
-      // Returns a single row as vector
-      Vector getRow(size_t row_num) const {
-        Vector row(ncols_);
-        size_t idx = row_num;
-        for(size_t i=0; i < ncols_; ++i){
-          row(i) = data_[idx];
-          idx += nrows_;
-        }
-        return row;
-      }
-
-      // Sets a single row.
-      void setRow(size_t row_num, const Vector &row) {
-        ASSERT_TRUE(row_num < nrows(),
-                    "Matrix::setRow:: row_num exceeds number of rows");
-        ASSERT_TRUE(ncols_ == row.size(),
-                    "Matrix::setRow:: Vector size mismatch");
-        size_t idx = row_num;
-        for(size_t i=0; i < ncols_; ++i){
-          data_[idx] = row(i);
-          idx += nrows_;
-        }
-      }
 
       // Appends a column to the right.
       void append(const Matrix &m, size_t axis = 1){
@@ -545,37 +499,6 @@ namespace pml {
           data_ = std::move(new_data);
           ncols_ += m.ncols();
         }
-      }
-
-      // Appends a column to the right.
-      void appendColumn(const Vector &v){
-        ASSERT_TRUE( empty() | (nrows_ == v.size()),
-                    "Matrix::appendColumn:: Vector size mismatch");
-        if(empty()){
-          nrows_ = v.size();
-        }
-        data_.insert(data_.end(), v.begin(), v.end());
-        ncols_++;
-      }
-
-      // Appends a row to the bottom.
-      void appendRow(const Vector &v){
-        ASSERT_TRUE(empty() | (ncols_ == v.size()),
-                    "Matrix::appendRow:: Vector size mismatch");
-        if(empty()) {
-          data_.insert(data_.end(), v.begin(), v.end());
-          ncols_ = v.size();
-        } else {
-          Matrix temp(nrows_+1, ncols_);
-          double *temp_data = temp.data();
-          for(size_t i=0; i < ncols_; ++i){
-            memcpy(&temp_data[i * (nrows_+1)], &data_[i * nrows_],
-                   sizeof(double) * nrows_);
-            temp(nrows_, i) = v(i);
-          }
-          data_ = std::move(temp.data_);
-        }
-        nrows_++;
       }
 
       // ---------- File Operations --------
@@ -678,7 +601,7 @@ namespace pml {
   inline Matrix fliplr(const Matrix &x){
     Matrix result;
     for(size_t i = x.ncols() ; i > 0; --i){
-      result.appendColumn(x.getColumn(i-1));
+      result.append(x.col(i-1));
     }
     return result;
   }
@@ -687,7 +610,7 @@ namespace pml {
   inline Matrix flipud(const Matrix &x){
     Matrix result;
     for(size_t i = x.nrows() ; i > 0; --i){
-      result.appendRow(x.getRow(i-1));
+      result.append(x.row(i-1), 0);
     }
     return result;
   }
@@ -732,7 +655,7 @@ namespace pml {
     // Replicate initial_column to form result.
     Matrix result;
     for(int i=0; i < m; ++i)
-      result.appendColumn(initial_column);
+      result.append(initial_column);
     return result;
   }
 
@@ -744,25 +667,27 @@ namespace pml {
     Matrix result;
     for(size_t i = 0; i < n; ++i){
       if ( axis == 0)
-        result.appendRow(x);
+        result.append(x, 0);
       else
-        result.appendColumn(x);
+        result.append(x);
     }
     return result;
   }
 
-  inline Vector for_each_rows(const Matrix& x, double (*func)(const Vector &)){
-    Vector result;
+  inline Vector for_each_rows(const Matrix& x,
+                              double (*func)(const Vector::const_view &)){
+    Vector result(x.nrows());
     for(size_t i=0; i < x.nrows(); ++i){
-      result.append(func(x.getRow(i)));
+      result[i] = func(x.row(i));
     }
     return result;
   }
 
-  inline Vector for_each_cols(const Matrix& x, double (*func)(const Vector &)){
-    Vector result;
+  inline Vector for_each_cols(const Matrix& x,
+                              double (*func)(const Vector::const_view &)){
+    Vector result(x.ncols());
     for(size_t i=0; i < x.ncols(); ++i){
-      result.append(func(x.getColumn(i)));
+      result[i] = func(x.col(i));
     }
     return result;
   }
@@ -774,6 +699,7 @@ namespace pml {
 
   inline Vector sum(const Matrix &x, int axis) {
     ASSERT_TRUE(axis==0 || axis==1, "Matrix::sum axis out of bounds.");
+    Vector result;
     if (axis == 0)
       return for_each_cols(x, sum);
     return for_each_rows(x, sum);
