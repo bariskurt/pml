@@ -44,17 +44,79 @@ namespace pml {
   inline double mul(double x, double y){ return x * y; }
   inline double div(double x, double y){ return x / y; }
 
+
+  template <bool is_const = true>
+  class generic_vector_iterator {
+
+    friend class generic_vector_iterator<true>;
+
+    typedef typename std::conditional<is_const, const double*,
+            double*>::type ValuePointerType;
+
+    typedef typename std::conditional<is_const, const double&,
+            double&>::type ValueReferenceType;
+
+    public:
+      generic_vector_iterator<is_const>(ValuePointerType data_, size_t stride_)
+            : data(data_), stride(stride_){}
+
+      generic_vector_iterator<is_const>(
+              const generic_vector_iterator<false>& it)
+            : data(it.data), stride(it.stride){}
+
+      bool operator== (const generic_vector_iterator& other) const {
+        return data == other.data;
+      }
+
+      bool operator!= (const generic_vector_iterator& other) const {
+        return data != other.data;
+      }
+
+      ValueReferenceType operator*() {
+        return *data;
+      }
+
+      generic_vector_iterator& operator--(){
+        data -= stride;
+        return *this;
+      }
+
+      generic_vector_iterator &operator++(){
+        data += stride;
+        return *this;
+      }
+
+      generic_vector_iterator operator--(int){
+        generic_vector_iterator temp(*this);
+        data -= stride;
+        return temp;
+      }
+
+      generic_vector_iterator operator++(int){
+        generic_vector_iterator temp(*this);
+        data += stride;
+        return temp;
+      }
+
+    private:
+      ValuePointerType data;
+      size_t stride;
+  };
+
+  typedef generic_vector_iterator<true> const_vector_iterator;
+  typedef generic_vector_iterator<false> vector_iterator;
+
   class Vector {
 
     public:
       class ConstVectorView {
 
         public:
-          ConstVectorView(const double *data_, size_t size_,size_t stride_ = 1):
-                  cdata(data_), size(size_), stride(stride_){}
+          ConstVectorView(const double *data, size_t size, size_t stride = 1):
+                  cdata_(data), size_(size), stride_(stride){}
 
           ConstVectorView(const Vector &vector)
-                  : cdata(vector.data()), size(vector.size()), stride(1){}
+                  : cdata_(vector.data()), size_(vector.size()), stride_(1){}
 
         public:
           Vector apply(double (*func)(double)) const {
@@ -103,10 +165,11 @@ namespace pml {
 
           // ----- Comparison -------
           bool equals(const ConstVectorView &other) const {
-            if( size != other.size )
+            if( size() != other.size() )
               return false;
-            for(size_t i=0, j=0; i < size * stride; i+=stride, j+=other.stride)
-              if( ! fequal(cdata[i], other.cdata[j]) )
+            auto it2 = other.begin();
+            for(auto it1 = begin(); it1 != end(); ++it1, ++it2)
+              if( ! fequal(*it1, *it2) )
                 return false;
             return true;
           }
@@ -115,47 +178,66 @@ namespace pml {
             return this->equals(ConstVectorView(v));
           }
 
-          // -----  Load and Save -------
-          friend std::ostream &operator<<(std::ostream &out,
-                                          const ConstVectorView &w) {
-            out << std::setprecision(DEFAULT_PRECISION) << std::fixed;
-            for (auto &value : x) {
-              out << value << "  ";
-            }
-            return out;
+          // ----- Iterators -------
+          const_vector_iterator begin() const {
+            return const_vector_iterator(cdata_, stride_);
           }
 
-        public:
-          const double *cdata;
-          size_t size;
-          size_t stride;
+          const_vector_iterator end() const {
+            return const_vector_iterator(cdata_ + size_*stride_, stride_);
+          }
+
+          // ----- Getters -----
+          size_t size() const {
+            return size_;
+          }
+
+          size_t stride() const {
+            return stride_;
+          }
+
+        protected:
+          const double *cdata_;
+          size_t size_;
+          size_t stride_;
       };
 
       class VectorView : public ConstVectorView{
 
         public:
-          VectorView(double *data_, size_t size_, size_t stride_ = 1) :
-                  ConstVectorView(data_, size_, stride_), data(data_){}
+          VectorView(double *data, size_t size, size_t stride = 1) :
+                  ConstVectorView(data, size, stride), data_(data){}
 
-          VectorView(Vector &v) : ConstVectorView(v), data(v.data()){}
+          explicit VectorView(Vector &v) : ConstVectorView(v), data_(v.data()){}
 
         public:
           void apply(double (*func)(double)){
-            for(size_t i=0; i < size; i+=stride)
-              data[i] = func(data[i]);
+            for(auto it = begin(); it < end(); ++it)
+              *it = func(*it);
           }
 
           void apply(double value, double (*func)(double, double)){
-            for(size_t i=0; i < size; i+=stride)
-              data[i] = func(data[i], value);
+            for(auto it = begin(); it < end(); ++it)
+              *it = func(*it, value);
           }
 
           void apply(const ConstVectorView &view,
                      double (*func)(double, double)){
-            ASSERT_TRUE(size == view.size,
+            ASSERT_TRUE(size() == view.size(),
                         "apply:: Vector view sizes mismatch.");
-            for(size_t i=0, j=0; i < size * stride; i+=stride, j+=view.stride)
-              data[i] = func(data[i], view.cdata[j]);
+            auto it1 = begin();
+            auto it2 = view.begin();
+            for(; it1 != end(); ++it1, ++it2)
+              *it1 = func(*it1, *it2);
+          }
+
+          // ----- Iterators -------
+          vector_iterator begin() const {
+            return vector_iterator(data, stride);
+          }
+
+          vector_iterator end() const {
+            return vector_iterator(data + size*stride, stride);
           }
 
         public:
@@ -177,8 +259,8 @@ namespace pml {
               data[i] = other.cdata[j];
           }
 
-        public:
-          double *data;
+        private:
+          double *data_;
       };
 
     public:
@@ -400,13 +482,13 @@ namespace pml {
 
       VectorView slice(size_t start, size_t stop, size_t step = 1) {
         double *slice_start = &data_[start];
-        size_t slice_length = std::ceil((stop - start) / step);
+        size_t slice_length = std::ceil((double)(stop - start) / step);
         return VectorView(slice_start, slice_length, step);
       }
 
       ConstVectorView slice(size_t start, size_t stop, size_t step = 1) const {
         const double *slice_start = &data_[start];
-        size_t slice_length = std::ceil((stop - start) / step);
+        size_t slice_length = std::ceil((double)(stop - start) / step);
         return ConstVectorView(slice_start, slice_length, step);
       }
 
@@ -647,6 +729,18 @@ namespace pml {
   }
 
   // Sum
+  inline void print(const Vector::ConstVectorView &w){
+    for(auto v : w){
+      std::cout << v << " ";
+    }
+    std::cout << std::endl;
+  }
+
+  Vector add(const Vector::ConstVectorView &x,
+                   const Vector::ConstVectorView &y) {
+    return x + y;
+  }
+
   inline double sum(const Vector &x){
     return std::accumulate(x.begin(), x.end(), 0.0);
   }
