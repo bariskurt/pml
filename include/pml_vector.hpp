@@ -166,7 +166,7 @@ namespace pml {
           }
 
           // ----- Comparison -------
-          bool equals(const const_view &other) const {
+          bool operator==(const const_view &other) const {
             if( size() != other.size() )
               return false;
             auto it2 = other.begin();
@@ -176,8 +176,19 @@ namespace pml {
             return true;
           }
 
-          bool equals(const Vector &v) const {
-            return this->equals(const_view(v));
+          bool operator!=(const const_view &other) const {
+            return !(*this == other);
+          }
+
+          bool operator==(double value) const {
+            for(auto it = begin(); it != end(); ++it)
+              if( !fequal(*it, value) )
+                return false;
+            return true;
+          }
+
+          bool operator!=(double value) const {
+            return !(*this == value);
           }
 
           // ----- Iterators -------
@@ -196,6 +207,49 @@ namespace pml {
 
           size_t stride() const {
             return stride_;
+          }
+
+          // ------ Save ----
+          void saveTxt(const std::string &filename,
+                       int precision = DEFAULT_PRECISION) const {
+            std::ofstream ofs(filename);
+            if (ofs.is_open()) {
+              ofs << 1 << std::endl;      // dimension
+              ofs << size() << std::endl; // size
+              ofs << std::setprecision(precision) << std::fixed;
+              for (auto it = begin(); it != end(); ++it) {
+                ofs << *it << std::endl;
+              }
+              ofs.close();
+            }
+          }
+
+          void save(const std::string &filename) const {
+            std::ofstream ofs(filename, std::ios::binary | std::ios::out);
+            if (ofs.is_open()) {
+              double dim = 1;
+              double length = size();
+              ofs.write(reinterpret_cast<char*>(&dim), sizeof(double));
+              ofs.write(reinterpret_cast<char*>(&length), sizeof(double));
+              if(stride() == 1) {
+                ofs.write(reinterpret_cast<const char *>(cdata_),
+                          sizeof(double) * length);
+              } else {
+                for(size_t i = 0; i < size_ * stride_; i+=stride_)
+                  ofs.write(reinterpret_cast<const char *>(&cdata_[i]),
+                            sizeof(double));
+              }
+              ofs.close();
+            }
+          }
+
+          friend std::ostream& operator<<(std::ostream &out,
+                                          const const_view &v) {
+            out << std::setprecision(DEFAULT_PRECISION) << std::fixed;
+            for (auto value : v) {
+              out << value << "  ";
+            }
+            return out;
           }
 
         protected:
@@ -248,13 +302,12 @@ namespace pml {
           void operator-=(double value) { apply(value, sub); }
           void operator*=(double value) { apply(value, mul); }
           void operator/=(double value) { apply(value, div); }
-
           void operator+=(const const_view &other) { apply(other, add); }
           void operator-=(const const_view &other) { apply(other, sub); }
           void operator*=(const const_view &other) { apply(other, mul); }
           void operator/=(const const_view &other) { apply(other, div); }
 
-          view operator=(const const_view &cv){
+          view& operator=(const const_view &cv){
             ASSERT_TRUE(size() == cv.size(),
                         "apply:: Vector view sizes mismatch.");
             auto it = begin();
@@ -262,6 +315,13 @@ namespace pml {
             for(; it != end(); ++it, ++cit)
               *it = *cit;
             return *this;
+          }
+
+          friend std::istream& operator>>(std::istream &in, view &v) {
+            for (auto &value : v) {
+              in >> value;
+            }
+            return in;
           }
 
         private:
@@ -325,80 +385,29 @@ namespace pml {
       }
 
       // Append a Vector
-      void append(const Vector &v) {
-        data_.insert(data_.end(), v.data_.begin(), v.data_.end());
+      void append(const const_view &cv) {
+        for(auto it = cv.begin(); it != cv.end(); ++it)
+          data_.push_back(*it);
       }
 
     public:
-      /*
-      friend Vector operator==(const Vector &x, double v) {
-        Vector result(x.size());
-        for(size_t i = 0; i < x.size(); ++i)
-          result[i] = fequal(x[i], v);
-        return result;
+      bool operator==(const Vector& v) const {
+        return const_view(*this) == const_view(v);
       }
 
-      friend Vector operator==(const Vector &x, const Vector &y) {
-        // Check sizes
-        ASSERT_TRUE(x.size() == y.size(),
-            "Vector::operator== cannot compare vectors of different size" );
-        // Check element-wise
-        Vector result(x.size());
-        for(size_t i = 0; i < x.size(); ++i)
-          result[i] = fequal(x[i], y[i]);
-        return result;
+      bool operator!=(const Vector& v) const {
+        return const_view(*this) != const_view(v);
+      }
+
+      bool operator==(double value) const {
+        return const_view(*this) == value;
+      }
+
+      bool operator!=(double value) const {
+        return const_view(*this) != value;
       }
 
 
-      friend Vector operator<(const Vector &x, double d) {
-        // Check element-wise
-        Vector result(x.size());
-        for(size_t i = 0; i < x.size(); ++i)
-          result[i] = x[i] < d;
-        return result;
-      }
-
-      friend Vector operator<( double d, const Vector &x) {
-        return x > d;
-      }
-
-      friend Vector operator<(const Vector &x, const Vector &y) {
-        // Check sizes
-        ASSERT_TRUE(x.size() == y.size(),
-            "Vector::operator== cannot compare vectors of different size" );
-        // Check element-wise
-        Vector result(x.size());
-        for(size_t i = 0; i < x.size(); ++i)
-          result[i] = x[i] < y[i];
-        return result;
-      }
-
-      friend Vector operator>(const Vector &x, double d) {
-        Vector result(x.size());
-        for(size_t i = 0; i < x.size(); ++i)
-          result[i] = x[i] > d;
-        return result;
-      }
-
-      friend Vector operator>( double d, const Vector &x) {
-        return x < d;
-      }
-
-      friend Vector operator>(const Vector &x, const Vector &y) {
-        // Check sizes
-        ASSERT_TRUE(x.size() == y.size(),
-            "Vector::operator== cannot compare vectors of different size" );
-        // Check element-wise
-        Vector result(x.size());
-        for(size_t i = 0; i < x.size(); ++i)
-          result[i] = x[i] > y[i];
-        return result;
-      }
-
-      bool equals(const Vector &other){
-        return ConstVectorView(*this).equals(ConstVectorView(other));
-      }
-      */
     public:
       //  -------- Iterators--------
       std::vector<double>::iterator begin() {
@@ -474,90 +483,58 @@ namespace pml {
     public:
 
       // ------ Self Assignment Operators -------
-/*
-      void operator+=(double value) { VectorView(*this) += value; }
+      // A = A + b
+      void operator+=(double value) { view(*this) += value; }
 
       // A = A - b
-      void operator-=(double value) { VectorView(*this) -= value; }
+      void operator-=(double value) { view(*this) -= value; }
 
       // A = A * b
-      void operator*=(double value) { VectorView(*this) *= value; }
+      void operator*=(double value) { view(*this) *= value; }
 
       // A = A / b
-      void operator/=(double value) { VectorView(*this) /= value; }
+      void operator/=(double value) { view(*this) /= value; }
 
       // A = A + B
-      void operator+=(const Vector &other) {
-        VectorView(*this) += ConstVectorView(other);
-      }
+      void operator+=(const Vector &other) { view(*this) += const_view(other); }
 
       // A = A - B
-      void operator-=(const Vector &other) {
-        VectorView(*this) -= ConstVectorView(other);
-      }
+      void operator-=(const Vector &other) { view(*this) -= const_view(other); }
 
       // A = A * B (elementwise)
-      void operator*=(const Vector &other) {
-        VectorView(*this) *= ConstVectorView(other);
-      }
+      void operator*=(const Vector &other) { view(*this) *= const_view(other); }
 
       // A = A / B (elementwise)
-      void operator/=(const Vector &other) {
-        VectorView(*this) /= ConstVectorView(other);
-      }
+      void operator/=(const Vector &other) { view(*this) /= const_view(other); }
 
-      // A = A + B
-      void operator+=(ConstVectorView &view) { VectorView(*this) += view; }
+      // B = A + b
+      Vector operator+(double value) const { return const_view(*this) + value; }
 
-      // A = A - B
-      void operator-=(ConstVectorView &view) { VectorView(*this) -= view; }
+      // B = A - b
+      Vector operator-(double value) const { return const_view(*this) - value; }
 
-      // A = A * B (elementwise)
-      void operator*=(ConstVectorView &view) { VectorView(*this) *= view; }
+      // B = A * b
+      Vector operator*(double value) const { return const_view(*this) * value; }
 
-      // A = A / B (elementwise)
-      void operator/=(ConstVectorView &view) { VectorView(*this) /= view; }
+      // B = A / b
+      Vector operator/(double value) const { return const_view(*this) / value; }
 
-      // ------ Vector - Double Operations -------
-
-    public:
-
-      // Returns A + b
-      friend Vector operator+(const Vector &x, double value) {
-        return ConstVectorView(x) + value;
-      }
-
-      // Returns b + A
+      // B =  b + A
       friend Vector operator+(double value, const Vector &x) {
         return x + value;
       }
 
-      // Returns A * b
-      friend Vector operator*(const Vector &x, double value) {
-        return ConstVectorView(x) * value;
-      }
-
-      // Returns b * A
+      // B = b * A
       friend Vector operator*(double value, const Vector &x) {
         return x * value;
       }
 
-      // Returns A - b
-      friend Vector operator-(const Vector &x, double value) {
-        return ConstVectorView(x) - value;
-      }
-
-      // Returns b - A
+      // B = b - A
       friend Vector operator-(double value, const Vector &x) {
         return (-1 * x) + value;
       }
 
-      // returns A / b
-      friend Vector operator/(const Vector &x, double value) {
-        return ConstVectorView(x) / value;
-      }
-
-      // returns b / A
+      // B = b / A
       friend Vector operator/(double value, const Vector &x) {
         Vector result(x);
         for (auto &d : result) { d = value / d; }
@@ -567,66 +544,45 @@ namespace pml {
       // ------ Vector - Vector Operations -------
 
       // R = A + B
+
       friend Vector operator+(const Vector &x, const Vector &y) {
-        return ConstVectorView(x) + ConstVectorView(y);
+        return const_view(x) + const_view(y);
       }
 
       // R = A - B
       friend Vector operator-(const Vector &x, const Vector &y) {
-        return ConstVectorView(x) - ConstVectorView(y);
+        return const_view(x) - const_view(y);
       }
 
       // R = A * B (elementwise)
       friend Vector operator*(const Vector &x, const Vector &y) {
-        return ConstVectorView(x) * ConstVectorView(y);
+        return const_view(x) * const_view(y);
       }
 
       // R = A / B (elementwise)
       friend Vector operator/(const Vector &x, const Vector &y) {
-        return ConstVectorView(x) / ConstVectorView(y);
+        return const_view(x) / const_view(y);
       }
-*/
+
       // Load and Save
-      friend std::ostream &operator<<(std::ostream &out,
-                                      const Vector &x) {
-        out << std::setprecision(DEFAULT_PRECISION) << std::fixed;
-        for (auto &value : x) {
-          out << value << "  ";
-        }
+      friend std::ostream& operator<<(std::ostream &out, const Vector &x) {
+        out << const_view(x);
         return out;
       }
 
-      friend std::istream &operator>>(std::istream &in, Vector &x) {
-        for (auto &value : x) {
-          in >> value;
-        }
+      friend std::istream& operator>>(std::istream &in, Vector &x) {
+        Vector::view vx(x);
+        in >> vx;
         return in;
       }
 
       void save(const std::string &filename){
-        std::ofstream ofs(filename, std::ios::binary | std::ios::out);
-        if (ofs.is_open()) {
-          double dim = 1;
-          double length = size();
-          ofs.write(reinterpret_cast<char*>(&dim), sizeof(double));
-          ofs.write(reinterpret_cast<char*>(&length), sizeof(double));
-          ofs.write(reinterpret_cast<char*>(data()), sizeof(double)*length);
-          ofs.close();
-        }
+        const_view(*this).save(filename);
       }
 
       void saveTxt(const std::string &filename,
                    int precision = DEFAULT_PRECISION) const {
-        std::ofstream ofs(filename);
-        if (ofs.is_open()) {
-          ofs << 1 << std::endl;      // dimension
-          ofs << size() << std::endl; // size
-          ofs << std::setprecision(precision) << std::fixed;
-          for (auto &value : data_) {
-            ofs << value << std::endl;
-          }
-          ofs.close();
-        }
+        const_view(*this).saveTxt(filename, precision);
       }
 
       static Vector load(const std::string &filename){
@@ -664,157 +620,114 @@ namespace pml {
     public:
       std::vector<double> data_;
   };
-/*
-  Vector cat(const Vector &v1, const Vector &v2){
-    Vector result(v1);
-    result.append(v2);
-    return result;
-  }
 
-  Vector reverse(const Vector &v){
-    Vector result = v;
-    std::reverse(result.begin(), result.end());
-    return result;
-  }
-
-  // Returns the set of indices i of v, such that v[i] == 1.
-  Vector find(const Vector &v){
-    Vector result;
-    for(size_t i=0; i < v.size(); ++i){
-      if(v[i] == 1)
-        result.append(i);
-    }
-    return result;
-  }
-
-  // is_nan
-  Vector is_nan(const Vector &v){
-    Vector result = Vector::zeros(v.size());
-    for(size_t i=0; i < v.size(); ++i){
-      if(std::isnan(v[i]))
-        result[i] = 1;
-    }
-    return result;
-  }
-
-  // is_inf
-  Vector is_inf(const Vector &v){
-    Vector result = Vector::zeros(v.size());
-    for(size_t i=0; i < v.size(); ++i){
-      if(std::isinf(v[i]))
-        result[i] = 1;
-    }
-    return result;
-  }
-
-  // Sum
-  inline void print(const Vector::ConstVectorView &w){
-    for(auto v : w){
-      std::cout << v << " ";
-    }
-    std::cout << std::endl;
-  }
-
-  Vector add(const Vector::ConstVectorView &x,
-                   const Vector::ConstVectorView &y) {
-    return x + y;
-  }
-
-  inline double sum(const Vector &x){
-    return std::accumulate(x.begin(), x.end(), 0.0);
-  }
-
-  // Power
-  inline Vector pow(const Vector &x, double p = 2){
-    return Vector::ConstVectorView(x).apply(p ,std::pow);
-  }
 
   //Min
-  inline double min(const Vector &x) {
-    return *(std::min_element(x.begin(), x.end()));
+  inline double min(const Vector::const_view &cv) {
+    return *(std::min_element(cv.begin(), cv.end()));
   }
 
   // Max
-  inline double max(const Vector &x) {
-    return *(std::max_element(x.begin(), x.end()));
+  inline double max(const Vector::const_view &cv) {
+    return *(std::max_element(cv.begin(), cv.end()));
+  }
+
+  // Sum
+  inline double sum(const Vector::const_view &cv){
+    return std::accumulate(cv.begin(), cv.end(), 0.0);
+  }
+
+  // Power
+  inline Vector pow(const Vector::const_view &cv, double p = 2){
+    return cv.apply(p ,std::pow);
   }
 
   // Dot product
-  inline double dot(const Vector &x, const Vector &y) {
+  inline double dot(const Vector::const_view &x, const Vector::const_view &y) {
     return sum(x * y);
   }
 
   // Mean
-  inline double mean(const Vector &x){
-    return sum(x) / x.size();
+  inline double mean(const Vector::const_view &cv){
+    return sum(cv) / cv.size();
   }
 
   // Variance
-  inline double var(const Vector &x){
-    return sum(pow(x - mean(x), 2)) / (x.size() - 1);
+  inline double var(const Vector::const_view &cv){
+    return sum(pow(cv - mean(cv), 2)) / (cv.size() - 1);
   }
 
   // Standard deviation
-  inline double stdev(const Vector &x){
-    return std::sqrt(var(x));
-  }
-
-  // Absolute value of x
-  inline Vector abs(const Vector &v){
-    return Vector::ConstVectorView(v).apply(std::fabs);
-  }
-
-  // Round to nearest integer
-  inline Vector round(const Vector &v){
-    return Vector::ConstVectorView(v).apply(std::round);
-  }
-
-  // Ceiling
-  inline Vector ceil(const Vector &v){
-    return Vector::ConstVectorView(v).apply(std::ceil);
-  }
-
-  // Floor
-  inline Vector floor(const Vector &v){
-    return Vector::ConstVectorView(v).apply(std::floor);
+  inline double stdev(const Vector::const_view &cv){
+    return std::sqrt(var(cv));
   }
 
   // Exponential
-  inline Vector exp(const Vector &v){
-    return Vector::ConstVectorView(v).apply(std::exp);
+  inline Vector exp(const Vector::const_view &cv){
+    return cv.apply(std::exp);
   }
 
   // Logarithm
-  inline Vector log(const Vector &v){
-    return Vector::ConstVectorView(v).apply(std::log);
+  inline Vector log(const Vector::const_view &cv){
+    return cv.apply(std::log);
   }
 
   // Normalize
-  inline Vector normalize(const Vector &x) {
-    return x / sum(x);
+  inline Vector normalize(const Vector::const_view &cv) {
+    return cv / sum(cv);
   }
 
   // Safe normalize(exp(x))
-  inline Vector normalizeExp(const Vector &x) {
-    return normalize(exp(x - max(x)));
+  inline Vector normalizeExp(const Vector::const_view &cv) {
+    return normalize(exp(cv - max(cv)));
   }
 
   // Safe log(sum(exp(x)))
-  inline double logSumExp(const Vector &x) {
-    double x_max = max(x);
-    return x_max + std::log(sum(exp(x - x_max)));
+  inline double logSumExp(const Vector::const_view &cv) {
+    double cv_max = max(cv);
+    return cv_max + std::log(sum(exp(cv - cv_max)));
+  }
+
+  // Absolute value of x
+  inline Vector abs(const Vector::const_view &cv){
+    return cv.apply(std::fabs);
+  }
+
+  // Round to nearest integer
+  inline Vector round(const Vector::const_view &cv){
+    return cv.apply(std::round);
+  }
+
+  // Ceiling
+  inline Vector ceil(const Vector::const_view &cv){
+    return cv.apply(std::ceil);
+  }
+
+  // Floor
+  inline Vector floor(const Vector::const_view &cv){
+    return cv.apply(std::floor);
+  }
+
+
+  Vector cat(const Vector::const_view &cv1, const Vector::const_view &cv2){
+    Vector result(cv1);
+    result.append(cv2);
+    return result;
   }
 
   // KL Divergence Between Vectors
   // ToDo: Maybe move to linalgebra
-  inline double kl_div(const Vector &x, const Vector &y) {
+  inline double kl_div(const Vector::const_view &x,
+                       const Vector::const_view &y) {
     ASSERT_TRUE(x.size() == y.size(), "kl_div:: Size mismatch.");
     double result = 0;
-    for (size_t i = 0; i < x.size(); ++i) {
-      if(x(i) > 0 && y(i) > 0){
-        result += x(i) * (std::log(x(i)) - std::log(y(i))) - x(i) + y(i);
-      } else if(x(i) == 0 && y(i) >= 0){
-        result += y(i);
+    auto it1 = x.begin();
+    auto it2 = y.begin();
+    for(; it1 != x.end(); ++it1, ++it2){
+      if(*it1 > 0 && *it2 > 0){
+        result += *it1 * (std::log(*it1) - std::log(*it2)) - *it1 + *it2;
+      } else if(*it1 == 0 && *it2 >= 0){
+        result += *it2;
       } else {
         result += std::numeric_limits<double>::infinity();
         break;
@@ -822,7 +735,7 @@ namespace pml {
     }
     return result;
   }
-*/
+
 } // namespace pml
 
 #endif
