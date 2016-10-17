@@ -254,11 +254,11 @@ void test_g(){
 
 int main() {
 
-  // test_dm();
+  test_dm();
   // test_dm_em();
 
   //test_pg();
-  test_pg_em();
+  // test_pg_em();
 
   // test_g();
 

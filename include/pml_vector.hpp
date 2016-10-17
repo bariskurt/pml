@@ -603,7 +603,11 @@ namespace pml {
 
   // Dot product
   inline double dot(const Vector &x, const Vector &y) {
-    return sum(x * y);
+    ASSERT_TRUE(x.size() == y.size(), "Vector::dot() Vector sizes mismatch");
+    double result = 0;
+    for(size_t i = 0; i < x.size(); ++i)
+      result += x[i] * y[i];
+    return result;
   }
 
   // Mean
