@@ -518,8 +518,8 @@ namespace pml {
       }
 
       friend double min(const Vector &x) {
-        double min_x = std::numeric_limits<double>::max();
-        for(size_t i=0; i<x.size(); ++i)
+        double min_x = x[0];
+        for(size_t i=1; i<x.size(); ++i)
           if( x[i] < min_x )
             min_x = x[i];
         return min_x;
@@ -527,8 +527,8 @@ namespace pml {
 
       // Max
       friend double max(const Vector &x) {
-        double max_x = std::numeric_limits<double>::min();
-        for(size_t i=0; i<x.size(); ++i)
+        double max_x = x[0];
+        for(size_t i=1; i<x.size(); ++i)
           if( max_x < x[i] )
             max_x = x[i];
         return max_x;

@@ -687,8 +687,8 @@ namespace pml {
 
       // Min
       friend double min(const Matrix &x) {
-        double min_x = std::numeric_limits<double>::max();
-        for(size_t i=0; i<x.size(); ++i)
+        double min_x = x[0];
+        for(size_t i=1; i<x.size(); ++i)
           if( x[i] < min_x )
             min_x = x[i];
         return min_x;
@@ -698,15 +698,15 @@ namespace pml {
         ASSERT_TRUE(axis==0 || axis==1, "Matrix::max axis out of bounds.");
         Vector result;
         if (axis == 0){
-          result = Vector(x.ncols(), std::numeric_limits<double>::max());
-          for(size_t i=0; i < x.nrows(); ++i)
+          result = x.getRow(0);
+          for(size_t i=1; i < x.nrows(); ++i)
             for(size_t j=0; j < x.ncols(); ++j)
               if( x(i,j) < result[j] )
                 result[j] = x(i,j);
         } else {
-          result = Vector(x.nrows(), std::numeric_limits<double>::max());
+          result = x.getColumn(0);
           for(size_t i=0; i < x.nrows(); ++i)
-            for(size_t j=0; j < x.ncols(); ++j)
+            for(size_t j=1; j < x.ncols(); ++j)
               if( x(i,j) < result[i] )
                 result[i] = x(i,j);
         }
@@ -715,8 +715,8 @@ namespace pml {
 
       // Max
       friend double max(const Matrix &x) {
-        double max_x = std::numeric_limits<double>::min();
-        for(size_t i=0; i<x.size(); ++i)
+        double max_x = x[0];
+        for(size_t i=1; i<x.size(); ++i)
           if( max_x < x[i] )
             max_x = x[i];
         return max_x;
@@ -726,15 +726,15 @@ namespace pml {
         ASSERT_TRUE(axis==0 || axis==1, "Matrix::max axis out of bounds.");
         Vector result;
         if (axis == 0){
-          result = Vector(x.ncols(), std::numeric_limits<double>::min());
-          for(size_t i=0; i < x.nrows(); ++i)
+          result = x.getRow(0);
+          for(size_t i=1; i < x.nrows(); ++i)
             for(size_t j=0; j < x.ncols(); ++j)
               if( result[j] < x(i,j) )
                 result[j] = x(i,j);
         } else {
-          result = Vector(x.nrows(), std::numeric_limits<double>::min());
+          result = x.getColumn(0);
           for(size_t i=0; i < x.nrows(); ++i)
-            for(size_t j=0; j < x.ncols(); ++j)
+            for(size_t j=1; j < x.ncols(); ++j)
               if( result[i] < x(i,j) )
                 result[i] = x(i,j);
         }
