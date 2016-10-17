@@ -67,8 +67,7 @@ void test_dm_em(){
   // Real Change Points
   Vector cps = Vector::zeros(length);
   for(size_t t = 1; t < length; ++t) {
-    Vector diff = (states.getColumn(t) - states.getColumn(t-1)) > 0;
-    cps[t] = any(diff);
+    cps[t] = states(0,t) == states(0, t-1);
   }
   obs.saveTxt("/tmp/obs.txt");
   states.saveTxt("/tmp/states.txt");
@@ -255,10 +254,10 @@ void test_g(){
 int main() {
 
   // test_dm();
-  // test_dm_em();
+  test_dm_em();
 
-  //test_pg();
-  test_pg_em();
+  // test_pg();
+  // test_pg_em();
 
   // test_g();
 

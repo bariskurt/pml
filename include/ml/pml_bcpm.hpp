@@ -218,8 +218,8 @@ namespace pml {
           if (t == 0 || bernoulli.rand()) {
             state = prior.rand();
           }
-          states.appendColumn(state);
-          obs.appendColumn(rand(state));
+          states.append(state);
+          obs.append(rand(state));
         }
         return {states, obs};
       }
@@ -291,7 +291,7 @@ namespace pml {
       Vector mean(){
         Matrix params;
         for(auto &potential: potentials){
-          params.appendColumn(potential.mean());
+          params.append(potential.mean());
         }
         Vector consts = normalizeExp(get_consts());
         return sum(transpose(transpose(params)*consts), 1);
@@ -302,8 +302,8 @@ namespace pml {
         if(num_change_components == 1){
           return consts.last();
         }
-        return sum(consts.getSlice(consts.size()-num_change_components,
-                                   consts.size()));
+        return sum(consts.slice(consts.size()-num_change_components,
+                                consts.size()));
       }
 
       void prune(size_t max_components){
@@ -377,7 +377,7 @@ namespace pml {
         Matrix mean;
         Vector cpp;
         for(auto &message : alpha){
-          mean.appendColumn(message.mean());
+          mean.append(message.mean());
           cpp.append(message.cpp());
         }
         return {mean, cpp};
@@ -387,7 +387,7 @@ namespace pml {
         alpha.clear();
         alpha_predict.clear();
         for (size_t i=0; i<obs.ncols(); i++) {
-          oneStepForward(obs.getColumn(i));
+          oneStepForward(obs.col(i));
           alpha.back().prune(max_components);
         }
       }
@@ -427,12 +427,12 @@ namespace pml {
             c = model.log_p1 + temp.log_likelihood();
 
             // Update :
-            message = update(beta.back(), obs.getColumn(idx));
+            message = update(beta.back(), obs.col(idx));
             for(auto &potential : message.potentials){
               potential.log_c += model.log_p0;
             }
           }
-          P pot = model.obs2Potential(obs.getColumn(idx));
+          P pot = model.obs2Potential(obs.col(idx));
           pot.log_c += c;
           message.add_potential(pot);
           message.prune(max_components);
@@ -452,7 +452,7 @@ namespace pml {
         Vector cpp;
         for(size_t i=0; i < obs.ncols(); ++i) {
           Message<P> gamma = alpha_predict[i] * beta[i];
-          mean.appendColumn(gamma.mean());
+          mean.append(gamma.mean());
           cpp.append(gamma.cpp(beta[i].size()));
         }
         return {mean, cpp};
@@ -477,14 +477,14 @@ namespace pml {
         for(size_t t=0; t <= obs.ncols()-lag; ++t){
           backward(obs, t+lag-1, lag);
           gamma = alpha[t] * beta.front();
-          mean.appendColumn(gamma.mean());
+          mean.append(gamma.mean());
           cpp.append(gamma.cpp(beta.front().size()));
         }
 
         // Smooth alpha[T-lag+1:T] with last beta
         for(size_t i = 1; i < lag; ++i){
           gamma = alpha[obs.ncols()-lag+i] * beta[i];
-          mean.appendColumn(gamma.mean());
+          mean.append(gamma.mean());
           cpp.append(gamma.cpp(beta[i].size()));
 
         }
@@ -497,7 +497,7 @@ namespace pml {
         Vector norm_consts;
         for(auto &potential : message.potentials){
           norm_consts.append(potential.log_c);
-          tmp.appendColumn( potential.get_ss() );
+          tmp.append( potential.get_ss() );
         }
         norm_consts = normalizeExp(norm_consts);
         tmp = tmp * tile(norm_consts, tmp.nrows());
@@ -522,7 +522,7 @@ namespace pml {
             Message<P> gamma = alpha_predict[i] * beta[i];
             cpp = gamma.cpp(beta[i].size());
             cpp_sum += cpp;
-            E_log_pi_weighted.appendColumn(compute_ss(gamma)*cpp);
+            E_log_pi_weighted.append(compute_ss(gamma)*cpp);
           }
           Vector ss = sum(E_log_pi_weighted, 1) / cpp_sum;
 

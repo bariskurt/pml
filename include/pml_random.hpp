@@ -56,7 +56,7 @@ namespace pml {
       Matrix rand(size_t ncols) {
         Matrix result;
         for(size_t i = 0; i < ncols; ++i)
-          result.appendColumn(rand());
+          result.append(rand());
         return result;
       }
   };

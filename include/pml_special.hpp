@@ -11,8 +11,8 @@ namespace pml{
     return std::lgamma(x);
   }
 
-  inline Vector lgamma(const Vector &x){
-    return apply(x, std::lgamma);
+  inline Vector lgamma(const Vector::const_view &v){
+    return v.apply(std::lgamma);
   }
 
   inline Matrix lgamma(const Matrix &m){
@@ -24,7 +24,7 @@ namespace pml{
     return gsl_sf_psi_n(n, d);
   }
 
-  inline Vector psi(const Vector &x, int n = 0){
+  inline Vector psi(const Vector::const_view &x, int n = 0){
     Vector y = x;
     for(auto &d : y)
       d = gsl_sf_psi_n(n, d);
@@ -47,8 +47,8 @@ namespace pml{
     return x;
   }
 
-  inline Vector inv_psi(const Vector &v){
-    return apply(v, inv_psi);
+  inline Vector inv_psi(const Vector::const_view &v){
+    return v.apply(inv_psi);
   }
 
   inline Matrix inv_psi(const Matrix  &m){
