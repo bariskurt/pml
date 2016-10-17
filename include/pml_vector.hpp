@@ -509,6 +509,44 @@ namespace pml {
         return result;
       }
 
+      // Sum
+      friend double sum(const Vector &x){
+        double result = 0;
+        for(size_t i = 0; i < x.size(); ++i)
+          result += x(i);
+        return result;
+      }
+
+      friend double min(const Vector &x) {
+        double min_x = std::numeric_limits<double>::max();
+        for(size_t i=0; i<x.size(); ++i)
+          if( x[i] < min_x )
+            min_x = x[i];
+        return min_x;
+      }
+
+      // Max
+      friend double max(const Vector &x) {
+        double max_x = std::numeric_limits<double>::min();
+        for(size_t i=0; i<x.size(); ++i)
+          if( max_x < x[i] )
+            max_x = x[i];
+        return max_x;
+      }
+
+      void normalize() {
+        double sum_x = sum(*this);
+        for(size_t i=0; i < size(); ++i)
+          data_[i] /= sum_x;
+      }
+
+      void normalizeExp(){
+        double x_max = max(*this);
+        for (size_t i = 0; i < size(); ++i)
+          data_[i] = std::exp(data_[i] - x_max);
+        normalize();
+      }
+
     public:
       std::vector<double> data_;
   };
@@ -555,27 +593,12 @@ namespace pml {
     return result;
   }
 
-  // Sum
-  inline double sum(const Vector &x){
-    return std::accumulate(x.begin(), x.end(), 0.0);
-  }
-
   // Power
   inline Vector pow(const Vector &x, double p = 2){
     Vector result(x);
     for(double &d : result)
       d = std::pow(d, p);
     return result;
-  }
-
-  //Min
-  inline double min(const Vector &x) {
-    return *(std::min_element(x.begin(), x.end()));
-  }
-
-  // Max
-  inline double max(const Vector &x) {
-    return *(std::max_element(x.begin(), x.end()));
   }
 
   // Dot product
@@ -630,18 +653,25 @@ namespace pml {
 
   // Normalize
   inline Vector normalize(const Vector &x) {
-    return x / sum(x);
+    Vector result(x);
+    result.normalize();
+    return result;
   }
 
   // Safe normalize(exp(x))
   inline Vector normalizeExp(const Vector &x) {
-    return normalize(exp(x - max(x)));
+    Vector result(x);
+    result.normalizeExp();
+    return result;
   }
 
   // Safe log(sum(exp(x)))
   inline double logSumExp(const Vector &x) {
+    double result = 0;
     double x_max = max(x);
-    return x_max + std::log(sum(exp(x - x_max)));
+    for(size_t i=0; i<x.size(); ++i)
+      result += std::exp(x(i) - x_max);
+    return x_max + std::log(result);
   }
 
   // KL Divergence Between Vectors

@@ -660,49 +660,6 @@ namespace pml {
         return result;
       }
 
-      void normalize(size_t axis = 2){
-        ASSERT_TRUE(axis>=0 && axis<=2,
-                    "Matrix::normalize axis out of bounds.");
-        if( axis == 0){
-          Vector col_sums = sum(*this, 0);
-          for(size_t i=0; i < nrows_; ++i)
-            for(size_t j=0; j < ncols_; ++j)
-              (*this)(i,j) /= col_sums[j];
-        } else if( axis == 1){
-          Vector row_sums = sum(*this, 1);
-          for(size_t i=0; i < nrows_; ++i)
-            for(size_t j=0; j < ncols_; ++j)
-              (*this)(i,j) /= row_sums[i];
-        } else {
-          double sum_x = sum(*this);
-          for(size_t i=0; i < size(); ++i)
-            data_[i] /= sum_x;
-        }
-      }
-
-      void normalizeExp(size_t axis = 2){
-        ASSERT_TRUE(axis>=0 && axis<=2,
-                    "Matrix::normalizeExp axis out of bounds.");
-        if( axis == 0) {
-          Vector col_max = max(*this, 0);
-          for(size_t i=0; i < nrows_; ++i)
-            for(size_t j=0; j < ncols_; ++j)
-              (*this)(i,j) = std::exp((*this)(i,j) - col_max[j]);
-          normalize(0);
-        } else if( axis == 1) {
-          Vector row_max = max(*this, 1);
-          for (size_t i = 0; i < nrows_; ++i)
-            for (size_t j = 0; j < ncols_; ++j)
-              (*this)(i, j) = std::exp((*this)(i, j) - row_max[i]);
-          normalize(1);
-        } else {
-          double x_max = max(*this);
-          for (size_t i = 0; i < size(); ++i)
-            data_[i] = std::exp(data_[i] - x_max);
-          normalize();
-        }
-      }
-
       // Sum
       friend double sum(const Matrix &x){
         double result = 0;
@@ -784,6 +741,48 @@ namespace pml {
         return result;
       }
 
+      void normalize(size_t axis = 2){
+        ASSERT_TRUE(axis>=0 && axis<=2,
+                    "Matrix::normalize axis out of bounds.");
+        if( axis == 0){
+          Vector col_sums = sum(*this, 0);
+          for(size_t i=0; i < nrows_; ++i)
+            for(size_t j=0; j < ncols_; ++j)
+              (*this)(i,j) /= col_sums[j];
+        } else if( axis == 1){
+          Vector row_sums = sum(*this, 1);
+          for(size_t i=0; i < nrows_; ++i)
+            for(size_t j=0; j < ncols_; ++j)
+              (*this)(i,j) /= row_sums[i];
+        } else {
+          double sum_x = sum(*this);
+          for(size_t i=0; i < size(); ++i)
+            data_[i] /= sum_x;
+        }
+      }
+
+      void normalizeExp(size_t axis = 2){
+        ASSERT_TRUE(axis>=0 && axis<=2,
+                    "Matrix::normalizeExp axis out of bounds.");
+        if( axis == 0) {
+          Vector col_max = max(*this, 0);
+          for(size_t i=0; i < nrows_; ++i)
+            for(size_t j=0; j < ncols_; ++j)
+              (*this)(i,j) = std::exp((*this)(i,j) - col_max[j]);
+          normalize(0);
+        } else if( axis == 1) {
+          Vector row_max = max(*this, 1);
+          for (size_t i = 0; i < nrows_; ++i)
+            for (size_t j = 0; j < ncols_; ++j)
+              (*this)(i, j) = std::exp((*this)(i, j) - row_max[i]);
+          normalize(1);
+        } else {
+          double x_max = max(*this);
+          for (size_t i = 0; i < size(); ++i)
+            data_[i] = std::exp(data_[i] - x_max);
+          normalize();
+        }
+      }
 
     private:
       size_t nrows_;
