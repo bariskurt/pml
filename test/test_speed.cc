@@ -5,7 +5,23 @@
 
 using namespace pml;
 
-void test_column_row_ops(){
+void test_vector(){
+  std::cout << "test_column_row_ops...\n";
+
+  auto t_start = std::chrono::system_clock::now();
+
+  Vector x = Uniform(0, 10).rand(1000);
+
+  for(int i=0; i < 1000; ++i){
+    logSumExp(x);
+  }
+
+  auto t_end = std::chrono::system_clock::now();
+  std::chrono::duration<double> t_elapsed = t_end-t_start;
+  std::cout << "time elapsed: " <<  t_elapsed.count() <<" seconds.\n";
+}
+
+void test_matrix(){
   std::cout << "test_column_row_ops...\n";
 
   auto t_start = std::chrono::system_clock::now();
@@ -24,6 +40,7 @@ void test_column_row_ops(){
 
 
 int main(){
-  test_column_row_ops();
+  test_vector();
+  test_matrix();
   return 0;
 }
