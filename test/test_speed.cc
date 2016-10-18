@@ -26,12 +26,10 @@ void test_matrix(){
 
   auto t_start = std::chrono::system_clock::now();
 
-  Matrix m = Uniform(0, 10).rand(1000,1000);
+  Matrix m = Uniform(0, 10).rand(10000,10000);
 
-  for(int i=0; i < 10; ++i){
-    Vector v1 = logSumExp(m, 0);
-    Vector v2 = logSumExp(m, 1);
-  }
+  Vector v1 = logSumExp(m, 0);
+  Vector v2 = logSumExp(m, 1);
 
   auto t_end = std::chrono::system_clock::now();
   std::chrono::duration<double> t_elapsed = t_end-t_start;

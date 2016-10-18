@@ -297,13 +297,15 @@ namespace pml {
         return sum(transpose(transpose(params)*consts), 1);
       }
 
-      double cpp(int num_change_components = 1){
+      double cpp(int num_cpp = 1){
         Vector consts = normalizeExp(get_consts());
-        if(num_change_components == 1){
+        if(num_cpp == 1){
           return consts.last();
         }
-        return sum(consts.getSlice(consts.size()-num_change_components,
-                                   consts.size()));
+        double result = 0;
+        for(size_t i = consts.size()-num_cpp; i < consts.size(); ++i)
+          result += consts[i];
+        return result;
       }
 
       void prune(size_t max_components){

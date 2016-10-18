@@ -660,6 +660,130 @@ namespace pml {
         return result;
       }
 
+      // Sum
+      friend double sum(const Matrix &x){
+        double result = 0;
+        for(size_t i=0; i<x.size(); ++i)
+          result += x[i];
+        return result;
+      }
+
+      friend Vector sum(const Matrix &x, size_t axis) {
+        ASSERT_TRUE(axis==0 || axis==1, "Matrix::sum axis out of bounds.");
+        Vector result;
+        if (axis == 0){
+          result = Vector::zeros(x.ncols());
+          for(size_t i=0; i < x.nrows(); ++i)
+            for(size_t j=0; j < x.ncols(); ++j)
+              result[j] += x(i,j);
+        } else {
+          result = Vector::zeros(x.nrows());
+          for(size_t i=0; i < x.nrows(); ++i)
+            for(size_t j=0; j < x.ncols(); ++j)
+              result[i] += x(i,j);
+        }
+        return result;
+      }
+
+      // Min
+      friend double min(const Matrix &x) {
+        double min_x = x[0];
+        for(size_t i=1; i<x.size(); ++i)
+          if( x[i] < min_x )
+            min_x = x[i];
+        return min_x;
+      }
+
+      friend Vector min(const Matrix &x, size_t axis) {
+        ASSERT_TRUE(axis==0 || axis==1, "Matrix::max axis out of bounds.");
+        Vector result;
+        if (axis == 0){
+          result = x.getRow(0);
+          for(size_t i=1; i < x.nrows(); ++i)
+            for(size_t j=0; j < x.ncols(); ++j)
+              if( x(i,j) < result[j] )
+                result[j] = x(i,j);
+        } else {
+          result = x.getColumn(0);
+          for(size_t i=0; i < x.nrows(); ++i)
+            for(size_t j=1; j < x.ncols(); ++j)
+              if( x(i,j) < result[i] )
+                result[i] = x(i,j);
+        }
+        return result;
+      }
+
+      // Max
+      friend double max(const Matrix &x) {
+        double max_x = x[0];
+        for(size_t i=1; i<x.size(); ++i)
+          if( max_x < x[i] )
+            max_x = x[i];
+        return max_x;
+      }
+
+      friend Vector max(const Matrix &x, size_t axis) {
+        ASSERT_TRUE(axis==0 || axis==1, "Matrix::max axis out of bounds.");
+        Vector result;
+        if (axis == 0){
+          result = x.getRow(0);
+          for(size_t i=1; i < x.nrows(); ++i)
+            for(size_t j=0; j < x.ncols(); ++j)
+              if( result[j] < x(i,j) )
+                result[j] = x(i,j);
+        } else {
+          result = x.getColumn(0);
+          for(size_t i=0; i < x.nrows(); ++i)
+            for(size_t j=1; j < x.ncols(); ++j)
+              if( result[i] < x(i,j) )
+                result[i] = x(i,j);
+        }
+        return result;
+      }
+
+      void normalize(size_t axis = 2){
+        ASSERT_TRUE(axis>=0 && axis<=2,
+                    "Matrix::normalize axis out of bounds.");
+        if( axis == 0){
+          Vector col_sums = sum(*this, 0);
+          for(size_t i=0; i < nrows_; ++i)
+            for(size_t j=0; j < ncols_; ++j)
+              (*this)(i,j) /= col_sums[j];
+        } else if( axis == 1){
+          Vector row_sums = sum(*this, 1);
+          for(size_t i=0; i < nrows_; ++i)
+            for(size_t j=0; j < ncols_; ++j)
+              (*this)(i,j) /= row_sums[i];
+        } else {
+          double sum_x = sum(*this);
+          for(size_t i=0; i < size(); ++i)
+            data_[i] /= sum_x;
+        }
+      }
+
+      void normalizeExp(size_t axis = 2){
+        ASSERT_TRUE(axis>=0 && axis<=2,
+                    "Matrix::normalizeExp axis out of bounds.");
+        if( axis == 0) {
+          Vector col_max = max(*this, 0);
+          for(size_t i=0; i < nrows_; ++i)
+            for(size_t j=0; j < ncols_; ++j)
+              (*this)(i,j) = std::exp((*this)(i,j) - col_max[j]);
+          normalize(0);
+        } else if( axis == 1) {
+          Vector row_max = max(*this, 1);
+          for (size_t i = 0; i < nrows_; ++i)
+            for (size_t j = 0; j < ncols_; ++j)
+              (*this)(i, j) = std::exp((*this)(i, j) - row_max[i]);
+          normalize(1);
+        } else {
+          double x_max = max(*this);
+          for (size_t i = 0; i < size(); ++i)
+            data_[i] = std::exp(data_[i] - x_max);
+          normalize();
+        }
+      }
+
     private:
       size_t nrows_;
       size_t ncols_;
@@ -751,59 +875,6 @@ namespace pml {
     return result;
   }
 
-  inline Vector for_each_rows(const Matrix& x, double (*func)(const Vector &)){
-    Vector result;
-    for(size_t i=0; i < x.nrows(); ++i){
-      result.append(func(x.getRow(i)));
-    }
-    return result;
-  }
-
-  inline Vector for_each_cols(const Matrix& x, double (*func)(const Vector &)){
-    Vector result;
-    for(size_t i=0; i < x.ncols(); ++i){
-      result.append(func(x.getColumn(i)));
-    }
-    return result;
-  }
-
-  // Sum
-  inline double sum(const Matrix  &x){
-    return std::accumulate(x.begin(), x.end(), 0.0);
-  }
-
-  inline Vector sum(const Matrix &x, int axis) {
-    ASSERT_TRUE(axis==0 || axis==1, "Matrix::sum axis out of bounds.");
-    if (axis == 0)
-      return for_each_cols(x, sum);
-    return for_each_rows(x, sum);
-  }
-
-  //Min
-  inline double min(const Matrix &x) {
-    return *(std::min_element(x.begin(), x.end()));
-  }
-
-  inline Vector min(const Matrix &x, int axis) {
-    ASSERT_TRUE(axis==0 || axis==1, "Matrix::min axis out of bounds.");
-    if (axis == 0)
-      return for_each_cols(x, min);
-    return for_each_rows(x, min);
-  }
-
-
-  // Max
-  inline double max(const Matrix &x) {
-    return *(std::max_element(x.begin(), x.end()));
-  }
-
-  inline Vector max(const Matrix &x, int axis) {
-    ASSERT_TRUE(axis==0 || axis==1, "Matrix::max axis out of bounds.");
-    if (axis == 0)
-      return for_each_cols(x, max);
-    return for_each_rows(x, max);
-  }
-
   inline double mean(const Matrix &x){
     return sum(x) / x.size();
   }
@@ -847,47 +918,55 @@ namespace pml {
 
   // Normalize
   inline Matrix normalize(const Matrix  &x, int axis = 2) {
-    ASSERT_TRUE(axis>=0 && axis<=2, "Matrix::normalize axis out of bounds.");
-    if( axis == 0){
-      Matrix col_sums = tile(sum(x,0), x.nrows());
-      return x / col_sums;
-    }
-    if( axis == 1){
-      Matrix row_sums = tile(sum(x,1), x.ncols(), 1);
-      return x / row_sums;
-    }
-    return x / sum(x);
+    Matrix result(x);
+    result.normalize(axis);
+    return result;
   }
 
   // Safe  NormalizeExp
   inline Matrix normalizeExp(const Matrix &x, int axis = 2) {
-    ASSERT_TRUE(axis>=0 && axis<=2, "Matrix::normalizeExp axis out of bounds.");
-    if( axis == 0){
-      Matrix max_cols = tile(max(x,0), x.nrows());
-      return normalize(exp(x - max_cols), 0);
-    }
-    if( axis == 1){
-      Matrix max_rows = tile(max(x,1), x.ncols(), 1);
-      return normalize(exp(x - max_rows),1);
-    }
-    return normalize(exp(x - max(x)));
+    Matrix result(x);
+    result.normalizeExp(axis);
+    return result;
   }
 
 
   // Safe LogSumExp(x)
   inline double logSumExp(const Matrix &x) {
+    double result = 0;
     double x_max = max(x);
-    return x_max + std::log(sum(exp(x - x_max)));
+    for(size_t i=0; i<x.size(); ++i)
+      result += std::exp(x(i) - x_max);
+    return x_max + std::log(result);
   }
 
   inline Vector logSumExp(const Matrix &x, int axis) {
     ASSERT_TRUE(axis==0 || axis==1, "Matrix::logSumExp axis out of bounds.");
+    Vector result;
     if(axis == 0){
       Vector col_max = max(x,0);
-      return col_max + log(sum(exp(x-tile(col_max, x.nrows())),0));
+      result = Vector::zeros(x.ncols());
+      for(size_t i=0; i < x.nrows(); ++i){
+        for(size_t j=0; j < x.ncols(); ++j){
+          result[j] += std::exp(x(i,j) - col_max[j]);
+        }
+      }
+      for(size_t j=0; j < x.ncols(); ++j){
+        result[j] = std::log(result[j]) + col_max[j];
+      }
+    } else {
+      Vector row_max = max(x,1);
+      result = Vector::zeros(x.nrows());
+      for(size_t i=0; i < x.nrows(); ++i){
+        for(size_t j=0; j < x.ncols(); ++j){
+          result[i] += std::exp(x(i,j) - row_max[i]);
+        }
+      }
+      for(size_t i=0; i < x.nrows(); ++i){
+        result[i] = std::log(result[i]) + row_max[i];
+      }
     }
-    Vector row_max = max(x,1);
-    return row_max + log(sum(exp(x-tile(row_max, x.ncols(), 1)),1));
+    return result;
   }
 
   double kl_div(const Matrix &x, const Matrix &y){
