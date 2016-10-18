@@ -742,8 +742,7 @@ namespace pml {
       }
 
       void normalize(size_t axis = 2){
-        ASSERT_TRUE(axis>=0 && axis<=2,
-                    "Matrix::normalize axis out of bounds.");
+        ASSERT_TRUE(axis<=2, "Matrix::normalize axis out of bounds.");
         if( axis == 0){
           Vector col_sums = sum(*this, 0);
           for(size_t i=0; i < nrows_; ++i)
@@ -762,8 +761,7 @@ namespace pml {
       }
 
       void normalizeExp(size_t axis = 2){
-        ASSERT_TRUE(axis>=0 && axis<=2,
-                    "Matrix::normalizeExp axis out of bounds.");
+        ASSERT_TRUE(axis<=2, "Matrix::normalizeExp axis out of bounds.");
         if( axis == 0) {
           Vector col_max = max(*this, 0);
           for(size_t i=0; i < nrows_; ++i)

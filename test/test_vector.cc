@@ -98,7 +98,7 @@ void test_vector_functions() {
 
   Vector z = log(v1);
   assert(normalizeExp(z).equals(normalize(v1)));
-  assert(logSumExp(z) == std::log(sum(v1)));
+  assert(fequal(logSumExp(z), std::log(sum(v1))));
 
   Vector v2 = {-1,-2,-3,-4,-5};
   assert(v1.equals(abs(v2)));
