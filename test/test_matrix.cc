@@ -120,7 +120,7 @@ void test_matrix_functions(){
   assert(normalizeExp(m5,1).equals(Matrix(2,2, {1.0/4, 2.0/6, 3.0/4, 4.0/6})));
 
   // LogSumExp
-  assert(logSumExp(m5) == std::log(10));
+  assert(fequal(logSumExp(m5), std::log(10)));
   assert(logSumExp(m5,0).equals(log(sum(m4,0))));
   assert(logSumExp(m5,1).equals(log(sum(m4,1))));
 
