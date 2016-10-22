@@ -60,19 +60,16 @@ namespace pml {
   // The files must end with one of the extensions in the extensions vector.
   // If 'fullpath' is set, the file paths are absolute, starting from '/'
   // Returned files are guaranteed to be in the alphabetical order.
-  inline std::vector <std::string> ls(std::string dirname, bool fullpath,
-                                      std::vector <std::string> extensions) {
+  inline std::vector <std::string> ls(std::string dirname, bool fullpath=false){
     std::vector <std::string> files;
     if (dir_exists(dirname)) {
       DIR *dir = opendir(dirname.c_str());
       struct dirent *dp;
       while ((dp = readdir(dir)) != NULL) {
-        if (ends_with(dp->d_name, extensions)) {
-          if (fullpath) {
-            files.push_back(make_path({dirname, dp->d_name}));
-          } else {
-            files.push_back(dp->d_name);
-          }
+        if (fullpath) {
+          files.push_back(make_path({dirname, dp->d_name}));
+        } else {
+          files.push_back(dp->d_name);
         }
       }
       closedir(dir);
