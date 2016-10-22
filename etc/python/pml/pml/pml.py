@@ -1,13 +1,15 @@
 import numpy as np
 
+
 def loadTxt(filename):
     X = np.loadtxt(filename)
-    dim = int(X[0]);
+    dim = int(X[0])
     size = []
     for i in range(dim):
-        size.append(int(X[i+1]));
+        size.append(int(X[i+1]))
     X = np.reshape(X[dim+1:], size, order='F')
-    return X;
+    return X
+
 
 def saveTxt(filename, X, format = '%.6f'):
     with open(filename, 'w') as f:
