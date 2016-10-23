@@ -507,12 +507,12 @@ namespace pml {
       }
 
       std::pair<Matrix, Vector> learn_parameters(const Matrix& obs,
+                                                 size_t max_iter = 100,
                                                  bool verbose = true){
-        size_t MAX_ITER = 100;
-        size_t MIN_ITER = 10;
+        size_t min_iter = 20;
         Vector ll;
 
-        for(size_t iter = 0; iter < MAX_ITER; ++iter){
+        for(size_t iter = 0; iter < max_iter; ++iter){
           // Forward_backward
           forward(obs);
           backward(obs);
@@ -544,7 +544,7 @@ namespace pml {
               }
               break;
             }
-            if( iter > MIN_ITER && ( ll_diff < 1e-6)){
+            if( iter > min_iter && ( ll_diff < 1e-6)){
               if(verbose) {
                 std::cout << "converged.\n";
               }
