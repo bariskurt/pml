@@ -522,9 +522,13 @@ namespace pml {
         if(m.empty())
           return;
         if(axis == 0){
-          // Append rowwise
-          ASSERT_TRUE(empty() || ncols() == m.ncols(),
-              "Matrix::append(const Matrix &, 1):: column sizes mismatch.");
+          // Append row-wise
+          if(empty()){
+            ncols_ = m.ncols();
+          } else {
+            ASSERT_TRUE(ncols() == m.ncols(),
+                  "Matrix::append(const Matrix &, 1):: column sizes mismatch.");
+          }
           std::vector<double> new_data(size() + m.size());
           size_t nrows_new = nrows() + m.nrows();
           for(size_t i=0; i < ncols(); ++i){
@@ -536,9 +540,13 @@ namespace pml {
           data_ = std::move(new_data);
           nrows_ = nrows_new;
         } else {
-          // Append columnwise
-          ASSERT_TRUE(empty() || nrows() == m.nrows(),
-              "Matrix::append(const Matrix &, 0):: row sizes mismatch.");
+          // Append column-wise
+          if(empty()){
+            nrows_ = m.nrows();
+          } else {
+            ASSERT_TRUE(nrows() == m.nrows(),
+                  "Matrix::append(const Matrix &, 1):: column sizes mismatch.");
+          }
           std::vector<double> new_data(size() + m.size());
           memcpy(new_data.data(), data(), sizeof(double) * size());
           memcpy(new_data.data() + size(), m.data(), sizeof(double) * m.size());

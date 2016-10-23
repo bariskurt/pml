@@ -211,20 +211,18 @@ void test_matrix_append(){
   assert(m2.getRow(1).equals(Vector({1,2,3,4})));
 
   // append column wise
-  Matrix m3 = cat(m1, m1);
-  m1.append(m1);
+  Matrix m3 = cat(Matrix(), m1);
+  assert(m3.equals(m1));
+  m3 = cat(m1, m1);
   for(int i=0; i < 4; ++i)
-    assert(m1.getColumn(i).equals(Vector({1,2,3,4})));
-  m1.equals(m3);
+    assert(m3.getColumn(i).equals(Vector({1,2,3,4})));
 
   // append row wise
-  Matrix m4 = cat(m2, m2, 0);
-  m2.append(m2, 0);
+  Matrix m4 = cat(Matrix(), m2, 0);
+  assert(m4.equals(m2));
+  m4 = cat(m2, m2, 0);
   for(int i=0; i < 4; ++i)
-    assert(m2.getRow(i).equals(Vector({1,2,3,4})));
-  m2.equals(m4);
-
-
+    assert(m4.getRow(i).equals(Vector({1,2,3,4})));
 
   std::cout << "OK\n";
 }
