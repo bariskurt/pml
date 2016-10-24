@@ -519,14 +519,19 @@ namespace pml {
 
           double cpp=0;
           double cpp_sum=0;
+          Vector ss;
           Matrix E_log_pi_weighted;
           for(size_t i=0; i < obs.ncols(); ++i) {
             Message<P> gamma = alpha_predict[i] * beta[i];
             cpp = gamma.cpp(beta[i].size());
             cpp_sum += cpp;
-            E_log_pi_weighted.appendColumn(compute_ss(gamma)*cpp);
+            if( i == 0){
+              ss = compute_ss(gamma)*cpp;
+            } else {
+              ss += compute_ss(gamma)*cpp;
+            }
           }
-          Vector ss = sum(E_log_pi_weighted, 1) / cpp_sum;
+          ss /= cpp_sum;
 
           // Log-likelihood
           ll.append(alpha.back().log_likelihood());
