@@ -174,7 +174,7 @@ namespace pml {
         return Vector({mu, std::pow(sigma,2)});
       }
 
-      void update(const Vector &ss) {
+      void fit(const Vector &ss) {
         mu = ss(0);
         sigma = std::sqrt(ss(1));
       }
@@ -211,6 +211,10 @@ namespace pml {
 
       virtual void loadTxt(const std::string &fname) {}
 
+      virtual void fit(const Vector &ss, double p1_new) {
+        std::cout << "fit model\n";
+      }
+
       std::pair<Matrix, Matrix> generateData(size_t length){
         Matrix states, obs;
         Vector state = prior.rand();
@@ -234,23 +238,44 @@ namespace pml {
   class PG_Model : public Model<GammaPotential> {
 
     public:
-      PG_Model(const GammaPotential &prior_, double p1_)
-          : Model(prior_, p1_) { }
+      PG_Model(const GammaPotential &prior_, double p1_, double scale_ = 0)
+          : Model(prior_, p1_) {
+        scale = scale_;
+      }
 
       Vector rand(const Vector &state) const override {
         return Poisson(state.first()).rand(1);
       }
+
+      void fit(const Vector &ss, double p1_new) override {
+        prior.fit(ss, scale);
+        set_p1(p1_new);
+      }
+
+    public:
+      double scale;
   };
 
   class DM_Model: public Model<DirichletPotential> {
 
     public:
-      DM_Model(const DirichletPotential &prior_, double p1_)
-          : Model(prior_, p1_){ }
+      DM_Model(const DirichletPotential &prior_, double p1_,
+               double precision_ = 0) : Model(prior_, p1_) {
+        precision = precision_;
+      }
 
       Vector rand(const Vector &state) const override {
         return Multinomial(state, 20).rand();
       }
+
+      void fit(const Vector &ss, double p1_new) override {
+        std::cout << "fit dm\n";
+        prior.fit(ss, precision);
+        set_p1(p1_new);
+      }
+
+    public:
+      double precision;
   };
 
   class G_Model: public Model<GaussianPotential> {
@@ -261,6 +286,11 @@ namespace pml {
 
       Vector rand(const Vector &state) const override {
         return Gaussian(state.first()).rand(1);
+      }
+
+      void fit(const Vector &ss, double p1_new) {
+        prior.fit(ss);
+        set_p1(p1_new);
       }
   };
 
@@ -559,9 +589,7 @@ namespace pml {
           }
 
           // M-Step:
-          model.prior.fit(ss);
-          model.set_p1(cpp_sum / obs.ncols());
-
+          model.fit(ss, cpp_sum / obs.ncols());
         }
 
         return smoothing(obs);

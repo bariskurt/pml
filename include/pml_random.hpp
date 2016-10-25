@@ -314,7 +314,7 @@ namespace pml {
       }
 
       static Dirichlet fit_mean(const Vector &ss, double precision){
-        Vector m = normalize(ss);
+        Vector m = normalizeExp(ss);
         Vector m_new;
         for(size_t iter=0; iter < MAX_ITER; iter++) {
           m_new = normalize(inv_psi(ss - dot(m , ss - psi(precision * m))));
@@ -322,7 +322,7 @@ namespace pml {
             break;
           m = m_new;
         }
-        return Dirichlet(precision * m_new);
+        return Dirichlet(precision * m);
       }
 
 

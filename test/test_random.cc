@@ -29,13 +29,13 @@ void test_dirichlet2() {
   std::cout << "test_dirichlet...\n";
 
   double K = 10;
-  Vector alpha = Dirichlet(Vector::ones(K)).rand() * K;
+  Vector alpha = Dirichlet(Vector::ones(K)).rand();
 
   Dirichlet dir(alpha);
 
   Matrix data = dir.rand(1000);
 
-  Dirichlet dir_est = Dirichlet::fit(mean(log(data),1), K);
+  Dirichlet dir_est = Dirichlet::fit(mean(log(data),1), 1);
 
   std::cout << "Original parameters : " << dir.alpha << std::endl;
   std::cout << "Estimated parameters: " << dir_est.alpha << std::endl;

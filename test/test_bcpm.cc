@@ -8,7 +8,7 @@ void test_dm(){
 
   size_t K = 5;
   int lag = 10;
-  double p1 = 0.1;
+  double p1 = 0.01;
   Vector alpha = Vector::ones(K);
   size_t length = 500;
 
@@ -254,13 +254,13 @@ void test_g(){
 
 int main() {
 
-  // test_dm();
-  // test_dm_em();
+  //test_dm();
+  test_dm_em();
 
   // test_pg();
   // test_pg_em();
 
-  test_g();
+  //  test_g();
 
   return 0;
 }
