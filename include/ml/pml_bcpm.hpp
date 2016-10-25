@@ -76,7 +76,7 @@ namespace pml {
         return psi(alpha) - psi(sum(alpha));
       }
 
-      void fit(const Vector &ss, double precision = -1){
+      void fit(const Vector &ss, double precision = 0){
         alpha = Dirichlet::fit(ss, precision).alpha;
       }
 
@@ -127,8 +127,8 @@ namespace pml {
 
       }
 
-      void fit(const Vector &ss){
-        Gamma g_est = Gamma::fit(ss[0],ss[1]);
+      void fit(const Vector &ss, double scale = 0){
+        Gamma g_est = Gamma::fit(ss[0], ss[1], scale);
         a = g_est.a;
         b = g_est.b;
       }
