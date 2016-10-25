@@ -229,10 +229,15 @@ namespace pml {
       }
 
       static Gamma fit(const Vector &data, double scale = 0){
-        if ( scale > 0 ){
+        if ( scale > 0 )
           return Gamma::fit_shape(mean(log(data)), scale);
-        }
         return Gamma::fit_all(mean(data), mean(log(data)));
+      }
+
+      static Gamma fit(double mean_x, double mean_log_x, double scale = 0){
+        if ( scale > 0 )
+          return fit_shape(mean_log_x, scale);
+        return fit_all(mean_x, mean_log_x);
       }
 
     private:
@@ -289,9 +294,8 @@ namespace pml {
       }
 
       static Dirichlet fit(const Vector &ss, double precision = 0){
-        if(precision > 0){
+        if(precision > 0)
           return fit_mean(ss, precision);
-        }
         return fit_all(ss);
       }
 
