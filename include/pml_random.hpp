@@ -228,12 +228,15 @@ namespace pml {
         return gsl_ran_gamma_knuth(rnd_get_rng(), a, b);
       }
 
-      static Gamma fit(const Vector &data){
-        return Gamma::fit(mean(data), mean(log(data)));
+      static Gamma fit(const Vector &data, double scale = 0){
+        if ( scale > 0 ){
+          return Gamma::fit_shape(mean(log(data)), scale);
+        }
+        return Gamma::fit_all(mean(data), mean(log(data)));
       }
 
-      static Gamma fit(double mean_x, double mean_log_x){
-        //std::cout << "ss : " << mean_x << ", " << mean_log_x << std::endl;
+    private:
+      static Gamma fit_all(double mean_x, double mean_log_x){
         double log_mean_x = std::log(mean_x);
         double a = 0.5 / (log_mean_x - mean_log_x);
         for(size_t iter = 0; iter < MAX_ITER; ++iter){
@@ -245,6 +248,10 @@ namespace pml {
         return Gamma(a, b);
       }
 
+      static Gamma fit_shape(double mean_log_x, double scale){
+        return Gamma(inv_psi(mean_log_x - std::log(scale)), scale);
+      }
+      /*
       static Gamma fit2(double mean_x, double mean_log_x){
         double log_mean_x = std::log(mean_x);
         double a = 0.5 / (log_mean_x - mean_log_x);
@@ -254,6 +261,7 @@ namespace pml {
         double b = mean_x / a;
         return Gamma(a, b);
       }
+      */
 
     public:
       double a, b;
@@ -262,7 +270,7 @@ namespace pml {
 
   class Dirichlet : public DistributionND {
     private:
-      static const size_t MIN_ITER = 100;
+      static const size_t MIN_ITER = 1;
       static const size_t MAX_ITER = 1000;
 
     public:
@@ -275,12 +283,20 @@ namespace pml {
         return result;
       }
 
-      static Dirichlet fit(const Matrix &data){
+      static Dirichlet fit(const Matrix &data, double precision = 0){
         Vector ss = mean(log(data),1); // sufficient statistics
-        return fit(ss);
+        return fit(ss, precision);
       }
 
-      static Dirichlet fit(const Vector &ss){
+      static Dirichlet fit(const Vector &ss, double precision = 0){
+        if(precision > 0){
+          return fit_mean(ss, precision);
+        }
+        return fit_all(ss);
+      }
+
+    private:
+      static Dirichlet fit_all(const Vector &ss){
         Vector alpha = normalize(ss);
         Vector alpha_new;
         for(size_t iter=0; iter < MAX_ITER; iter++) {
@@ -292,6 +308,19 @@ namespace pml {
         }
         return Dirichlet(alpha);
       }
+
+      static Dirichlet fit_mean(const Vector &ss, double precision){
+        Vector m = normalize(ss);
+        Vector m_new;
+        for(size_t iter=0; iter < MAX_ITER; iter++) {
+          m_new = normalize(inv_psi(ss - dot(m , ss - psi(precision * m))));
+          if( iter > 10 && sum(abs(m-m_new)) < 1e-6 )
+            break;
+          m = m_new;
+        }
+        return Dirichlet(precision * m_new);
+      }
+
 
     public:
       Vector alpha;

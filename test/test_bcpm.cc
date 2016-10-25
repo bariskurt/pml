@@ -10,7 +10,7 @@ void test_dm(){
   int lag = 10;
   double p1 = 0.1;
   Vector alpha = Vector::ones(K);
-  size_t length = 100;
+  size_t length = 500;
 
   // Generate Model
   DM_Model model(DirichletPotential(alpha), p1);
@@ -244,23 +244,23 @@ void test_g(){
   result.first.saveTxt("/tmp/mean3.txt");
   result.second.saveTxt("/tmp/cpp3.txt");
 
-  //std::cout << "Visualizing...\n";
-  //if(system("python3 ../test/python/test_bcpm_pg.py False")){
-  //  std::cout <<"plotting error...\n";
-  //}
+  std::cout << "Visualizing...\n";
+  if(system("anaconda3 ../test/python/test_bcpm_pg.py False")){
+    std::cout <<"plotting error...\n";
+  }
   cout << "OK.\n";
 
 }
 
 int main() {
 
-  //test_dm();
-  test_dm_em();
+  // test_dm();
+  // test_dm_em();
 
-  //test_pg();
+  // test_pg();
   // test_pg_em();
 
-  // test_g();
+  test_g();
 
   return 0;
 }

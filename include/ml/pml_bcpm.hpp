@@ -42,6 +42,7 @@ namespace pml {
         *this = this->operator*(p);
       }
 
+
       DirichletPotential operator*(const DirichletPotential &p) const{
 
         double delta = std::lgamma(sum(alpha)) - sum(lgamma(alpha)) +
@@ -75,8 +76,8 @@ namespace pml {
         return psi(alpha) - psi(sum(alpha));
       }
 
-      void update(const Vector &ss){
-        alpha = Dirichlet::fit(ss).alpha;
+      void fit(const Vector &ss, double precision = -1){
+        alpha = Dirichlet::fit(ss, precision).alpha;
       }
 
     public:
@@ -126,7 +127,7 @@ namespace pml {
 
       }
 
-      void update(const Vector &ss){
+      void fit(const Vector &ss){
         Gamma g_est = Gamma::fit(ss[0],ss[1]);
         a = g_est.a;
         b = g_est.b;
@@ -558,7 +559,7 @@ namespace pml {
           }
 
           // M-Step:
-          model.prior.update(ss);
+          model.prior.fit(ss);
           model.set_p1(cpp_sum / obs.ncols());
 
         }

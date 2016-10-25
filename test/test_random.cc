@@ -20,11 +20,29 @@ void test_dirichlet() {
   Dirichlet dir_est = Dirichlet::fit(data);
 
   std::cout << "Original parameters : " << dir.alpha << std::endl;
-
   std::cout << "Estimated parameters: " << dir_est.alpha << std::endl;
 
   std::cout << "OK.\n\n";
 }
+
+void test_dirichlet2() {
+  std::cout << "test_dirichlet...\n";
+
+  double K = 10;
+  Vector alpha = Dirichlet(Vector::ones(K)).rand() * K;
+
+  Dirichlet dir(alpha);
+
+  Matrix data = dir.rand(1000);
+
+  Dirichlet dir_est = Dirichlet::fit(mean(log(data),1), K);
+
+  std::cout << "Original parameters : " << dir.alpha << std::endl;
+  std::cout << "Estimated parameters: " << dir_est.alpha << std::endl;
+
+  std::cout << "OK.\n\n";
+}
+
 
 void test_gamma() {
   std::cout << "test_gamma...\n";
@@ -34,7 +52,7 @@ void test_gamma() {
 
   Gamma gamma(a,b);
 
-  Vector data = gamma.rand(2);
+  Vector data = gamma.rand(100);
 
   Gamma gamma_est = Gamma::fit(data);
 
@@ -68,6 +86,7 @@ void test_categorical(){
 int main(){
 
   test_dirichlet();
+  test_dirichlet2();
   test_gamma();
   test_categorical();
 
