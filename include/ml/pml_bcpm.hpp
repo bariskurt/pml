@@ -212,7 +212,7 @@ namespace pml {
       virtual void loadTxt(const std::string &fname) {}
 
       virtual void fit(const Vector &ss, double p1_new) {
-        std::cout << "fit model\n";
+        std::cout << "Warning: implement your fit model!\n";
       }
 
       std::pair<Matrix, Matrix> generateData(size_t length){
@@ -269,7 +269,6 @@ namespace pml {
       }
 
       void fit(const Vector &ss, double p1_new) override {
-        std::cout << "fit precition: " << precision << std::endl;
         prior.fit(ss, precision);
         set_p1(p1_new);
       }
@@ -288,7 +287,7 @@ namespace pml {
         return Gaussian(state.first()).rand(1);
       }
 
-      void fit(const Vector &ss, double p1_new) {
+      void fit(const Vector &ss, double p1_new) override {
         prior.fit(ss);
         set_p1(p1_new);
       }
