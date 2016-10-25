@@ -269,7 +269,7 @@ namespace pml {
       }
 
       void fit(const Vector &ss, double p1_new) override {
-        std::cout << "fit dm\n";
+        std::cout << "fit precition: " << precision << std::endl;
         prior.fit(ss, precision);
         set_p1(p1_new);
       }
@@ -372,8 +372,12 @@ namespace pml {
 
   template <class P>
   class ForwardBackward {
+
+    using ModelType = Model<P>;
+    using MessageType = Message<P>;
+
     public:
-      ForwardBackward(const Model<P> &model_, int max_components_ = 100)
+      ForwardBackward(ModelType *model_, int max_components_ = 100)
           :model(model_), max_components(max_components_){
         alpha.clear();
         alpha_predict.clear();
@@ -381,21 +385,21 @@ namespace pml {
       }
 
     public:
-      Message<P> predict(const Message<P>& prev){
-        Message<P> message = prev;
+      MessageType predict(const Message<P>& prev){
+        MessageType message = prev;
         Vector consts;
         for(auto &potential : message.potentials){
           consts.append(potential.log_c);
-          potential.log_c += model.log_p0;
+          potential.log_c += model->log_p0;
         }
-        message.add_potential(model.prior, model.log_p1 + logSumExp(consts));
+        message.add_potential(model->prior, model->log_p1 + logSumExp(consts));
         return message;
       }
 
-      Message<P> update(const Message<P> &prev, const Vector &obs){
-        Message<P> message = prev;
+      MessageType update(const MessageType &prev, const Vector &obs){
+        MessageType message = prev;
         for(auto &potential : message.potentials) {
-          potential *= model.obs2Potential(obs);
+          potential *= model->obs2Potential(obs);
         }
         return message;
       }
@@ -429,8 +433,8 @@ namespace pml {
         // Predict step
         if (alpha_predict.empty()) {
           Message<P> message;
-          message.add_potential(model.prior, model.log_p0);
-          message.add_potential(model.prior, model.log_p1);
+          message.add_potential(model->prior, model->log_p0);
+          message.add_potential(model->prior, model->log_p1);
           alpha_predict.push_back(message);
         }
         else {
@@ -448,24 +452,24 @@ namespace pml {
           idx = obs.ncols()-1;
         }
         beta.clear();
-        Message<P> message;
+        MessageType message;
         for(size_t t = 0; t < steps; ++t, --idx){
           double c = 0;
           if(!beta.empty()){
             // Predict for case s_t = 1, calculate constant only
-            Message<P> temp = beta.back();
+            MessageType temp = beta.back();
             for(auto &potential : temp.potentials){
-              potential *= model.prior;
+              potential *= model->prior;
             }
-            c = model.log_p1 + temp.log_likelihood();
+            c = model->log_p1 + temp.log_likelihood();
 
             // Update :
             message = update(beta.back(), obs.getColumn(idx));
             for(auto &potential : message.potentials){
-              potential.log_c += model.log_p0;
+              potential.log_c += model->log_p0;
             }
           }
-          P pot = model.obs2Potential(obs.getColumn(idx));
+          P pot = model->obs2Potential(obs.getColumn(idx));
           pot.log_c += c;
           message.add_potential(pot);
           message.prune(max_components);
@@ -484,22 +488,21 @@ namespace pml {
         Matrix mean;
         Vector cpp;
         for(size_t i=0; i < obs.ncols(); ++i) {
-          Message<P> gamma = alpha_predict[i] * beta[i];
+          MessageType gamma = alpha_predict[i] * beta[i];
           mean.appendColumn(gamma.mean());
           cpp.append(gamma.cpp(beta[i].size()));
         }
         return {mean, cpp};
       }
 
-      std::pair<Matrix, Vector> online_smoothing(const Matrix& obs,
-                                                 size_t lag) {
+      std::pair<Matrix, Vector> online_smoothing(const Matrix& obs, size_t lag){
         if(lag == 0)
           return filtering(obs);
 
         if(lag >= obs.ncols())
           return smoothing(obs);
 
-        Message<P> gamma;
+        MessageType gamma;
         Matrix mean;
         Vector cpp;
 
@@ -525,7 +528,7 @@ namespace pml {
         return {mean, cpp};
       }
 
-      Vector compute_ss(const Message<P> &message) {
+      Vector compute_ss(const MessageType &message) {
         Matrix tmp;
         Vector norm_consts;
         for(auto &potential : message.potentials){
@@ -553,7 +556,7 @@ namespace pml {
           Vector ss;
           Matrix E_log_pi_weighted;
           for(size_t i=0; i < obs.ncols(); ++i) {
-            Message<P> gamma = alpha_predict[i] * beta[i];
+            MessageType gamma = alpha_predict[i] * beta[i];
             cpp = gamma.cpp(beta[i].size());
             cpp_sum += cpp;
             if( i == 0){
@@ -589,7 +592,7 @@ namespace pml {
           }
 
           // M-Step:
-          model.fit(ss, cpp_sum / obs.ncols());
+          model->fit(ss, cpp_sum / obs.ncols());
         }
 
         return smoothing(obs);
@@ -597,18 +600,18 @@ namespace pml {
 
 
     public:
-      Model<P> model;
+      ModelType *model;
       int max_components;
 
     private:
-      std::vector<Message<P>> alpha;
-      std::vector<Message<P>> alpha_predict;
-      std::vector<Message<P>> beta;
+      std::vector<MessageType> alpha;
+      std::vector<MessageType> alpha_predict;
+      std::vector<MessageType> beta;
 
   };
 
-  using PG_ForwardBackward = ForwardBackward<GammaPotential>;
   using DM_ForwardBackward = ForwardBackward<DirichletPotential>;
+  using PG_ForwardBackward = ForwardBackward<GammaPotential>;
   using G_ForwardBackward = ForwardBackward<GaussianPotential>;
 
 } // namespace

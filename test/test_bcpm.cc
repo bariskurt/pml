@@ -24,7 +24,7 @@ void test_dm(){
   // Filtering and Smoothing
   Matrix mean;
   Vector cpp;
-  DM_ForwardBackward fb(model);
+  DM_ForwardBackward fb(&model);
 
   // Filtering
   std::cout << "Filtering...\n";
@@ -55,8 +55,8 @@ void test_dm_em(){
   cout << "test_dm_em()...\n";
 
   size_t K = 8;
-  size_t length = 200;
-  double c = 0.01;
+  size_t length = 50;
+  double c = 0.1;
   Vector alpha = Uniform(0, 10).rand(K);
 
   // Generate data:
@@ -76,30 +76,30 @@ void test_dm_em(){
   std::cout << "Num. change points: " << sum(cps) << std::endl;
 
   // Estimate with true parameters
-  DM_ForwardBackward fb(model);
+  DM_ForwardBackward fb(&model);
   auto result = fb.smoothing(obs);
   result.first.saveTxt("/tmp/mean.txt");
   result.second.saveTxt("/tmp/cpp.txt");
 
   // Learn parameters
   double c_init = 0.0001;
-  Vector alpha_init = Uniform(0, 10).rand(K);
+  Vector alpha_init = normalize(Uniform(0, 10).rand(K));
   DM_Model init_model(DirichletPotential(alpha_init), c_init);
-  DM_ForwardBackward fb2(init_model);
+  DM_ForwardBackward fb2(&init_model);
   result = fb2.learn_parameters(obs);
   result.first.saveTxt("/tmp/mean2.txt");
   result.second.saveTxt("/tmp/cpp2.txt");
 
   // Smoothing with dummy parameters
-  DM_ForwardBackward fb_dummy(init_model);
+  DM_ForwardBackward fb_dummy(&init_model);
   auto result_dummy = fb_dummy.smoothing(obs);
   result_dummy.first.saveTxt("/tmp/mean3.txt");
   result_dummy.second.saveTxt("/tmp/cpp3.txt");
 
   std::cout << "-----------\n";
   std::cout << alpha << std::endl;
-  fb2.model.prior.print();
-  std::cout << fb2.model.p1 << std::endl;
+  fb2.model->prior.print();
+  std::cout << fb2.model->p1 << std::endl;
   std::cout << "-----------\n";
 
   if(system("anaconda3 ../test/python/test_bcpm_dm.py True")){
@@ -127,7 +127,7 @@ void test_pg(){
   states.saveTxt("/tmp/states.txt");
 
   // Estimate with true parameters
-  PG_ForwardBackward fb(model);
+  PG_ForwardBackward fb(&model);
 
   std::cout << "Filtering...\n";
   auto result = fb.filtering(obs);
@@ -172,7 +172,7 @@ void test_pg_em(){
 //  states = Matrix::loadTxt("/tmp/states.txt");
 
   // Filtering with true parameters
-  PG_ForwardBackward fb(model);
+  PG_ForwardBackward fb(&model);
   auto result = fb.smoothing(obs);
   result.first.saveTxt("/tmp/mean.txt");
   result.second.saveTxt("/tmp/cpp.txt");
@@ -183,7 +183,7 @@ void test_pg_em(){
   double init_b = 1;
 
   PG_Model init_model(GammaPotential(init_a, init_b), init_c);
-  PG_ForwardBackward fb_em(init_model);
+  PG_ForwardBackward fb_em(&init_model);
 
   auto result_em = fb_em.learn_parameters(obs);
   result_em.first.saveTxt("/tmp/mean2.txt");
@@ -191,13 +191,13 @@ void test_pg_em(){
 
   std::cout << "Original parameters: a = " << a << ", b = " << b
             << ", c = " << c << std::endl;
-  std::cout << "Estimated parameters: a = " << fb_em.model.prior.a
-            << ", b = " << fb_em.model.prior.b
-            << ", c = " << fb_em.model.p1 << std::endl;
+  std::cout << "Estimated parameters: a = " << fb_em.model->prior.a
+            << ", b = " << fb_em.model->prior.b
+            << ", c = " << fb_em.model->p1 << std::endl;
 
 
   // Smoothing with dummy parameters
-  PG_ForwardBackward fb_dummy(init_model);
+  PG_ForwardBackward fb_dummy(&init_model);
   auto result_dummy = fb_dummy.smoothing(obs);
   result_dummy.first.saveTxt("/tmp/mean3.txt");
   result_dummy.second.saveTxt("/tmp/cpp3.txt");
@@ -225,7 +225,7 @@ void test_g(){
   states.saveTxt("/tmp/states.txt");
 
   // Estimate with true parameters
-  G_ForwardBackward fb(model);
+  G_ForwardBackward fb(&model);
 
   std::cout << "Filtering...\n";
   auto result = fb.filtering(obs);
