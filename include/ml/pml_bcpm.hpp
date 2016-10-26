@@ -79,7 +79,7 @@ namespace pml {
       }
 
 
-      void print(){
+      void print() const{
         std::cout << alpha << " log_c:" << log_c << std::endl;
       }
 
@@ -129,7 +129,7 @@ namespace pml {
         return Vector({a*b, psi(a) + std::log(b)});
       }
 
-      void print(){
+      void print() const  {
         std::cout << "a:" << a << "  b:" << b
                   << "  log_c: " << log_c << std::endl;
       }
@@ -243,10 +243,10 @@ namespace pml {
   class PG_Model : public Model<GammaPotential> {
 
     public:
-      PG_Model(double a, double b, double p1_, bool fixed_scale_ = false)
+      PG_Model(double a, double b, double p1_, bool fixed_scale = false)
           :Model(p1_) {
         prior = GammaPotential(a, b);
-        fixed_scale = fixed_scale_;
+        scale = fixed_scale ? b : 0;
       }
 
       Vector rand(const Vector &state) const override {
@@ -254,10 +254,7 @@ namespace pml {
       }
 
       void fit(const Vector &ss, double p1_new) override {
-        if( fixed_scale)
-          prior.fit(ss, prior.b);
-        else
-          prior.fit(ss);
+        prior.fit(ss, scale);
         set_p1(p1_new);
       }
 
@@ -266,34 +263,33 @@ namespace pml {
         Vector temp;
         temp.append(prior.a);
         temp.append(prior.b);
-        temp.append(fixed_scale);
+        temp.append((int)(scale == 0));
         temp.saveTxt(filename, precision);
       }
 
       void loadTxt(const std::string &filename) override{
         Vector temp = Vector::loadTxt(filename);
         prior = GammaPotential(temp(0), temp(1));
-        fixed_scale = temp(2);
+        scale = temp(2) ? prior.b : 0;
       }
 
       void print() const override{
         std::cout << "PG_Model:\n";
         std::cout << "a = " << prior.a << "\tb = " << prior.b << "\tp1 = " << p1
-                  << "\tfixed_scale = " << fixed_scale << std::endl;
+                  << "\tfixed_scale = " << (int)(scale == 0) << std::endl;
       }
 
     public:
-      bool fixed_scale;
+      double scale;
   };
 
   class DM_Model: public Model<DirichletPotential> {
 
     public:
       DM_Model(const Vector &alpha, double p1_,
-               bool fixed_precision_ = false) : Model( p1_) {
+               bool fixed_precision = false) : Model( p1_) {
         prior = DirichletPotential(alpha);
-        fixed_precision = fixed_precision_;
-        precision = sum(alpha);
+        precision = fixed_precision ? sum(alpha) : 0;
       }
 
       Vector rand(const Vector &state) const override {
@@ -301,35 +297,31 @@ namespace pml {
       }
 
       void fit(const Vector &ss, double p1_new) override {
-        if( fixed_precision )
-          prior.fit(ss, precision);
-        else
-          prior.fit(ss);
+        prior.fit(ss, precision);
         set_p1(p1_new);
       }
 
       void saveTxt(const std::string &filename) const override{
-        const int precision = 10;
+        const int txt_precision = 10;
         Vector temp = prior.alpha;
-        temp.append(fixed_precision);
-        temp.saveTxt(filename, precision);
+        temp.append(precision == 0);
+        temp.saveTxt(filename, txt_precision);
       }
 
       void loadTxt(const std::string &filename){
         Vector temp = Vector::loadTxt(filename);
         prior = DirichletPotential(temp.getSlice(0, temp.size()-1));
-        fixed_precision = temp.last();
+        precision = temp.last() ? sum(prior.alpha) : 0;
       }
 
       void print() const override{
         std::cout << "DM_Model: \n";
         std::cout << "\talpha = " << prior.alpha << std::endl;
         std::cout << "\tp1 = " << p1 << std::endl;
-        std::cout << "\tfixed_precision = " << fixed_precision << std::endl;
+        std::cout << "\tfixed_precision = " << (int)(precision == 0) << "\n";
       }
 
     public:
-      bool fixed_precision;
       double precision;
   };
 
@@ -647,7 +639,7 @@ namespace pml {
           ll.append(alpha.back().log_likelihood());
           if(verbose) {
             std::cout << "iter: " << iter
-                      << ", loglikelihood : " << ll.last() << std::endl;
+                      << "\tloglikelihood : " << ll.last() << std::endl;
           }
 
           if(iter > 0 ){
