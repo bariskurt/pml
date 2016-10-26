@@ -182,7 +182,7 @@ void test_pg_em(){
   obs.saveTxt("/tmp/obs.txt");
   states.saveTxt("/tmp/states.txt");
 
-  // Filtering with true parameters
+  // Smoothing with true parameters
   PG_ForwardBackward fb(&model);
   auto result = fb.smoothing(obs);
   result.first.saveTxt("/tmp/mean.txt");
@@ -267,15 +267,70 @@ void test_g(){
 
 }
 
+void test_g_em(){
+
+  double p1 = 0.01;
+  double mu = 3;
+  double sigma = 2;
+  size_t length = 200;
+
+  // Generate data:
+  Matrix states, obs;
+  G_Model model(mu, sigma, p1);
+  std::tie(states, obs) = model.generateData(length);
+
+  // Save data:
+  obs.saveTxt("/tmp/obs.txt");
+  states.saveTxt("/tmp/states.txt");
+
+  // Estimate with true parameters
+  G_ForwardBackward fb(&model);
+  auto result = fb.smoothing(obs);
+  result.first.saveTxt("/tmp/mean.txt");
+  result.second.saveTxt("/tmp/cpp.txt");
+
+  // Random init a model
+  G_Model init_model(Uniform(0, 5).rand(), Uniform(0, 5).rand(), p1);
+  G_Model em_model = init_model;
+
+  G_ForwardBackward fb_em(&em_model);
+  result = fb_em.smoothing(obs);
+  result.first.saveTxt("/tmp/mean2.txt");
+  result.second.saveTxt("/tmp/cpp2.txt");
+
+  result = fb_em.learn_parameters(obs);
+  result.first.saveTxt("/tmp/mean3.txt");
+  result.second.saveTxt("/tmp/cpp3.txt");
+
+  std::cout << "-----------\n";
+  std::cout << "True model:\n";
+  model.print();
+  std::cout << "-----------\n";
+  std::cout << "EM(initial) model:\n";
+  init_model.print();
+  std::cout << "-----------\n";
+  std::cout << "EM(final) model:\n";
+  em_model.print();
+  std::cout << "-----------\n";
+
+  std::cout << "Visualizing...\n";
+  if(system("anaconda3 ../test/python/test_bcpm_pg.py True")){
+    std::cout <<"plotting error...\n";
+  }
+  cout << "OK.\n";
+
+}
+
 int main() {
 
   // test_dm();
-  // test_dm_em();
+  test_dm_em();
 
   //test_pg();
   //test_pg_em();
 
-  test_g();
+  //test_g();
+  //test_g_em();
 
   return 0;
 }

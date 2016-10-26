@@ -363,7 +363,11 @@ namespace pml {
         prior = GaussianPotential(temp(0), temp(1));
       }
 
-      void print() const override{}
+      void print() const override{
+        std::cout << "G_Model: \n";
+        std::cout << "\tmu = " << prior.mu << "\tsigma = " << prior.sigma
+                  << "\tp1 = " << p1 << std::endl;
+      }
   };
 
   template <class P>

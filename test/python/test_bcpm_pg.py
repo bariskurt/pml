@@ -53,10 +53,10 @@ def plot_pg(em_result=False):
 
     if em_result == 'True' or em_result == '1' or em_result == True:
         ax1.set_title("CPP Smoothing - true parameters")
-        ax2.set_title("CPP Smoothing - initial EM")
-        ax3.set_title("CPP Smoothing - after EM")
+        ax2.set_title("CPP Smoothing - EM initial")
+        ax3.set_title("CPP Smoothing - EM final")
         ax0.legend(['Hidden States', 'Observations', 'Mean Smoothing(True)',
-                    'Mean Smoothing(EM)', 'Mean Smoothing(dummy)'])
+                    'Mean Smoothing(EM initial)', 'Mean Smoothing(EM final)'])
     else:
         ax1.set_title("CPP Filtering")
         ax2.set_title("CPP Smoothing")
