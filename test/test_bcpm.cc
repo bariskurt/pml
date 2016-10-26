@@ -7,13 +7,16 @@ void test_dm(){
   cout << "test_dm()...\n";
 
   size_t K = 5;
-  int lag = 10;
+  double precision = K;
+  bool fixed_precision = false;
+  Vector alpha = normalize(Vector::ones(K)) * precision;
   double p1 = 0.01;
-  Vector alpha = Vector::ones(K);
+
+  size_t lag = 10;
   size_t length = 500;
 
   // Generate Model
-  DM_Model model(DirichletPotential(alpha), p1);
+  DM_Model model(alpha, p1, fixed_precision);
 
   // Generate Sequence
   Matrix states, obs;
@@ -21,7 +24,7 @@ void test_dm(){
   states.saveTxt("/tmp/states.txt");
   obs.saveTxt("/tmp/obs.txt");
 
-  // Filtering and Smoothing
+  // Generate Forward-Backward
   Matrix mean;
   Vector cpp;
   DM_ForwardBackward fb(&model);
@@ -54,14 +57,17 @@ void test_dm_em(){
 
   cout << "test_dm_em()...\n";
 
-  size_t K = 8;
-  size_t length = 50;
-  double c = 0.1;
-  Vector alpha = Uniform(0, 10).rand(K);
+  size_t K = 5;
+  double precision = K;
+  bool fixed_precision = true;
+  Vector alpha = normalize(Vector::ones(K)) * precision;
+  double p1 = 0.01;
+
+  size_t length = 100;
 
   // Generate data:
   Matrix states, obs;
-  DM_Model model(DirichletPotential(alpha), c);
+  DM_Model model(alpha, p1, fixed_precision);
   std::tie(states, obs) = model.generateData(length);
 
   // Real Change Points
@@ -73,7 +79,6 @@ void test_dm_em(){
   obs.saveTxt("/tmp/obs.txt");
   states.saveTxt("/tmp/states.txt");
   cps.saveTxt("/tmp/cps.txt");
-  std::cout << "Num. change points: " << sum(cps) << std::endl;
 
   // Estimate with true parameters
   DM_ForwardBackward fb(&model);
@@ -83,23 +88,30 @@ void test_dm_em(){
 
   // Learn parameters
   double c_init = 0.0001;
-  Vector alpha_init = normalize(Uniform(0, 10).rand(K));
-  DM_Model init_model(DirichletPotential(alpha_init), c_init);
-  DM_ForwardBackward fb2(&init_model);
-  result = fb2.learn_parameters(obs);
+  DM_Model em_model(DirichletPotential::rand_gen(K, precision).alpha,
+                    c_init, fixed_precision);
+  DM_Model em_init_model = em_model;
+  DM_ForwardBackward fb_em(&em_model);
+
+  // Run with EM inital
+  result = fb_em.smoothing(obs);
   result.first.saveTxt("/tmp/mean2.txt");
   result.second.saveTxt("/tmp/cpp2.txt");
 
-  // Smoothing with dummy parameters
-  DM_ForwardBackward fb_dummy(&init_model);
-  auto result_dummy = fb_dummy.smoothing(obs);
-  result_dummy.first.saveTxt("/tmp/mean3.txt");
-  result_dummy.second.saveTxt("/tmp/cpp3.txt");
+  // Learn parameters
+  result = fb_em.learn_parameters(obs);
+  result.first.saveTxt("/tmp/mean3.txt");
+  result.second.saveTxt("/tmp/cpp3.txt");
 
   std::cout << "-----------\n";
-  std::cout << alpha << std::endl;
-  fb2.model->prior.print();
-  std::cout << fb2.model->p1 << std::endl;
+  std::cout << "True model:\n";
+  model.print();
+  std::cout << "-----------\n";
+  std::cout << "EM(initial) model:\n";
+  em_init_model.print();
+  std::cout << "-----------\n";
+  std::cout << "EM(final) model:\n";
+  em_model.print();
   std::cout << "-----------\n";
 
   if(system("anaconda3 ../test/python/test_bcpm_dm.py True")){
@@ -116,10 +128,11 @@ void test_pg(){
   size_t length = 1000;
   double c = 0.01;
   double a = 10;
+  double b = 1;
 
   // Generate data:
   Matrix states, obs;
-  PG_Model model(GammaPotential(a, 1), c);
+  PG_Model model(a, b, c);
   std::tie(states, obs) = model.generateData(length);
 
   // Save data:
@@ -155,21 +168,19 @@ void test_pg(){
 void test_pg_em(){
   cout << "test_pg_em...\n";
   size_t length = 200;
-  double c = 0.05;
-  double a = 20;
-  double b = 10;
+  double p1 = 0.05;
+  double a = 10;
+  double b = 1;
+  bool fixed_scale = true;
 
   // Generate data:
   Matrix states, obs;
-  PG_Model model(GammaPotential(a, b), c);
+  PG_Model model(a, b, p1, fixed_scale);
   std::tie(states, obs) = model.generateData(length);
 
   // Save data:
   obs.saveTxt("/tmp/obs.txt");
   states.saveTxt("/tmp/states.txt");
-
-//  obs = Matrix::loadTxt("/tmp/obs.txt");
-//  states = Matrix::loadTxt("/tmp/states.txt");
 
   // Filtering with true parameters
   PG_ForwardBackward fb(&model);
@@ -177,30 +188,35 @@ void test_pg_em(){
   result.first.saveTxt("/tmp/mean.txt");
   result.second.saveTxt("/tmp/cpp.txt");
 
-
-  double init_c = 0.001;
+  // Generate random model for EM
+  double init_p1 = 0.001;
   double init_a = Uniform(0, 10).rand();
   double init_b = 1;
 
-  PG_Model init_model(GammaPotential(init_a, init_b), init_c);
-  PG_ForwardBackward fb_em(&init_model);
+  PG_Model init_model(init_a, init_b, init_p1, fixed_scale);
+  PG_Model em_model = init_model;
+  PG_ForwardBackward fb_em(&em_model);
 
-  auto result_em = fb_em.learn_parameters(obs);
+  // Run initial model:
+  auto result_em = fb_em.smoothing(obs);
   result_em.first.saveTxt("/tmp/mean2.txt");
   result_em.second.saveTxt("/tmp/cpp2.txt");
 
-  std::cout << "Original parameters: a = " << a << ", b = " << b
-            << ", c = " << c << std::endl;
-  std::cout << "Estimated parameters: a = " << fb_em.model->prior.a
-            << ", b = " << fb_em.model->prior.b
-            << ", c = " << fb_em.model->p1 << std::endl;
-
-
-  // Smoothing with dummy parameters
-  PG_ForwardBackward fb_dummy(&init_model);
-  auto result_dummy = fb_dummy.smoothing(obs);
+  // Run EM:
+  auto result_dummy = fb_em.learn_parameters(obs);
   result_dummy.first.saveTxt("/tmp/mean3.txt");
   result_dummy.second.saveTxt("/tmp/cpp3.txt");
+
+  std::cout << "-----------\n";
+  std::cout << "True model:\n";
+  model.print();
+  std::cout << "-----------\n";
+  std::cout << "EM(initial) model:\n";
+  init_model.print();
+  std::cout << "-----------\n";
+  std::cout << "EM(final) model:\n";
+  em_model.print();
+  std::cout << "-----------\n";
 
   if(system("anaconda3 ../test/python/test_bcpm_pg.py True")){
     std::cout <<"plotting error...\n";
@@ -214,10 +230,11 @@ void test_g(){
   double mu = 3;
   double sigma = 2;
   size_t length = 200;
+  size_t lag = 10;
 
   // Generate data:
   Matrix states, obs;
-  G_Model model(GaussianPotential(mu, sigma), p1);
+  G_Model model(mu, sigma, p1);
   std::tie(states, obs) = model.generateData(length);
 
   // Save data:
@@ -237,9 +254,7 @@ void test_g(){
   result.first.saveTxt("/tmp/mean2.txt");
   result.second.saveTxt("/tmp/cpp2.txt");
 
-
   std::cout << "Online smoothing...\n";
-  size_t lag = 10;
   result = fb.online_smoothing(obs, lag);
   result.first.saveTxt("/tmp/mean3.txt");
   result.second.saveTxt("/tmp/cpp3.txt");
@@ -254,13 +269,13 @@ void test_g(){
 
 int main() {
 
-  //test_dm();
-  test_dm_em();
+  // test_dm();
+  // test_dm_em();
 
-  // test_pg();
-  // test_pg_em();
+  //test_pg();
+  //test_pg_em();
 
-  //  test_g();
+  test_g();
 
   return 0;
 }

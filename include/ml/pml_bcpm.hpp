@@ -18,10 +18,10 @@ namespace pml {
         return this->log_c < other.log_c;
       }
 
+    public:
       virtual Vector rand() const = 0;
-
       virtual Vector mean() const = 0;
-
+      virtual Vector get_ss() const = 0;
 
     public:
       double log_c;
@@ -30,12 +30,17 @@ namespace pml {
   class DirichletPotential : public Potential {
 
     public:
-      DirichletPotential(size_t K, double log_c_ = 0) : Potential(log_c_) {
+      DirichletPotential(size_t K = 0, double log_c_ = 0) : Potential(log_c_) {
         alpha = Vector::ones(K);
       }
 
       DirichletPotential(const Vector& alpha_, double log_c_ = 0)
           : Potential(log_c_), alpha(alpha_) {}
+
+      static DirichletPotential rand_gen(size_t K, double precision = 1){
+        Vector alpha = normalize(Uniform().rand(K)) * precision;
+        return DirichletPotential(alpha);
+      }
 
     public:
       void operator*=(const DirichletPotential &p){
@@ -60,6 +65,7 @@ namespace pml {
         return DirichletPotential(obs+1, log_c);
       }
 
+    public:
       Vector rand() const override {
         return Dirichlet(alpha).rand();
       }
@@ -68,12 +74,13 @@ namespace pml {
         return normalize(alpha);
       }
 
-      void print(){
-        std::cout << alpha << " log_c:" << log_c << std::endl;
+      Vector get_ss() const override{
+        return psi(alpha) - psi(sum(alpha));
       }
 
-      Vector get_ss() const{
-        return psi(alpha) - psi(sum(alpha));
+
+      void print(){
+        std::cout << alpha << " log_c:" << log_c << std::endl;
       }
 
       void fit(const Vector &ss, double precision = 0){
@@ -109,6 +116,7 @@ namespace pml {
         return GammaPotential(obs.first()+1, 1);
       }
 
+    public:
       Vector rand() const override {
         return Gamma(a, b).rand(1);
       }
@@ -117,15 +125,15 @@ namespace pml {
         return Vector(1, a * b);
       }
 
+      Vector get_ss() const override {
+        return Vector({a*b, psi(a) + std::log(b)});
+      }
+
       void print(){
         std::cout << "a:" << a << "  b:" << b
-        << "  log_c: " << log_c << std::endl;
+                  << "  log_c: " << log_c << std::endl;
       }
 
-      Vector get_ss() const{
-        return Vector({a*b, psi(a) + std::log(b)});
-
-      }
 
       void fit(const Vector &ss, double scale = 0){
         Gamma g_est = Gamma::fit(ss[0], ss[1], scale);
@@ -151,17 +159,19 @@ namespace pml {
 
       friend GaussianPotential operator*(const GaussianPotential &g1,
                                          const GaussianPotential &g2) {
-        double s1 = std::pow(g1.sigma ,2);
-        double s2 = std::pow(g2.sigma ,2);
-        double mu = (g1.mu * s1 + g2.mu * s2 )/ (s1 + s2);
-        double sigma = ( s1 * s2 ) / (s1 + s2);
-        return GaussianPotential(mu, sigma, g1.log_c + g2.log_c);
+        double ss1 = std::pow(g1.sigma ,2);
+        double ss2 = std::pow(g2.sigma ,2);
+        double mu = (g1.mu * ss2 + g2.mu * ss1 ) / (ss1 + ss2);
+        double sigma = std::sqrt(( ss1 * ss2 ) / (ss1 + ss2));
+        double K = gsl_ran_gaussian_pdf(g1.mu - g2.mu , std::sqrt(ss1 + ss2));
+        return GaussianPotential(mu, sigma, K + g1.log_c + g2.log_c);
       }
 
       GaussianPotential obs2Potential(const Vector& obs) const {
-        return GaussianPotential(obs.first(), sigma);
+        return GaussianPotential(obs.first());
       }
 
+    public:
       Vector rand() const override {
         return Gaussian(mu, sigma).rand(1);
       }
@@ -170,7 +180,7 @@ namespace pml {
         return Vector(1, mu);
       }
 
-      Vector get_ss() const {
+      Vector get_ss() const override{
         return Vector({mu, std::pow(sigma,2)});
       }
 
@@ -188,7 +198,7 @@ namespace pml {
   class Model{
 
     public:
-      Model(const P &prior_, double p1_) : prior(prior_) {
+      explicit Model(double p1_){
         set_p1(p1_);
       }
 
@@ -199,22 +209,11 @@ namespace pml {
         log_p0 = std::log(1-p1);
       }
 
-      virtual Vector rand(const Vector &state) const {
-        return Vector();
-      }
-
-      P obs2Potential(const Vector& obs) const {
+      P obs2Potential(const Vector &obs){
         return prior.obs2Potential(obs);
       }
 
-      virtual void saveTxt(const std::string &fname) const {}
-
-      virtual void loadTxt(const std::string &fname) {}
-
-      virtual void fit(const Vector &ss, double p1_new) {
-        std::cout << "Warning: implement your fit model!\n";
-      }
-
+    public:
       std::pair<Matrix, Matrix> generateData(size_t length){
         Matrix states, obs;
         Vector state = prior.rand();
@@ -230,17 +229,24 @@ namespace pml {
       }
 
     public:
+      virtual Vector rand(const Vector &state) const = 0;
+      virtual void fit(const Vector &ss, double p1_new) = 0;
+      virtual void saveTxt(const std::string &filename) const = 0;
+      virtual void loadTxt(const std::string &filename) = 0;
+      virtual void print() const = 0;
+
+    public:
       P prior;
-      double p1;
-      double log_p1, log_p0;
+      double p1, log_p1, log_p0;
   };
 
   class PG_Model : public Model<GammaPotential> {
 
     public:
-      PG_Model(const GammaPotential &prior_, double p1_, double scale_ = 0)
-          : Model(prior_, p1_) {
-        scale = scale_;
+      PG_Model(double a, double b, double p1_, bool fixed_scale_ = false)
+          :Model(p1_) {
+        prior = GammaPotential(a, b);
+        fixed_scale = fixed_scale_;
       }
 
       Vector rand(const Vector &state) const override {
@@ -248,20 +254,46 @@ namespace pml {
       }
 
       void fit(const Vector &ss, double p1_new) override {
-        prior.fit(ss, scale);
+        if( fixed_scale)
+          prior.fit(ss, prior.b);
+        else
+          prior.fit(ss);
         set_p1(p1_new);
       }
 
+      void saveTxt(const std::string &filename) const override {
+        const int precision = 10;
+        Vector temp;
+        temp.append(prior.a);
+        temp.append(prior.b);
+        temp.append(fixed_scale);
+        temp.saveTxt(filename, precision);
+      }
+
+      void loadTxt(const std::string &filename) override{
+        Vector temp = Vector::loadTxt(filename);
+        prior = GammaPotential(temp(0), temp(1));
+        fixed_scale = temp(2);
+      }
+
+      void print() const override{
+        std::cout << "PG_Model:\n";
+        std::cout << "a = " << prior.a << "\tb = " << prior.b << "\tp1 = " << p1
+                  << "\tfixed_scale = " << fixed_scale << std::endl;
+      }
+
     public:
-      double scale;
+      bool fixed_scale;
   };
 
   class DM_Model: public Model<DirichletPotential> {
 
     public:
-      DM_Model(const DirichletPotential &prior_, double p1_,
-               double precision_ = 0) : Model(prior_, p1_) {
-        precision = precision_;
+      DM_Model(const Vector &alpha, double p1_,
+               bool fixed_precision_ = false) : Model( p1_) {
+        prior = DirichletPotential(alpha);
+        fixed_precision = fixed_precision_;
+        precision = sum(alpha);
       }
 
       Vector rand(const Vector &state) const override {
@@ -269,19 +301,45 @@ namespace pml {
       }
 
       void fit(const Vector &ss, double p1_new) override {
-        prior.fit(ss, precision);
+        if( fixed_precision )
+          prior.fit(ss, precision);
+        else
+          prior.fit(ss);
         set_p1(p1_new);
       }
 
+      void saveTxt(const std::string &filename) const override{
+        const int precision = 10;
+        Vector temp = prior.alpha;
+        temp.append(fixed_precision);
+        temp.saveTxt(filename, precision);
+      }
+
+      void loadTxt(const std::string &filename){
+        Vector temp = Vector::loadTxt(filename);
+        prior = DirichletPotential(temp.getSlice(0, temp.size()-1));
+        fixed_precision = temp.last();
+      }
+
+      void print() const override{
+        std::cout << "DM_Model: \n";
+        std::cout << "\talpha = " << prior.alpha << std::endl;
+        std::cout << "\tp1 = " << p1 << std::endl;
+        std::cout << "\tfixed_precision = " << fixed_precision << std::endl;
+      }
+
     public:
+      bool fixed_precision;
       double precision;
   };
 
   class G_Model: public Model<GaussianPotential> {
 
-  public:
-      G_Model(const GaussianPotential &prior_, double p1_)
-          : Model(prior_, p1_){ }
+    public:
+      G_Model(double mu, double sigma, double p1_)
+          : Model(p1_){
+        prior = GaussianPotential(mu, sigma);
+      }
 
       Vector rand(const Vector &state) const override {
         return Gaussian(state.first()).rand(1);
@@ -291,6 +349,21 @@ namespace pml {
         prior.fit(ss);
         set_p1(p1_new);
       }
+
+      void saveTxt(const std::string &filename) const override {
+        const int precision = 10;
+        Vector temp;
+        temp.append(prior.mu);
+        temp.append(prior.sigma);
+        temp.saveTxt(filename, precision);
+      }
+
+      void loadTxt(const std::string &filename) override{
+        Vector temp = Vector::loadTxt(filename);
+        prior = GaussianPotential(temp(0), temp(1));
+      }
+
+      void print() const override{}
   };
 
   template <class P>
@@ -516,7 +589,7 @@ namespace pml {
           cpp.append(gamma.cpp(beta.front().size()));
         }
 
-        // Smooth alpha[T-lag+1:T] with last beta
+        // Smooth alpha[T-lag+1:T] with last beta.
         for(size_t i = 1; i < lag; ++i){
           gamma = alpha[obs.ncols()-lag+i] * beta[i];
           mean.appendColumn(gamma.mean());

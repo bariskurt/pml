@@ -13,11 +13,11 @@ def get_cps(states):
     return cps
 
 
-def plot(ax, alpha, cpp):
+def plot(ax, alpha, cpp, color='r'):
     K = alpha.shape[0]
     T = alpha.shape[1]
     ax.pcolormesh(alpha, cmap=plt.cm.Greys, vmin=0, vmax=np.max(np.max(alpha)))
-    ax.vlines(np.arange(0, T), 0, cpp*K,  colors='r', linestyles='-',
+    ax.vlines(np.arange(0, T), 0, cpp*K,  colors=color, linestyles='-',
              linewidth=2, label='change point prob.')
 
 
@@ -39,7 +39,7 @@ def plot_dm(em_result=False):
 
     ax0 = plt.subplot(gs[0])
     ax0.set_title("Observations")
-    plot(ax0, obs, get_cps(states))
+    plot(ax0, obs, get_cps(states), 'b')
     ax0.set_xticks([])
 
     ax1 = plt.subplot(gs[1])
@@ -55,15 +55,16 @@ def plot_dm(em_result=False):
 
     if em_result == 'True' or em_result == '1' or em_result == True:
         ax0.legend(['Change points'])
-        ax1.set_title("Smoothing - true parameters")
-        ax2.set_title("Smoothing - after EM")
-        ax3.set_title("Smoothing - dummy parameters")
+        ax1.set_title("Smoothing - True Parameters")
+        ax2.set_title("Smoothing - Initial EM")
+        ax3.set_title("Smoothing - After EM")
     else:
         ax0.legend(['Change points'])
         ax1.set_title("Filtering")
         ax2.set_title("Smoothing")
         ax3.set_title("Online Smoothing")
 
+    plt.tight_layout()
     plt.show()
 
 

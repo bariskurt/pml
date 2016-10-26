@@ -29,8 +29,8 @@ def plot_pg(em_result=False):
     gs = gridspec.GridSpec(4, 1, height_ratios=[5, 1, 1, 1])
 
     ax0 = plt.subplot(gs[0])
-    ax0.plot(range(T), states, 'r-')
     ax0.plot(range(T), obs, 'b-')
+    ax0.plot(range(T), states, 'r-')
     ax0.plot(range(T), mean, 'g-')
     ax0.plot(range(T), mean2, 'm-')
     ax0.plot(range(T), mean3, 'c-')
@@ -53,8 +53,8 @@ def plot_pg(em_result=False):
 
     if em_result == 'True' or em_result == '1' or em_result == True:
         ax1.set_title("CPP Smoothing - true parameters")
-        ax2.set_title("CPP Smoothing - after EM")
-        ax3.set_title("CPP Smoothing - dummy parameters")
+        ax2.set_title("CPP Smoothing - initial EM")
+        ax3.set_title("CPP Smoothing - after EM")
         ax0.legend(['Hidden States', 'Observations', 'Mean Smoothing(True)',
                     'Mean Smoothing(EM)', 'Mean Smoothing(dummy)'])
     else:
@@ -64,6 +64,7 @@ def plot_pg(em_result=False):
         ax0.legend(['Hidden States', 'Observations', 'Filtering',
                     'Smoothing', 'Online Smoothing'])
 
+    plt.tight_layout()
     plt.show()
 
 if __name__ == '__main__':

@@ -289,8 +289,7 @@ namespace pml {
       }
 
       static Dirichlet fit(const Matrix &data, double precision = 0){
-        Vector ss = mean(log(data),1); // sufficient statistics
-        return fit(ss, precision);
+        return fit( mean(log(data),1), precision);
       }
 
       static Dirichlet fit(const Vector &ss, double precision = 0){
