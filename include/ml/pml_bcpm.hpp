@@ -261,6 +261,7 @@ namespace pml {
       void saveTxt(const std::string &filename) const override {
         const int precision = 10;
         Vector temp;
+        temp.append(p1);
         temp.append(prior.a);
         temp.append(prior.b);
         temp.append((int)(scale == 0));
@@ -269,8 +270,9 @@ namespace pml {
 
       void loadTxt(const std::string &filename) override{
         Vector temp = Vector::loadTxt(filename);
-        prior = GammaPotential(temp(0), temp(1));
-        scale = temp(2) ? prior.b : 0;
+        set_p1(temp(0));
+        prior = GammaPotential(temp(1), temp(2));
+        scale = temp(3) ? prior.b : 0;
       }
 
       void print() const override{
@@ -303,14 +305,17 @@ namespace pml {
 
       void saveTxt(const std::string &filename) const override{
         const int txt_precision = 10;
-        Vector temp = prior.alpha;
+        Vector temp;
+        temp.append(p1);
+        temp.append(prior.alpha);
         temp.append(precision == 0);
         temp.saveTxt(filename, txt_precision);
       }
 
       void loadTxt(const std::string &filename){
         Vector temp = Vector::loadTxt(filename);
-        prior = DirichletPotential(temp.getSlice(0, temp.size()-1));
+        set_p1(temp(0));
+        prior = DirichletPotential(temp.getSlice(1, temp.size()-1));
         precision = temp.last() ? sum(prior.alpha) : 0;
       }
 
