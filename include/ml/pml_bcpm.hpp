@@ -498,7 +498,20 @@ namespace pml {
         }
       }
 
+      Evaluator(const std::string &cps_file, double threshold_, size_t window_)
+              : threshold(threshold_), window(window_){
+        Vector cps_ = Vector::loadTxt(cps_file);
+        for(size_t i=0; i < cps_.size(); ++i){
+          if( cps_(i) == 1)
+            cps.append(i);
+        }
+      }
+
     public:
+      Vector evaluate(const std::string &cpp_file){
+        return evaluate(Vector::loadTxt(cpp_file));
+      }
+
       Vector evaluate(const Vector &cpp){
         // cpp to cps
         Vector cps_est;
