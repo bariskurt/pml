@@ -209,7 +209,7 @@ namespace pml {
         log_p0 = std::log(1-p1);
       }
 
-      P obs2Potential(const Vector &obs){
+      virtual P obs2Potential(const Vector &obs){
         return prior.obs2Potential(obs);
       }
 

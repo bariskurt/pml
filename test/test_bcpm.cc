@@ -61,7 +61,7 @@ void test_dm_em(){
   double precision = K;
   bool fixed_precision = true;
   Vector alpha = normalize(Vector::ones(K)) * precision;
-  double p1 = 0.01;
+  double p1 = 0.1;
 
   size_t length = 100;
 
@@ -87,7 +87,7 @@ void test_dm_em(){
   result.second.saveTxt("/tmp/cpp.txt");
 
   // Learn parameters
-  double c_init = 0.0001;
+  double c_init = 1;
   DM_Model em_model(DirichletPotential::rand_gen(K, precision).alpha,
                     c_init, fixed_precision);
   DM_Model em_init_model = em_model;
