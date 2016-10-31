@@ -8,14 +8,24 @@ def plot_pg(em_result=False):
     states = pml.loadTxt('/tmp/states.txt')
     obs = pml.loadTxt('/tmp/obs.txt')
 
-    mean = pml.loadTxt('/tmp/mean.txt')
-    cpp = pml.loadTxt('/tmp/cpp.txt')
+    if em_result == 'True':
+        mean = pml.loadTxt('/tmp/mean.txt')
+        cpp = pml.loadTxt('/tmp/cpp.txt')
 
-    mean2 = pml.loadTxt('/tmp/mean2.txt')
-    cpp2 = pml.loadTxt('/tmp/cpp2.txt')
+        mean2 = pml.loadTxt('/tmp/initial_mean.txt')
+        cpp2 = pml.loadTxt('/tmp/initial_cpp.txt')
 
-    mean3 = pml.loadTxt('/tmp/mean3.txt')
-    cpp3 = pml.loadTxt('/tmp/cpp3.txt')
+        mean3 = pml.loadTxt('/tmp/final_mean.txt')
+        cpp3 = pml.loadTxt('/tmp/final_cpp.txt')
+    else:
+        mean = pml.loadTxt('/tmp/filtering_mean.txt')
+        cpp = pml.loadTxt('/tmp/filtering_cpp.txt')
+
+        mean2 = pml.loadTxt('/tmp/smoothing_mean.txt')
+        cpp2 = pml.loadTxt('/tmp/smoothing_cpp.txt')
+
+        mean3 = pml.loadTxt('/tmp/online_smoothing_mean.txt')
+        cpp3 = pml.loadTxt('/tmp/online_smoothing_cpp.txt')
 
 
     states = states[0, :]

@@ -198,6 +198,19 @@ namespace pml {
   class Model{
 
     public:
+      struct Data{
+        void saveTxt(const std::string &dir){
+          obs.saveTxt(dir + "/obs.txt");
+          states.saveTxt(dir + "/states.txt");
+          cps.saveTxt(dir + "/cps.txt");
+        }
+
+        Matrix obs;
+        Matrix states;
+        Vector cps;
+      };
+
+    public:
       explicit Model(double p1_){
         set_p1(p1_);
       }
@@ -214,18 +227,21 @@ namespace pml {
       }
 
     public:
-      std::pair<Matrix, Matrix> generateData(size_t length){
-        Matrix states, obs;
+      Data generateData(size_t length){
+        Data data;
         Vector state = prior.rand();
         Bernoulli bernoulli(p1);
         for (size_t t=0; t<length; t++) {
-          if (t == 0 || bernoulli.rand()) {
+          int change = 0;
+          if (t > 0 && bernoulli.rand()) {
             state = prior.rand();
+            change = 1;
           }
-          states.appendColumn(state);
-          obs.appendColumn(rand(state));
+          data.states.appendColumn(state);
+          data.obs.appendColumn(rand(state));
+          data.cps.append(change);
         }
-        return {states, obs};
+        return data;
       }
 
     public:
@@ -443,6 +459,89 @@ namespace pml {
   };
 
 
+  class Result{
+
+    public:
+      void saveTxt(const std::string &dir, const std::string &prefix = ""){
+        mean.saveTxt(make_name(dir, prefix, "mean.txt"));
+        cpp.saveTxt(make_name(dir, prefix, "cpp.txt"));
+        ll.saveTxt(make_name(dir, prefix, "ll.txt"));
+        score.saveTxt(make_name(dir, prefix, "score.txt"));
+      }
+
+      void append(const Vector &s){
+        score.appendRow(s);
+      }
+
+      std::string make_name(const std::string &dir, const std::string &prefix,
+                            const std::string &fname){
+        if( prefix.empty() )
+          return dir + "/" + fname;
+        return dir + "/" + prefix + "_" + fname;
+      }
+
+    public:
+      Matrix mean;
+      Vector cpp;
+      Vector ll;
+      Matrix score; //  [precision , recall, f_score] matrix
+  };
+
+  class Evaluator{
+
+    public:
+      Evaluator(const Vector &cps_, double threshold_, size_t window_)
+              : threshold(threshold_), window(window_){
+        for(size_t i=0; i < cps_.size(); ++i){
+          if( cps_(i) == 1)
+            cps.append(i);
+        }
+      }
+
+    public:
+      Vector evaluate(const Vector &cpp){
+        // cpp to cps
+        Vector cps_est;
+        for(size_t i=0; i < cpp.size(); ++i){
+          if( cpp(i) > threshold){
+            cps_est.append(i);
+          }
+        }
+
+        Vector true_points(cps.size());
+        Vector pred_points(cps_est.size());
+        for(size_t i=0; i < cps_est.size(); ++i){
+          for(size_t j=0; j < cps.size(); ++j) {
+            double dist = cps_est(i) - cps(j);
+            if( -1 <= dist && dist <= window){
+              true_points(j) = 1;
+              pred_points(i) = 1;
+            }
+          }
+        }
+
+        double true_positives = sum(true_points);
+        double false_positives = pred_points.size() - sum(pred_points);
+        double false_negatives = true_points.size() - true_positives;
+
+        // We know that our data definitely contains change points,
+        // so, we set precision and recall to zero if true positives are zero.
+        double precision = 0, recall = 0, f_score = 0;
+        if ( true_positives > 0 ){
+          precision = true_positives / (true_positives + false_positives);
+          recall = true_positives / (true_positives + false_negatives);
+          f_score = 2 * (precision*recall) / (precision + recall);
+        }
+
+        return Vector({precision, recall, f_score});
+      }
+
+    public:
+      Vector cps; // binary vector storing change locations
+      double threshold;
+      size_t window;
+  };
+
   template <class P>
   class ForwardBackward {
 
@@ -479,18 +578,24 @@ namespace pml {
 
       // ------------- FORWARD ------------- //
     public:
-      std::pair<Matrix, Vector> filtering(const Matrix& obs) {
+      Result filtering(const Matrix& obs, Evaluator *evaluator = nullptr) {
         // Run forward
         forward(obs);
 
         // Calculate mean and cpp
-        Matrix mean;
-        Vector cpp;
+        Result result;
         for(auto &message : alpha){
-          mean.appendColumn(message.mean());
-          cpp.append(message.cpp());
+          result.mean.appendColumn(message.mean());
+          result.cpp.append(message.cpp());
         }
-        return {mean, cpp};
+
+        // Evaluate
+        result.ll.append(alpha.back().log_likelihood());
+        if(evaluator){
+          result.append(evaluator->evaluate(result.cpp));
+        }
+
+        return result;
       }
 
       void forward(const Matrix& obs){
@@ -552,32 +657,38 @@ namespace pml {
       }
 
 
-      std::pair<Matrix, Vector> smoothing(const Matrix& obs) {
+      Result smoothing(const Matrix& obs, Evaluator *evaluator = nullptr) {
         // Run Forward - Backward
         forward(obs);
         backward(obs);
 
         // Calculate Smoothed density
-        Matrix mean;
-        Vector cpp;
+        Result result;
         for(size_t i=0; i < obs.ncols(); ++i) {
           MessageType gamma = alpha_predict[i] * beta[i];
-          mean.appendColumn(gamma.mean());
-          cpp.append(gamma.cpp(beta[i].size()));
+          result.mean.appendColumn(gamma.mean());
+          result.cpp.append(gamma.cpp(beta[i].size()));
         }
-        return {mean, cpp};
+
+        // Evaluate
+        result.ll.append(alpha.back().log_likelihood());
+        if(evaluator){
+          result.append(evaluator->evaluate(result.cpp));
+        }
+
+        return result;
       }
 
-      std::pair<Matrix, Vector> online_smoothing(const Matrix& obs, size_t lag){
+      Result online_smoothing(const Matrix& obs, size_t lag,
+                              Evaluator *evaluator = nullptr){
         if(lag == 0)
           return filtering(obs);
 
         if(lag >= obs.ncols())
           return smoothing(obs);
 
+        Result result;
         MessageType gamma;
-        Matrix mean;
-        Vector cpp;
 
         // Go forward
         forward(obs);
@@ -586,19 +697,24 @@ namespace pml {
         for(size_t t=0; t <= obs.ncols()-lag; ++t){
           backward(obs, t+lag-1, lag);
           gamma = alpha[t] * beta.front();
-          mean.appendColumn(gamma.mean());
-          cpp.append(gamma.cpp(beta.front().size()));
+          result.mean.appendColumn(gamma.mean());
+          result.cpp.append(gamma.cpp(beta.front().size()));
         }
 
         // Smooth alpha[T-lag+1:T] with last beta.
         for(size_t i = 1; i < lag; ++i){
           gamma = alpha[obs.ncols()-lag+i] * beta[i];
-          mean.appendColumn(gamma.mean());
-          cpp.append(gamma.cpp(beta[i].size()));
-
+          result.mean.appendColumn(gamma.mean());
+          result.cpp.append(gamma.cpp(beta[i].size()));
         }
 
-        return {mean, cpp};
+        // Evaluate
+        result.ll.append(alpha.back().log_likelihood());
+        if(evaluator){
+          result.append(evaluator->evaluate(result.cpp));
+        }
+
+        return result;
       }
 
       Vector compute_ss(const MessageType &message) {
@@ -613,62 +729,61 @@ namespace pml {
         return sum(tmp, 1);
       }
 
-      std::pair<Matrix, Vector> learn_parameters(const Matrix& obs,
-                                                 size_t max_iter = 100,
-                                                 bool verbose = true){
+      Result learn_parameters(const Matrix& obs,
+                              Evaluator *evaluator = nullptr,
+                              size_t max_iter = 100){
+        size_t T = obs.ncols();
         size_t min_iter = 20;
         Vector ll;
+        Matrix score;
 
         for(size_t iter = 0; iter < max_iter; ++iter){
+
           // Forward_backward
           forward(obs);
           backward(obs);
 
-          double cpp=0;
-          double cpp_sum=0;
-          Vector ss;
-          Matrix E_log_pi_weighted;
-          for(size_t i=0; i < obs.ncols(); ++i) {
+          // Part 1: E-Step
+          Vector cpp(T);
+          Matrix ss;
+          for(size_t i=0; i < T; ++i) {
             MessageType gamma = alpha_predict[i] * beta[i];
-            cpp = gamma.cpp(beta[i].size());
-            cpp_sum += cpp;
-            if( i == 0){
-              ss = compute_ss(gamma)*cpp;
-            } else {
-              ss += compute_ss(gamma)*cpp;
-            }
+            cpp(i) = gamma.cpp(beta[i].size());
+            ss.appendColumn(compute_ss(gamma));
           }
-          ss /= cpp_sum;
+          Vector ss_w = dot(ss, cpp) / sum(cpp);
+          double ss_p1 = sum(cpp) / T;
 
-          // Log-likelihood
+          // Part 2: M-Step
+          model->fit(ss_w, ss_p1);
+
+          // Part 3: Evaluate
           ll.append(alpha.back().log_likelihood());
-          if(verbose) {
-            std::cout << "iter: " << iter
-                      << "\tloglikelihood : " << ll.last() << std::endl;
+          if(evaluator){
+            score.appendRow(evaluator->evaluate(cpp));
           }
 
+          // Part 4: Stop if converged
+          std::cout << "iter: " << iter
+                    << "\tlog-likelihood : " << ll.last() << std::endl;
           if(iter > 0 ){
             double ll_diff = ll[iter] - ll[iter-1];
             if( ll_diff < 0 ){
-              if(verbose) {
-                std::cout << "!!! loglikelihood decreased: "
-                          << ll[iter - 1] - ll[iter] << std::endl;
-              }
+              std::cout << "!!! log-likelihood decreased: "
+                        << - ll_diff << std::endl;
               break;
             }
             if( iter > min_iter && ( ll_diff < 1e-6)){
-              if(verbose) {
-                std::cout << "converged.\n";
-              }
+              std::cout << "converged.\n";
               break;
             }
           }
-
-          // M-Step:
-          model->fit(ss, cpp_sum / obs.ncols());
         }
 
-        return smoothing(obs);
+        Result result = smoothing(obs);
+        result.ll = ll;
+        result.score = score;
+        return result;
       }
 
 
