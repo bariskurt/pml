@@ -695,10 +695,10 @@ namespace pml {
       Result online_smoothing(const Matrix& obs, size_t lag,
                               Evaluator *evaluator = nullptr){
         if(lag == 0)
-          return filtering(obs);
+          return filtering(obs, evaluator);
 
         if(lag >= obs.ncols())
-          return smoothing(obs);
+          return smoothing(obs, evaluator);
 
         Result result;
         MessageType gamma;
