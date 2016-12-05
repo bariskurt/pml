@@ -2,6 +2,7 @@
 #define MATLIB_PML_BCPM_H
 
 #include "../pml.hpp"
+#include "../pml_utils.hpp"
 
 #include <algorithm>
 
@@ -199,10 +200,20 @@ namespace pml {
 
     public:
       struct Data{
+
+        Data(){}
+
+        Data(const std::string &dir){
+          obs = Matrix::loadTxt(make_path({dir, "obs.txt"}));
+          states = Matrix::loadTxt(make_path({dir, "states.txt"}));
+          cps = Vector::loadTxt(make_path({dir, "cps.txt"}));
+        }
+
         void saveTxt(const std::string &dir){
-          obs.saveTxt(dir + "/obs.txt");
-          states.saveTxt(dir + "/states.txt");
-          cps.saveTxt(dir + "/cps.txt");
+          find_or_create(dir);
+          obs.saveTxt(make_path({dir, "obs.txt"}));
+          states.saveTxt(make_path({dir, "states.txt"}));
+          cps.saveTxt(make_path({dir, "cps.txt"}));
         }
 
         Matrix obs;
@@ -462,22 +473,16 @@ namespace pml {
   class Result{
 
     public:
-      void saveTxt(const std::string &dir, const std::string &prefix = ""){
-        mean.saveTxt(make_name(dir, prefix, "mean.txt"));
-        cpp.saveTxt(make_name(dir, prefix, "cpp.txt"));
-        ll.saveTxt(make_name(dir, prefix, "ll.txt"));
-        score.saveTxt(make_name(dir, prefix, "score.txt"));
+      void saveTxt(const std::string &dir){
+        find_or_create(dir);
+        mean.saveTxt(make_path({dir, "mean.txt"}));
+        cpp.saveTxt(make_path({dir, "cpp.txt"}));
+        ll.saveTxt(make_path({dir, "ll.txt"}));
+        score.saveTxt(make_path({dir, "score.txt"}));
       }
 
       void append(const Vector &s){
         score.appendRow(s);
-      }
-
-      std::string make_name(const std::string &dir, const std::string &prefix,
-                            const std::string &fname){
-        if( prefix.empty() )
-          return dir + "/" + fname;
-        return dir + "/" + prefix + "_" + fname;
       }
 
     public:

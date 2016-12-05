@@ -36,17 +36,17 @@ void test_dm(){
   // Filtering
   std::cout << "Filtering...\n";
   auto result =  fb.filtering(data.obs, &evaluator);
-  result.saveTxt("/tmp", "filtering");
+  result.saveTxt("/tmp/filtering");
 
   // Smoothing
   std::cout << "Smoothing...\n";
   result = fb.smoothing(data.obs, &evaluator);
-  result.saveTxt("/tmp", "smoothing");
+  result.saveTxt("/tmp/smoothing");
 
   // Fixed Lag
   std::cout << "Online smoothing...\n";
   result = fb.online_smoothing(data.obs, lag, &evaluator);
-  result.saveTxt("/tmp", "online_smoothing");
+  result.saveTxt("/tmp/online_smoothing");
 
   if(system("anaconda3 ../test/python/test_bcpm_dm.py False")){
     std::cout <<"plotting error...\n";
@@ -89,11 +89,11 @@ void test_dm_em(){
 
   // Run with EM inital
   result = fb_em.smoothing(data.obs, &evaluator);
-  result.saveTxt("/tmp", "initial");
+  result.saveTxt("/tmp/initial");
 
   // Learn parameters
   result = fb_em.learn_parameters(data.obs, &evaluator);
-  result.saveTxt("/tmp", "final");
+  result.saveTxt("/tmp/final");
 
   std::cout << "-----------\n";
   std::cout << "True model:\n";
@@ -136,17 +136,17 @@ void test_pg(){
 
   std::cout << "Filtering...\n";
   auto result = fb.filtering(data.obs, &evaluator);
-  result.saveTxt("/tmp", "filtering");
+  result.saveTxt("/tmp/filtering");
 
   std::cout << "Smoothing...\n";
   result = fb.smoothing(data.obs, &evaluator);
-  result.saveTxt("/tmp", "smoothing");
+  result.saveTxt("/tmp/smoothing");
 
 
   std::cout << "Online smoothing...\n";
   size_t lag = 10;
   result = fb.online_smoothing(data.obs, lag, &evaluator);
-  result.saveTxt("/tmp", "online_smoothing");
+  result.saveTxt("/tmp/online_smoothing");
 
   if(system("anaconda3 ../test/python/test_bcpm_pg.py False")){
     std::cout <<"plotting error...\n";
@@ -187,11 +187,11 @@ void test_pg_em(){
 
   // Run initial model:
   result = fb_em.smoothing(data.obs, &evaluator);
-  result.saveTxt("/tmp", "initial");
+  result.saveTxt("/tmp/initial");
 
   // Run EM:
   result = fb_em.learn_parameters(data.obs, &evaluator);
-  result.saveTxt("/tmp", "final");
+  result.saveTxt("/tmp/final");
 
   std::cout << "-----------\n";
   std::cout << "True model:\n";
@@ -230,15 +230,15 @@ void test_g(){
 
   std::cout << "Filtering...\n";
   auto result = fb.filtering(data.obs);
-  result.saveTxt("/tmp", "filtering");
+  result.saveTxt("/tmp/filtering");
 
   std::cout << "Smoothing...\n";
   result = fb.smoothing(data.obs);
-  result.saveTxt("/tmp", "smoothing");
+  result.saveTxt("/tmp/smoothing");
 
   std::cout << "Online smoothing...\n";
   result = fb.online_smoothing(data.obs, lag);
-  result.saveTxt("/tmp", "online_smoothing");
+  result.saveTxt("/tmp/online_smoothing");
 
   std::cout << "Visualizing...\n";
   if(system("anaconda3 ../test/python/test_bcpm_pg.py False")){
@@ -274,10 +274,10 @@ void test_g_em(){
 
   G_ForwardBackward fb_em(&em_model);
   result = fb_em.smoothing(data.obs);
-  result.saveTxt("/tmp", "initial");
+  result.saveTxt("/tmp/initial");
 
   result = fb_em.learn_parameters(data.obs);
-  result.saveTxt("/tmp", "final");
+  result.saveTxt("/tmp/final");
 
   std::cout << "-----------\n";
   std::cout << "True model:\n";
