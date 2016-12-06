@@ -740,9 +740,7 @@ namespace pml {
           norm_consts.append(potential.log_c);
           tmp.appendColumn( potential.get_ss() );
         }
-        norm_consts = normalizeExp(norm_consts);
-        tmp = tmp * tile(norm_consts, tmp.nrows());
-        return sum(tmp, 1);
+        return dot(tmp, norm_consts);
       }
 
       Result learn_parameters(const Matrix& obs,
