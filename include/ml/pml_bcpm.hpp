@@ -421,11 +421,9 @@ namespace pml {
 
       Vector mean(){
         Matrix params;
-        for(auto &potential: potentials){
+        for(auto &potential: potentials)
           params.appendColumn(potential.mean());
-        }
-        Vector consts = normalizeExp(get_consts());
-        return sum(transpose(transpose(params)*consts), 1);
+        return dot(params, normalizeExp(get_consts()));
       }
 
       double cpp(int num_cpp = 1){
@@ -714,14 +712,14 @@ namespace pml {
         // Run Fixed-Lags for alpha[0:T-lag]
         for(size_t t=0; t <= obs.ncols()-lag; ++t){
           backward(obs, t+lag-1, lag);
-          gamma = alpha[t] * beta.front();
+          gamma = alpha_predict[t] * beta.front();
           result.mean.appendColumn(gamma.mean());
           result.cpp.append(gamma.cpp(beta.front().size()));
         }
 
         // Smooth alpha[T-lag+1:T] with last beta.
         for(size_t i = 1; i < lag; ++i){
-          gamma = alpha[obs.ncols()-lag+i] * beta[i];
+          gamma = alpha_predict[obs.ncols()-lag+i] * beta[i];
           result.mean.appendColumn(gamma.mean());
           result.cpp.append(gamma.cpp(beta[i].size()));
         }
