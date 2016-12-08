@@ -51,18 +51,18 @@ namespace pml {
 
       DirichletPotential operator*(const DirichletPotential &p) const{
 
-        double delta = std::lgamma(sum(alpha)) - sum(lgamma(alpha)) +
-                       std::lgamma(sum(p.alpha)) - sum(lgamma(p.alpha)) +
-                       sum(lgamma(alpha + p.alpha-1)) -
-                       std::lgamma(sum(alpha + p.alpha -1));
+        double delta = gammaln(sum(alpha)) - sum(gammaln(alpha)) +
+                       gammaln(sum(p.alpha)) - sum(gammaln(p.alpha)) +
+                       sum(gammaln(alpha + p.alpha-1)) -
+                       gammaln(sum(alpha + p.alpha -1));
 
         return DirichletPotential(alpha + p.alpha - 1,
                                   log_c + p.log_c + delta);
       }
 
       DirichletPotential obs2Potential(const Vector& obs) const{
-        double log_c = std::lgamma(sum(obs)+1)
-                       - std::lgamma(sum(obs)+obs.size());
+        double log_c = gammaln(sum(obs)+1)
+                       - gammaln(sum(obs)+obs.size());
         return DirichletPotential(obs+1, log_c);
       }
 
@@ -107,9 +107,9 @@ namespace pml {
                                       const GammaPotential &g2) {
         double a = g1.a + g2.a - 1;
         double b = (g1.b * g2.b) / (g1.b + g2.b);
-        double log_c = std::lgamma(a) + a * std::log(b)
-                       - std::lgamma(g1.a) - g1.a * std::log(g1.b)
-                       - std::lgamma(g2.a) - g2.a * std::log(g2.b);
+        double log_c = gammaln(a) + a * std::log(b)
+                       - gammaln(g1.a) - g1.a * std::log(g1.b)
+                       - gammaln(g2.a) - g2.a * std::log(g2.b);
         return GammaPotential(a, b, g1.log_c + g2.log_c + log_c);
       }
 
@@ -740,6 +740,7 @@ namespace pml {
           norm_consts.append(potential.log_c);
           tmp.appendColumn( potential.get_ss() );
         }
+        norm_consts = normalizeExp(norm_consts);
         return dot(tmp, norm_consts);
       }
 

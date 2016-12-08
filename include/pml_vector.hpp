@@ -557,6 +557,13 @@ namespace pml {
     return result;
   }
 
+  Vector cat(const std::vector<Vector> &v_list){
+    Vector result;
+    for(const Vector &v : v_list)
+      result.append(v);
+    return result;
+  }
+
   Vector reverse(const Vector &v){
     Vector result = v;
     std::reverse(result.begin(), result.end());

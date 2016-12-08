@@ -7,15 +7,15 @@
 namespace pml{
 
   // ------- Log Gamma function -------
-  double lgamma(double x){
+  double gammaln(double x){
     return std::lgamma(x);
   }
 
-  inline Vector lgamma(const Vector &x){
+  inline Vector gammaln(const Vector &x){
     return apply(x, std::lgamma);
   }
 
-  inline Matrix lgamma(const Matrix &m){
+  inline Matrix gammaln(const Matrix &m){
     return apply(m, std::lgamma);
   }
 
