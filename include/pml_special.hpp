@@ -21,6 +21,10 @@ namespace pml{
 
   // -------  Polygamma Function -------
   inline double psi(double d, int n = 0){
+    if( d == 0){
+      std::cout << "n is zero!!\n";
+    }
+
     return gsl_sf_psi_n(n, d);
   }
 
