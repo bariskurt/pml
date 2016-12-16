@@ -5,5 +5,6 @@
 #include "pml_matrix.hpp"
 #include "pml_random.hpp"
 #include "pml_special.hpp"
+#include "pml_time.hpp"
 
 #endif

@@ -975,10 +975,6 @@ namespace pml {
     return result;
   }
 
-  double kl_div(const Matrix &x, const Matrix &y){
-    return kl_div(flatten(x), flatten(y));
-  }
-
   // Matrix - Vector Product
   inline Vector dot(const Matrix &X, const Vector &y,
                     bool x_transpose = false){

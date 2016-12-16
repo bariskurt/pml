@@ -59,6 +59,27 @@ namespace pml{
     return apply(m, inv_psi);
   }
 
+  // KL Divergence Between Vectors
+  inline double kl_div(const Vector &x, const Vector &y) {
+    ASSERT_TRUE(x.size() == y.size(), "kl_div:: Size mismatch.");
+    double result = 0;
+    for (size_t i = 0; i < x.size(); ++i) {
+      if(x(i) > 0 && y(i) > 0){
+        result += x(i) * (std::log(x(i)) - std::log(y(i))) - x(i) + y(i);
+      } else if(x(i) == 0 && y(i) >= 0){
+        result += y(i);
+      } else {
+        result += std::numeric_limits<double>::infinity();
+        break;
+      }
+    }
+    return result;
+  }
+
+  double kl_div(const Matrix &x, const Matrix &y){
+    return kl_div(flatten(x), flatten(y));
+  }
+
 } // namespace pml
 
 
