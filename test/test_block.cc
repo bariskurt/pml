@@ -1,10 +1,18 @@
 #include <cassert>
+#include <cmath>
+#include <iostream>
 
-#include "pml_block.hpp"
+#include "pml_memory.hpp"
 
 using namespace pml;
+using namespace std;
 
 std::string test_dir = "/tmp/";
+
+
+inline bool fequal(double a, double b) {
+  return std::fabs(a - b) < 1e-6;
+}
 
 void test_constructors(){
 
@@ -12,120 +20,183 @@ void test_constructors(){
 
   // Empty block
   Block b;
+  assert(b.capacity() == Block::INITIAL_CAPACITY);
   assert(b.size() == 0);
-  assert(b.stride() == 1);
-  assert(b.is_owner());
-  assert(b.data() == nullptr);
 
-  // NonEmpty block
-  size_t size = 10;
-  Block b2(size);
-  for(size_t i = 0; i < size; ++i){
-    b2[i] = i;
-  }
-  assert(b2.size() == 10);
-  for(size_t i = 0; i < size; ++i){
-    assert(b2[i] == i);
-  }
+  // Populate with numbers [0, 9]
+  for(int i=0; i < 10; ++i)
+    b.push_back(i);
+  assert(b.size() == 10);
+
 
   // Copy constructor (deep copy)
-  Block b3(b2);
-  assert(b3.size() == 10);
-  assert(b3.stride() == 1);
-  assert(b3.is_owner());
-  assert(b3.data() != b2.data());
-  for(size_t i = 0; i < size; ++i){
-    assert(b3[i] == i);
-  }
+  Block b2(b);
+  assert(b2.capacity() == Block::INITIAL_CAPACITY);
+  assert(b2.size() == 10);
+  assert(b2.data() != b.data());
+
 
   // Assigment operator
-  Block b4;
-  b4 = b2;
-  assert(b4.size() == 10);
-  assert(b4.stride() == 1);
-  assert(b4.is_owner());
-  assert(b4.data() != b2.data());
-  for(size_t i = 0; i < size; ++i){
-    assert(b4[i] == i);
-  }
+  Block b3;
+  b3 = b;
+  assert(b3.capacity() == Block::INITIAL_CAPACITY);
+  assert(b3.size() == 10);
+  assert(b3.data() != b.data());
 
   std::cout << "OK.\n";
 }
+
 
 void test_size(){
 
   std::cout << "test_size...\n";
 
-  Block b(5);
-  for(size_t i = 0; i < 5; ++i){
+  Block b(10);
+  for(size_t i=0; i<10; ++i)
     b[i] = i;
-  }
-  b.append(5);
-  b.append(6);
-  b.append(7);
-  b.append(8);
-  b.append(9);
 
   assert(b.size() == 10);
-  assert(b.stride() == 1);
-  assert(b.is_owner());
-  for(size_t i = 0; i < 10; ++i){
-    assert(b[i] == i);
+  assert(b.capacity() == Block::INITIAL_CAPACITY);
+  for(size_t i=0; i<10; ++i)
+    assert(fequal(b[i], i));
+
+  // try to shrink but fail
+  b.reserve(128);
+  assert(b.size() == 10);
+  assert(b.capacity() == Block::INITIAL_CAPACITY);
+  for(size_t i=0; i<10; ++i)
+    assert(fequal(b[i], i));
+
+  // try to shrink with success
+  b.shrink_to_fit();
+  assert(b.size() == 10);
+  assert(b.capacity() == 10);
+  for(size_t i=0; i<10; ++i)
+    assert(fequal(b[i], i));
+
+  // try to reserve with success
+  b.reserve(2048);
+  assert(b.size() == 10);
+  assert(b.capacity() == 2048);
+  for(size_t i=0; i<10; ++i)
+    assert(fequal(b[i], i));
+
+  std::cout << "OK.\n";
+}
+
+void test_push_back(){
+
+  std::cout << "test_push_back...\n";
+
+  // PART 1: push_back double values
+  Block b;
+  size_t n = 1025;
+  for(size_t i=0; i < n; ++i)
+    b.push_back(i);
+
+  // test
+  assert(b.size() == n);
+  assert(b.capacity() == Block::INITIAL_CAPACITY * Block::GROWTH_RATIO);
+  for(size_t i=0; i<n; ++i)
+    assert(fequal(b[i], i));
+
+
+  // PART 2: push_back two small vectors
+  Block b2(10);
+  for(size_t i=0; i < b2.size(); ++i)
+    b2[i] = i;
+
+  Block b3(5);
+  for(size_t i=0; i < b3.size(); ++i)
+    b3[i] = i;
+
+  b2.push_back(b3);
+  assert(b2.size() == 15);
+  assert(b3.size() == 5);
+  assert(b2.capacity() == Block::INITIAL_CAPACITY);
+  for(size_t i=0; i < 10; ++i)
+    assert(fequal(b2[i], i));
+  for(size_t i=0; i < 5; ++i) {
+    assert(fequal(b2[10 + i], i));
+    assert(fequal(b3[i], i));
   }
 
-  b.resize(4);
-  assert(b.size() == 4);
-  for(size_t i = 0; i < 4; ++i){
-    assert(b[i] == i);
+  // PART 2: push_back two large vectors
+  Block b4(600), b5(600);
+  for(size_t i=0; i<b4.size(); ++i){
+    b4[i] = i;
+    b5[i] = i;
+  }
+  b4.push_back(b5);
+  assert(b4.size() == 1200);
+  assert(b4.capacity() == b4.size() * Block::GROWTH_RATIO);
+  for(size_t i=0; i<b5.size(); ++i){
+    assert(fequal(b4[i], i));
+    assert(fequal(b4[b5.size()+i], i));
   }
 
-  b.resize(20);
-  assert(b.size() == 20);
-  for(size_t i = 0; i < 4; ++i){
-    assert(b[i] == i);
+  // PART 3: push_back self
+  Block b6(10);
+  for(size_t i=0; i<b6.size(); ++i)
+    b6[i] = i;
+  b6.push_back(b6);
+  assert(b6.size() == 20);
+  assert(b6.capacity() == Block::INITIAL_CAPACITY);
+  for(size_t i=0; i<10; ++i){
+    assert(fequal(b6[i], i));
+    assert(fequal(b6[10+i], i));
+  }
+
+  // PART 4: push_back self (larger)
+  Block b7(600);
+  for(size_t i=0; i<b7.size(); ++i)
+    b7[i] = i;
+  b7.push_back(b7);
+  assert(b7.size() == 1200);
+  assert(b7.capacity() == 1200 * Block::GROWTH_RATIO);
+  for(size_t i=0; i<600; ++i){
+    assert(fequal(b7[i], i));
+    assert(fequal(b7[600+i], i));
   }
 
   std::cout << "OK.\n";
 }
 
-void test_stride(){
-  std::cout << "test_stride...\n";
-  size_t size = 10;
-  Block b(size);
-  for(size_t i = 0; i < size; ++i){
+void test_iterator(){
+
+  Block b(5);
+  for(size_t i=0; i<b.size(); ++i)
     b[i] = i;
-  }
-  double *b_data_old = b.data();
 
-  Block b2(b.data(), b.size() / 2, 2);
-  assert(b2.size() == size / 2);
-  assert(b2.stride() == 2);
-  assert(!b2.is_owner());
-  assert(b2.data() == b.data());
-  for(size_t i = 0; i < size / 2; ++i){
-    assert(b2[i] == 2*i);
-  }
+  // Test iterator
+  for( auto &d : b)
+    d += 1;
 
-  Block b3(size);
-  for(size_t i = 0; i < size; ++i){
-    b3[i] = 5*i;
-  }
-  b2 = b3;
-  assert(b2.size() == size);
-  assert(b2.stride() == 1);
-  assert(b2.is_owner());
-  assert(b2.data() != b.data());
-  assert(b.data() == b_data_old);
-  for(size_t i = 0; i < size; ++i){
-    assert(b2[i] == (5*i));
+  for(size_t i=0; i<b.size(); ++i)
+    assert(fequal(b[i], i+1));
+
+  // Test const iterator
+  for(Block::iterator it = b.begin(); it != b.end(); ++it){
+    std::cout << *it << std::endl;
   }
 
-  std::cout << "OK.\n";
+  // Test const iterator
+  for(Block::const_iterator it = b.cbegin(); it != b.cend(); ++it){
+    std::cout << *it << std::endl;
+  }
+
+  Block::iterator it = b.begin();
+  Block::iterator it2(it);
+  it2 = it;
+  Block::const_iterator it4(it);
+  it4 = it;
+
+
 }
-
 
 int main(){
   test_constructors();
   test_size();
-  test_stride();
+  test_push_back();
+  test_iterator();
 }

@@ -11,7 +11,8 @@ void test_vector(){
   std::cout << "test_vector...\n";
 
   // Constructor 1
-  Vector v1(5, 3);
+  Vector v1(5);
+  v1.fill(3);
   assert(v1.size() == 5);
   assert(all(v1 == 3));
   assert(!v1.empty());
@@ -119,8 +120,8 @@ void test_vector_functions() {
 
 void test_vector_algebra(){
   std::cout << "test_vector_algebra...\n";
-  Vector x(5, 3);
-  Vector y(5, 5);
+  Vector x(5); x.fill(3);
+  Vector y(5); y.fill(5);
 
   // A = A op b
   x += 1; assert(all(x == 4));
@@ -199,8 +200,8 @@ void test_vector_comparison() {
 
 int main(){
   test_vector();
-  test_vector_functions();
   test_vector_algebra();
+  test_vector_functions();
   test_vector_comparison();
   test_load_save();
   return 0;

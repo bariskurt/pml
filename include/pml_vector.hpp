@@ -14,6 +14,8 @@
 #include <numeric>
 #include <vector>
 
+#include "pml_memory.hpp"
+
 #define DEFAULT_PRECISION 6
 
 namespace pml {
@@ -44,73 +46,99 @@ namespace pml {
       Vector() { }
 
       // Vector of given length and default value.
-      explicit Vector(size_t length, double value = 0)
-          : data_(length, value) { }
+      explicit Vector(size_t length) : block_(length) { }
 
       // Vector from given array
       Vector(size_t length, const double *values)
-          : data_(length) {
-        memcpy(this->data(), values, sizeof(double) * length);
+          : block_(length) {
+        memcpy(block_.data(), values, sizeof(double) * length);
       }
 
       // Vector from initializer lsit
-      Vector(const std::initializer_list<double> &values)
-          : data_(values) { }
+      Vector(const std::initializer_list<double> &values) {
+        for( const double &d : values )
+          block_.push_back(d);
+      }
 
       // Vector from range
       explicit Vector(Range range) {
         for (double d = range.start; d < range.stop; d += range.step) {
-          data_.push_back(d);
+          block_.push_back(d);
         }
+      }
+
+      Vector(const Vector &that) : block_(that.block_) { }
+
+      Vector(Vector &&that) : block_(std::move(that.block_)) {}
+
+
+      Vector& operator=(const Vector &that){
+        if( &that != this) {
+          block_ = that.block_;
+        }
+        return *this;
+      }
+
+      Vector& operator=(Vector &&that){
+        block_ = std::move(that.block_);
+        return *this;
       }
 
       // Vector of zeros of given length.
       static Vector zeros(size_t length) {
-        return Vector(length, 0.0);
+        Vector v(length);
+        v.fill(0.0);
+        return v;
       }
 
       // Vector of ones of given length.
       static Vector ones(size_t length) {
-        return Vector(length, 1.0);
+        Vector v(length);
+        v.fill(1.0);
+        return v;
       }
 
     public:
       // Returns length of the Vector.
       size_t size() const {
-        return data_.size();
+        return block_.size();
       }
 
       // Checks empty.
       bool empty() const {
-        return data_.empty();
+        return block_.empty();
       }
 
       // Vector resize. If new size is smaller, the data_ is cropped.
       // If new size is larger, garbage values are appended.
       void resize(size_t new_size) {
-        data_.resize(new_size);
+        block_.resize(new_size);
       }
 
     public:
 
+      void fill(double v){
+        block_.fill(v);
+      }
+
       // Push to the end.
       void push_back(double value) {
-        data_.push_back(value);
+        block_.push_back(value);
       }
 
       // Pop from end.
       void pop_back() {
-        data_.pop_back();
+        block_.pop_back();
       }
 
       // Append a single value. (same as push_back)
       void append(double value) {
-        data_.push_back(value);
+        block_.push_back(value);
       }
 
       // Append a Vector
       void append(const Vector &v) {
-        data_.insert(data_.end(), v.data_.begin(), v.data_.end());
+        block_.push_back(v.block_);
       }
 
       friend Vector apply(const Vector &x, double (*func)(double)){
@@ -121,7 +149,7 @@ namespace pml {
       }
 
       void apply(double (*func)(double)){
-        for(double &d : data_)
+        for(double &d : block_)
           d = func(d);
       }
 
@@ -212,69 +240,69 @@ namespace pml {
 
     public:
       //  -------- Iterators--------
-      std::vector<double>::iterator begin() {
-        return data_.begin();
+      Block::iterator begin() {
+        return block_.begin();
       }
 
-      std::vector<double>::const_iterator begin() const {
-        return data_.cbegin();
+      Block::const_iterator begin() const {
+        return block_.cbegin();
       }
 
-      std::vector<double>::iterator end() {
-        return data_.end();
+      Block::iterator end() {
+        return block_.end();
       }
 
-      std::vector<double>::const_iterator end() const {
-        return data_.cend();
+      Block::const_iterator end() const {
+        return block_.cend();
       }
 
       // ------- Accessors -------
 
       inline double &operator[](const size_t i0) {
-        return data_[i0];
+        return block_[i0];
       }
 
       inline double operator[](const size_t i0) const {
-        return data_[i0];
+        return block_[i0];
       }
 
       inline double &operator()(const size_t i0) {
-        return data_[i0];
+        return block_[i0];
       }
 
       inline double operator()(const size_t i0) const {
-        return data_[i0];
+        return block_[i0];
       }
 
       double* data() {
-        return data_.data();
+        return block_.data();
       }
 
       const double *data() const {
-        return data_.data();
+        return block_.data();
       }
 
       double first() const {
-        return data_.front();
+        return block_[0];
       }
 
       double& first() {
-        return data_.front();
+        return block_[0];
       }
 
       double last() const {
-        return data_.back();
+        return block_[block_.size()-1];
       }
 
       double& last() {
-        return data_.back();
+        return block_[block_.size()-1];
       }
 
       // Vector slice
       Vector getSlice(size_t start, size_t stop, size_t step = 1) const {
         Vector result;
         for(size_t i = start; i < stop; i+=step){
-          result.append(data_[i]);
+          result.append(block_[i]);
         }
         return result;
       }
@@ -284,30 +312,30 @@ namespace pml {
       // ------ Self Assignment Operators -------
 
       void operator+=(double value) {
-        for (auto &d : data_) { d += value; }
+        for (auto &d : block_) { d += value; }
       }
 
       // A = A - b
       void operator-=(double value) {
-        for (auto &d : data_) { d -= value; }
+        for (auto &d : block_) { d -= value; }
       }
 
       // A = A * b
       void operator*=(double value) {
-        for (auto &d : data_) { d *= value; }
+        for (auto &d : block_) { d *= value; }
       }
 
       // A = A / b
       void operator/=(double value) {
-        for (auto &d : data_) { d /= value; }
+        for (auto &d : block_) { d /= value; }
       }
 
       // A = A + B
       void operator+=(const Vector &other) {
         ASSERT_TRUE(size() == other.size(),
                     "Vector::operator+=:: Size mismatch.");
-        for (size_t i = 0; i < data_.size(); ++i) {
-          data_[i] += other[i];
+        for (size_t i = 0; i < size(); ++i) {
+          block_[i] += other[i];
         }
       }
 
@@ -315,8 +343,8 @@ namespace pml {
       void operator-=(const Vector &other) {
         ASSERT_TRUE(size() == other.size(),
                     "Vector::operator-=:: Size mismatch.");
-        for (size_t i = 0; i < data_.size(); ++i) {
-          data_[i] -= other[i];
+        for (size_t i = 0; i < size(); ++i) {
+          block_[i] -= other[i];
         }
       }
 
@@ -324,8 +352,8 @@ namespace pml {
       void operator*=(const Vector &other) {
         ASSERT_TRUE(size() == other.size(),
                     "Vector::operator*=:: Size mismatch.");
-        for (size_t i = 0; i < data_.size(); ++i) {
-          data_[i] *= other[i];
+        for (size_t i = 0; i < size(); ++i) {
+          block_[i] *= other[i];
         }
       }
 
@@ -333,8 +361,8 @@ namespace pml {
       void operator/=(const Vector &other) {
         ASSERT_TRUE(size() == other.size(),
                     "Vector::operator/=:: Size mismatch.");
-        for (size_t i = 0; i < data_.size(); ++i) {
-          data_[i] /= other[i];
+        for (size_t i = 0; i < size(); ++i) {
+          block_[i] /= other[i];
         }
       }
 
@@ -399,7 +427,7 @@ namespace pml {
         ASSERT_TRUE(x.size() == y.size(), "Vector::operator+:: Size mismatch.");
         Vector result(x.size());
         for (size_t i = 0; i < x.size(); ++i) {
-          result.data_[i] = x.data_[i] + y.data_[i];
+          result[i] = x[i] + y[i];
         }
         return result;
       }
@@ -409,7 +437,7 @@ namespace pml {
         ASSERT_TRUE(x.size() == y.size(), "Vector::operator-:: Size mismatch.");
         Vector result(x.size());
         for (size_t i = 0; i < x.size(); ++i) {
-          result.data_[i] = x.data_[i] - y.data_[i];
+          result[i] = x[i] - y[i];
         }
         return result;
       }
@@ -419,7 +447,7 @@ namespace pml {
         ASSERT_TRUE(x.size() == y.size(), "Vector::operator*:: Size mismatch.");
         Vector result(x.size());
         for (size_t i = 0; i < x.size(); ++i) {
-          result.data_[i] = x.data_[i] * y.data_[i];
+          result[i] = x[i] * y[i];
         }
         return result;
       }
@@ -429,7 +457,7 @@ namespace pml {
         ASSERT_TRUE(x.size() == y.size(), "Vector::operator/:: Size mismatch.");
         Vector result(x.size());
         for (size_t i = 0; i < x.size(); ++i) {
-          result.data_[i] = x.data_[i] / y.data_[i];
+          result[i] = x[i] / y[i];
         }
         return result;
       }
@@ -470,7 +498,7 @@ namespace pml {
           ofs << 1 << std::endl;      // dimension
           ofs << size() << std::endl; // size
           ofs << std::setprecision(precision) << std::fixed;
-          for (auto &value : data_) {
+          for (const double &value : block_) {
             ofs << value << std::endl;
           }
           ofs.close();
@@ -502,7 +530,7 @@ namespace pml {
           ASSERT_TRUE(buffer == 1, "Vector::LoadTxt:: Dimension mismatch.");
           ifs >> buffer;
           // Allocate memory
-          result.data_.resize(buffer);
+          result.resize(buffer);
           ifs >> result;
           ifs.close();
         }
@@ -537,18 +565,18 @@ namespace pml {
       void normalize() {
         double sum_x = sum(*this);
         for(size_t i=0; i < size(); ++i)
-          data_[i] /= sum_x;
+          block_[i] /= sum_x;
       }
 
       void normalizeExp(){
         double x_max = max(*this);
         for (size_t i = 0; i < size(); ++i)
-          data_[i] = std::exp(data_[i] - x_max);
+          block_[i] = std::exp(block_[i] - x_max);
         normalize();
       }
 
     public:
-      std::vector<double> data_;
+      Block block_;
   };
 
   Vector cat(const Vector &v1, const Vector &v2){
@@ -565,8 +593,9 @@ namespace pml {
   }
 
   Vector reverse(const Vector &v){
-    Vector result = v;
-    std::reverse(result.begin(), result.end());
+    Vector result(v.size());
+    for(size_t i = 0; i < v.size(); ++i)
+      result[i] = v[v.size()-i];
     return result;
   }
 
