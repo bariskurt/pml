@@ -1,11 +1,11 @@
 #include <cassert>
 
 #include "pml_vector.hpp"
+#include "pml_time.hpp"
 
 using namespace pml;
 
 std::string test_dir = "/tmp/";
-
 
 void test_vector(){
   std::cout << "test_vector...\n";
@@ -74,49 +74,6 @@ void test_load_save(){
   std::cout << "OK.\n";
 }
 
-void test_vector_functions() {
-
-  std::cout << "test_vector_functions...\n";
-
-  Vector v1 = {1, 2, 3, 4, 5};
-  assert(fequal(min(v1), 1));
-  assert(fequal(max(v1), 5));
-  assert(fequal(sum(v1), 15));
-  assert(fequal(mean(v1), 3));
-  assert(fequal(var(v1), 2.5));
-  assert(fequal(stdev(v1), 1.581138));
-
-
-  Vector exp_v1 = {2.718281, 7.389056, 20.085536, 54.598150, 148.413159};
-  assert(exp(v1).equals(exp_v1));
-
-  Vector log_v1 = {0, 0.693147, 1.098612, 1.386294, 1.609437};
-  assert(log(v1).equals(log_v1));
-
-  Vector normalize_v1 = {0.066667, 0.133333, 0.2, 0.266667, 0.333333};
-  assert(normalize(v1).equals(normalize_v1));
-
-  Vector z = log(v1);
-  assert(normalizeExp(z).equals(normalize(v1)));
-  assert(fequal(logSumExp(z), std::log(sum(v1))));
-
-  Vector v2 = {-1,-2,-3,-4,-5};
-  assert(v1.equals(abs(v2)));
-
-  Vector v3 = {1.1, 2.4, 2.9, 4, 4.8};
-  assert(v1.equals(round(v3)));
-
-  // Test slice
-  Vector v4 = {0,1,2,3,4,5,6,7,8};
-  assert(v4.getSlice(0, v4.size()).equals(v4));
-  assert(v4.getSlice(0, 4).equals(Vector({0,1,2,3})));
-  assert(v4.getSlice(0, 0).equals(Vector()));
-  assert(v4.getSlice(0, v4.size(), 2).equals(Vector({0,2,4,6,8})));
-  assert(v4.getSlice(1, v4.size(), 2).equals(Vector({1,3,5,7})));
-
-  std::cout << "OK.\n";
-}
-
 void test_vector_algebra(){
   std::cout << "test_vector_algebra...\n";
   Vector x(5, 3);
@@ -162,7 +119,48 @@ void test_vector_algebra(){
   std::cout << "OK.\n";
 }
 
+void test_vector_functions() {
 
+  std::cout << "test_vector_functions...\n";
+
+  Vector v1 = {1, 2, 3, 4, 5};
+  assert(fequal(min(v1), 1));
+  assert(fequal(max(v1), 5));
+  assert(fequal(sum(v1), 15));
+  assert(fequal(mean(v1), 3));
+  assert(fequal(var(v1), 2.5));
+  assert(fequal(stdev(v1), 1.581138));
+
+
+  Vector exp_v1 = {2.718281, 7.389056, 20.085536, 54.598150, 148.413159};
+  assert(exp(v1).equals(exp_v1));
+
+  Vector log_v1 = {0, 0.693147, 1.098612, 1.386294, 1.609437};
+  assert(log(v1).equals(log_v1));
+
+  Vector normalize_v1 = {0.066667, 0.133333, 0.2, 0.266667, 0.333333};
+  assert(normalize(v1).equals(normalize_v1));
+
+  Vector z = log(v1);
+  assert(normalizeExp(z).equals(normalize(v1)));
+  assert(fequal(logSumExp(z), std::log(sum(v1))));
+
+  Vector v2 = {-1,-2,-3,-4,-5};
+  assert(v1.equals(abs(v2)));
+
+  Vector v3 = {1.1, 2.4, 2.9, 4, 4.8};
+  assert(v1.equals(round(v3)));
+
+  // Test slice
+  Vector v4 = {0,1,2,3,4,5,6,7,8};
+  assert(v4.getSlice(0, v4.size()).equals(v4));
+  assert(v4.getSlice(0, 4).equals(Vector({0,1,2,3})));
+  assert(v4.getSlice(0, 0).equals(Vector()));
+  assert(v4.getSlice(0, v4.size(), 2).equals(Vector({0,2,4,6,8})));
+  assert(v4.getSlice(1, v4.size(), 2).equals(Vector({1,3,5,7})));
+
+  std::cout << "OK.\n";
+}
 
 void test_vector_comparison() {
   std::cout << "test_vector_comparison...\n";
@@ -196,13 +194,14 @@ void test_vector_comparison() {
   std::cout << "OK.\n";
 }
 
-
 int main(){
+
   test_vector();
-  test_vector_functions();
+  test_load_save();
   test_vector_algebra();
   test_vector_comparison();
-  test_load_save();
+  test_vector_functions();
+
   return 0;
 
 }

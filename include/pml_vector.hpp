@@ -14,6 +14,8 @@
 #include <numeric>
 #include <vector>
 
+#include "pml_memory.hpp"
+
 #define DEFAULT_PRECISION 6
 
 namespace pml {
@@ -39,13 +41,21 @@ namespace pml {
   }
 
   class Vector {
+
+    public:
+      //typedef std::vector<double, Allocator<double>> container_type;
+      typedef std::vector<double> container_type;
+
+
     public:
       // Empty Vector
       Vector() { }
 
       // Vector of given length and default value.
-      explicit Vector(size_t length, double value = 0)
-          : data_(length, value) { }
+      explicit Vector(size_t length) : data_(length) { }
+
+      // Vector of given length and default value.
+      explicit Vector(size_t length, double value) : data_(length, value) { }
 
       // Vector from given array
       Vector(size_t length, const double *values)
@@ -83,6 +93,10 @@ namespace pml {
       // Checks empty.
       bool empty() const {
         return data_.empty();
+      }
+
+      void fill(double value){
+        std::fill(data_.begin(), data_.end(), value);
       }
 
       // Vector resize. If new size is smaller, the data_ is cropped.
@@ -212,19 +226,19 @@ namespace pml {
 
     public:
       //  -------- Iterators--------
-      std::vector<double>::iterator begin() {
+      container_type::iterator begin() {
         return data_.begin();
       }
 
-      std::vector<double>::const_iterator begin() const {
+      container_type::const_iterator begin() const {
         return data_.cbegin();
       }
 
-      std::vector<double>::iterator end() {
+      container_type::iterator end() {
         return data_.end();
       }
 
-      std::vector<double>::const_iterator end() const {
+      container_type::const_iterator end() const {
         return data_.cend();
       }
 
@@ -548,7 +562,7 @@ namespace pml {
       }
 
     public:
-      std::vector<double> data_;
+      container_type data_;
   };
 
   Vector cat(const Vector &v1, const Vector &v2){

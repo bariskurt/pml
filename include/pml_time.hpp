@@ -3,6 +3,7 @@
 
 #include <ctime>
 #include <string>
+#include <iostream>
 
 #ifdef __MACH__
 #include <mach/clock.h>
