@@ -18,198 +18,227 @@
 
 namespace pml {
 
-  // Helpers:
-  inline void ASSERT_TRUE(bool condition, const std::string &message) {
-    if (!condition) {
-      std::cout << "FATAL ERROR: " << message << std::endl;
-      exit(-1);
-    }
-  }
-
-  class Block{
-
-    class iterator{
-      public:
-        iterator(double *data_, size_t stride_)
-            : data(data_), stride(stride_) {}
-
-        iterator(const iterator& it)
-            : data(it.data), stride(it.stride) {}
-
-        iterator& operator=(const iterator& it){
-          data = it.data;
-          stride = it.stride;
-          return *this;
-        }
-
-        bool operator==(const iterator& it){
-          return data == it.data;
-        }
-
-        bool operator!=(const iterator& it){
-          return data != it.data;
-        }
-
-        iterator& operator++(){
-          data+=stride;
-          return *this;
-        }
-
-        double& operator*(){
-          return *data;
-        }
-
-        double operator*() const{
-          return *data;
-        }
-      private:
-        double *data;
-        size_t stride;
-    };
+  class Block {
 
     public:
-      // Allocate a new block, as the owner.
-      explicit Block(size_t size = 0)
-          :data_(nullptr), size_(size), stride_(1), owner_(true) {
-        if( size_ > 0)
-          realloc(size_);
+      template<bool is_const_iterator = true>
+      class const_noconst_iterator{
+
+        typedef typename std::conditional<is_const_iterator,
+            const double&, double&>::type ValueReferenceType;
+
+        public:
+          const_noconst_iterator(double *data_){
+            data = data_;
+          }
+
+          const_noconst_iterator(const const_noconst_iterator<false>& it) {
+            data = it.data;
+          }
+
+          const_noconst_iterator& operator=(
+              const const_noconst_iterator<false>& it){
+            data = it.data;
+            return *this;
+          }
+
+          bool operator==(const const_noconst_iterator& it){
+            return data == it.data;
+          }
+
+          bool operator!=(const const_noconst_iterator& it){
+            return data != it.data;
+          }
+
+          const_noconst_iterator& operator++(){
+            ++data;
+            return *this;
+          }
+
+          ValueReferenceType& operator*(){
+            return *data;
+          }
+
+          friend class const_noconst_iterator<true>;
+
+        private:
+            double *data;
+      };
+      typedef const_noconst_iterator<false> iterator;
+      typedef const_noconst_iterator<true> const_iterator;
+
+    public:
+      static const size_t INITIAL_CAPACITY = 128; // start with 1K memory
+      static const double GROWTH_RATIO;
+
+      explicit Block(size_t size = 0) : data_(nullptr), size_(size){
+        realloc_data_(std::max(size, INITIAL_CAPACITY));
       }
 
-      // Create a block referencing to another memory location
-      Block(double *data, size_t size, size_t stride):
-          data_(data), size_(size), stride_(stride), owner_(false) { }
-
-      // Creates a new block from another block
-      Block(const Block &block): Block(block.size_) {
-        copyFrom(block);
+      Block(const Block &that) : Block(that.size_){
+        memcpy(data_, that.data_, sizeof(double) * that.size_);
       }
 
-      // Assigns contents from another block.
-      // If Block is not the owner of its data segment, it releases it and
-      // creates it's own memory. Do not use this for content assignment.
-      // See: copyFrom(const Block &block)
-      Block operator=(const Block &block) {
-        release();
-        resize(block.size_);
-        copyFrom(block);
+      Block(Block &&that) : data_(that.data_),
+                            capacity_(that.capacity_),
+                            size_(that.size_) {
+        that.data_ = nullptr;
+        that.size_ = 0;
+        that.capacity_ = 0;
+      }
+
+      Block& operator=(const Block &that) {
+        if( &that != this ){
+          free_data_();
+          realloc_data_(that.capacity_);
+          memcpy(data_, that.data_, sizeof(double) * that.size_);
+          size_ = that.size_;
+        }
         return *this;
       }
 
-
-      //  -------- Iterators--------
-      iterator begin() {
-        return iterator(data_, stride_);
+      Block& operator=(Block &&that) {
+        free_data_();
+        // hijack the data of that block
+        data_ = that.data_;
+        size_ = that.size_;
+        capacity_ = that.capacity_;
+        // release that block's data
+        that.data_ = nullptr;
+        that.size_ = 0;
+        that.capacity_ = 0;
+        return *this;
       }
 
-      iterator begin() const {
-        return iterator(data_, stride_);
+      ~Block() {
+        if( data_ )
+          free_data_();
       }
 
-      iterator end() {
-        return iterator(data_ + (size_ * stride_) , stride_);
-      }
+    public:
 
-      iterator end() const {
-        return iterator(data_ + (size_ * stride_) , stride_);
-      }
-
-      // -------- Accessors --------
-      inline double& operator[](const size_t i) {
-        return data_[i * stride_];
-      }
-
-      inline double operator[](const size_t i) const {
-        return data_[i * stride_];
-      }
-
-      // --------- Setters -------
-      void append(double value){
-        ASSERT_TRUE(owner_, "Block is the not owner of its data segment");
-        if(size_ >= capacity_){
-          realloc(capacity_ * 1.5);
-        }
-        data_[size_++] = value;
-      }
-
-      void resize(size_t new_size){
-        ASSERT_TRUE(owner_, "Block is the not owner of its data segment");
-        if( new_size != size_){
-          realloc(new_size);
-          size_ = new_size;
-        }
-      }
-
-      void realloc(size_t new_capacity){
-        ASSERT_TRUE(owner_, "Block is the not owner of its data segment");
-        if( data_ != nullptr){
-          double *temp = new double[new_capacity];
-          memcpy(temp, data_, sizeof(double) * std::min(size_, new_capacity));
-          delete[] data_;
-          data_ = temp;
-        } else {
-          data_ = new double[new_capacity];
-        }
-        capacity_ = new_capacity;
-      }
-
-      void copyFrom(const Block &block){
-        ASSERT_TRUE(size_ == block.size_, "Block::copyFrom() size mismatch");
-        if(stride_ == 1 && block.stride_ == 1){
-          memcpy(data_, block.data_, sizeof(double) * size_);
-        } else {
-          Block::iterator it_this = begin();
-          Block::iterator it_other = block.begin();
-          while(it_this != end()){
-            *it_this = *it_other;
-            ++it_this, ++it_other;
-          }
-        }
-      }
-
-      // Releases the memory that it points to.
-      // If owner, deletes content
-      void release(){
-        if( owner_ ){
-          if( data_ != nullptr){
-            delete[] data_;
-          }
-        }
-        data_ = nullptr;
-        size_ = 0;
-        capacity_ = 0;
-        stride_ = 1;
-        owner_ = true;
-      }
-
-      // -------- Getters --------
       double* data() {
         return data_;
       }
 
-      const double *data() const {
+      const double* data() const {
         return data_;
       }
 
-      size_t size(){
+      size_t size() const {
         return size_;
       }
 
-      size_t stride(){
-        return stride_;
+      size_t capacity() const {
+        return capacity_;
       }
 
-      bool is_owner(){
-        return owner_;
+      bool empty() const {
+        return size_ == 0;
+      }
+
+      void clear() {
+        size_ = 0;
+      }
+
+    protected:
+
+      void __resize__(size_t new_size) {
+        if( new_size > capacity_ )
+          realloc_data_(new_size);
+        size_ = new_size;
+      }
+
+      void __reserve__(size_t new_capacity) {
+        if (new_capacity > capacity_)
+          realloc_data_(new_capacity);
+      }
+
+      void __shrink_to_fit__() {
+        if (size_ < capacity_)
+          realloc_data_(size_);
+      }
+
+    public:
+      // -------- Iterators --------
+      iterator begin() {
+        return iterator(data_);
+      }
+
+      const_iterator begin() const {
+        return const_iterator(data_);
+      }
+
+      const_iterator cbegin() const {
+        return const_iterator(data_);
+      }
+
+      iterator end() {
+        return iterator(data_ + size_);
+      }
+
+      const_iterator end() const {
+        return const_iterator(data_ + size_);
+      }
+
+      const_iterator cend() const {
+        return const_iterator(data_ + size_);
+      }
+
+      // -------- Accessors --------
+      inline double &operator[](const size_t i) {
+        return data_[i];
+      }
+
+      inline double operator[](const size_t i) const {
+        return data_[i];
+      }
+
+    public:
+      void push_back(double value) {
+        if (size_ == capacity_) {
+          realloc_data_(capacity_ * GROWTH_RATIO);
+        }
+        data_[size_++] = value;
+      }
+
+      void push_back(const Block &block) {
+        if (size_ + block.size() > capacity_) {
+          realloc_data_( (size_ + block.size_) * GROWTH_RATIO);
+        }
+        double *source = &block == this ? data_ : block.data_;
+        memcpy(data_ + size_, source, sizeof(double) * block.size_);
+        size_ += block.size_;
+      }
+
+      void pop_back(){
+        if(size_ > 0)
+          --size_;
+      }
+
+      void fill(double value){
+        std::fill(this->begin(), this->end(), value);
       }
 
     private:
-      double *data_;
-      size_t size_;
-      size_t capacity_;
-      size_t stride_;
-      bool owner_;
-  };
+      void realloc_data_(size_t new_capacity) {
+        data_ = (double*) realloc(data_, sizeof(double) * new_capacity);
+        capacity_ = new_capacity;
+      }
 
+      void free_data_(){
+        if( data_ ){
+          free(data_);
+          data_ = nullptr;
+        }
+      }
+
+    protected:
+      double *data_;
+      size_t capacity_;
+      size_t size_;
+  };
+  const double Block::GROWTH_RATIO  = 1.5;
 }
 
 #endif
