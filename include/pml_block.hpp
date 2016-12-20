@@ -1,76 +1,22 @@
 #ifndef PML_BLOCK_H_
 #define PML_BLOCK_H_
 
-#include <algorithm>
 #include <cassert>
 #include <cmath>
 #include <cstring>
 #include <fstream>
-#include <functional>
-#include <gsl/gsl_cblas.h>
-#include <gsl/gsl_sf_psi.h>
 #include <iomanip>
 #include <iostream>
-#include <numeric>
-#include <vector>
-
-#define DEFAULT_PRECISION 6
 
 namespace pml {
 
   class Block {
 
     public:
-      template<bool is_const_iterator = true>
-      class const_noconst_iterator{
-
-        typedef typename std::conditional<is_const_iterator,
-            const double&, double&>::type ValueReferenceType;
-
-        public:
-          const_noconst_iterator(double *data_){
-            data = data_;
-          }
-
-          const_noconst_iterator(const const_noconst_iterator<false>& it) {
-            data = it.data;
-          }
-
-          const_noconst_iterator& operator=(
-              const const_noconst_iterator<false>& it){
-            data = it.data;
-            return *this;
-          }
-
-          bool operator==(const const_noconst_iterator& it){
-            return data == it.data;
-          }
-
-          bool operator!=(const const_noconst_iterator& it){
-            return data != it.data;
-          }
-
-          const_noconst_iterator& operator++(){
-            ++data;
-            return *this;
-          }
-
-          ValueReferenceType& operator*(){
-            return *data;
-          }
-
-          friend class const_noconst_iterator<true>;
-
-        private:
-            double *data;
-      };
-      typedef const_noconst_iterator<false> iterator;
-      typedef const_noconst_iterator<true> const_iterator;
-
-    public:
-      static const size_t INITIAL_CAPACITY = 128; // start with 1K memory
+      static const size_t INITIAL_CAPACITY;
       static const double GROWTH_RATIO;
 
+    public:
       explicit Block(size_t size = 0) : data_(nullptr), size_(size){
         realloc_data_(std::max(size, INITIAL_CAPACITY));
       }
@@ -141,6 +87,11 @@ namespace pml {
         size_ = 0;
       }
 
+      void fill(double value){
+        for(double *itr = data_; itr < data_ + size_; ++itr)
+          *itr = value;
+      }
+
     protected:
 
       void __resize__(size_t new_size) {
@@ -160,37 +111,20 @@ namespace pml {
       }
 
     public:
-      // -------- Iterators --------
-      iterator begin() {
-        return iterator(data_);
-      }
-
-      const_iterator begin() const {
-        return const_iterator(data_);
-      }
-
-      const_iterator cbegin() const {
-        return const_iterator(data_);
-      }
-
-      iterator end() {
-        return iterator(data_ + size_);
-      }
-
-      const_iterator end() const {
-        return const_iterator(data_ + size_);
-      }
-
-      const_iterator cend() const {
-        return const_iterator(data_ + size_);
-      }
-
       // -------- Accessors --------
       inline double &operator[](const size_t i) {
         return data_[i];
       }
 
       inline double operator[](const size_t i) const {
+        return data_[i];
+      }
+
+      inline double &operator()(const size_t i) {
+        return data_[i];
+      }
+
+      inline double operator()(const size_t i) const {
         return data_[i];
       }
 
@@ -216,10 +150,6 @@ namespace pml {
           --size_;
       }
 
-      void fill(double value){
-        std::fill(this->begin(), this->end(), value);
-      }
-
     private:
       void realloc_data_(size_t new_capacity) {
         data_ = (double*) realloc(data_, sizeof(double) * new_capacity);
@@ -239,6 +169,7 @@ namespace pml {
       size_t size_;
   };
   const double Block::GROWTH_RATIO  = 1.5;
+  const size_t Block::INITIAL_CAPACITY = 128; // start with 1K memory
 }
 
 #endif

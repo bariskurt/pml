@@ -23,7 +23,7 @@ void test_constructors(){
   for(size_t i = 0; i < size; ++i){
     b2[i] = i;
   }
-  assert(b2.size() == 10);
+  assert(b2.size() == 10);  
   for(size_t i = 0; i < size; ++i){
     assert(b2[i] == i);
   }
