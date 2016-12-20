@@ -20,19 +20,14 @@
 
 namespace pml {
 
-  // Helpers:
-  inline void ASSERT_TRUE(bool condition, const std::string &message) {
-    if (!condition) {
-      std::cout << "FATAL ERROR: " << message << std::endl;
-      exit(-1);
-    }
-  }
-
-  // Defines a series from start to stop exclusively with step size step:
+  // Defines a series from start to stop EXCLISIVELY with step size step:
   // [start, start+step, start+2*step, ...]
   struct Range {
       Range(size_t start_, size_t stop_, size_t step_ = 1)
               : start(start_), stop(stop_), step(step_) { }
+      size_t size(){
+        return std::ceil((double)(stop-start) / step);
+      }
       size_t start, stop, step;
   };
 
@@ -40,11 +35,7 @@ namespace pml {
     return fabs(a - b) < 1e-6;
   }
 
-  class Vector : public Block{
-
-    public:
-      //typedef std::vector<double, Allocator<double>> container_type;
-      //typedef std::vector<double> container_type;
+  class Vector : public Block {
 
 
     public:
@@ -60,21 +51,20 @@ namespace pml {
       }
 
       // Vector from given array
-      Vector(size_t length, const double *values)
-          : Block(length) {
+      Vector(size_t length, const double *values) : Block(length) {
         memcpy(data_, values, sizeof(double) * length);
       }
 
       // Vector from initializer lsit
       Vector(const std::initializer_list<double> &values) {
         for(const double d : values)
-          push_back(d);
+          __push_back__(d);
       }
 
       // Vector from range
       explicit Vector(Range range) {
         for (double d = range.start; d < range.stop; d += range.step)
-          push_back(d);
+          __push_back__(d);
       }
 
       // Vector of zeros of given length.
@@ -98,52 +88,22 @@ namespace pml {
 
       // Append a single value. (same as push_back)
       void append(double value) {
-        push_back(value);
+        __push_back__(value);
       }
 
       // Append a Vector
       void append(const Vector &v) {
-        push_back(v);
+        __push_back__(v);
       }
 
       friend Vector apply(const Vector &x, double (*func)(double)){
         Vector result;
-        for(double d : x)
-          result.append(func(d));
+        for(size_t i=0; i < x.size(); ++i)
+          result.append(func(x[i]));
         return result;
       }
 
-      void apply(double (*func)(const double&)){
-        for(size_t i=0; i < size_; ++i)
-          data_[i] = func(data_[i]);
-      }
-
-      void apply(double (*func)(const double&, const double&),
-                 const double value){
-        for(size_t i=0; i < size_; ++i)
-          data_[i] = func(data_[i], value);
-      }
-
-      void apply(double (*func)(const double&, const double&),
-                 const  double* other_data_){
-        for(size_t i=0; i < size_; ++i)
-          data_[i] = func(data_[i], other_data_[i]);
-      }
-
     public:
-      friend bool any(const Vector &v){
-        for(size_t i = 0; i < v.size(); ++i)
-          if( v[i] == 1 )
-            return true;
-        return false;
-      }
-
-      friend bool all(const Vector &v){
-        for(size_t i = 0; i < v.size(); ++i)
-          if( v[i] == 0 )
-            return false;
-        return true;
-      }
 
       friend Vector operator==(const Vector &x, double v) {
         Vector result(x.size());
@@ -237,7 +197,7 @@ namespace pml {
       Vector getSlice(size_t start, size_t stop, size_t step = 1) const {
         Vector result;
         for(size_t i = start; i < stop; i+=step)
-          result.push_back(data_[i]);
+          result.append(data_[i]);
         return result;
       }
 
@@ -349,8 +309,9 @@ namespace pml {
 
       // returns b / A
       friend Vector operator/(double value, const Vector &x) {
-        Vector result(x);
-        for (auto &d : result) { d = value / d; }
+        Vector result(x.size());
+        for(size_t i=0; i < x.size(); ++i)
+          result.data_[i] = value / x.data_[i];
         return result;
       }
 
@@ -400,16 +361,14 @@ namespace pml {
       friend std::ostream &operator<<(std::ostream &out,
                                       const Vector &x) {
         out << std::setprecision(DEFAULT_PRECISION) << std::fixed;
-        for (auto &value : x) {
-          out << value << "  ";
-        }
+        for(size_t i=0; i < x.size(); ++i)
+          out << x[i]<< "  ";
         return out;
       }
 
       friend std::istream &operator>>(std::istream &in, Vector &x) {
-        for (auto &value : x) {
-          in >> value;
-        }
+        for(size_t i=0; i < x.size(); ++i)
+          in >> x[i];
         return in;
       }
 
@@ -432,9 +391,8 @@ namespace pml {
           ofs << 1 << std::endl;      // dimension
           ofs << size() << std::endl; // size
           ofs << std::setprecision(precision) << std::fixed;
-          for (auto &value : data_) {
-            ofs << value << std::endl;
-          }
+          for(size_t i=0; i < size_; ++i)
+            ofs << data_[i] << std::endl;
           ofs.close();
         }
       }
@@ -464,36 +422,11 @@ namespace pml {
           ASSERT_TRUE(buffer == 1, "Vector::LoadTxt:: Dimension mismatch.");
           ifs >> buffer;
           // Allocate memory
-          result.data_.resize(buffer);
+          result.__resize__(buffer);
           ifs >> result;
           ifs.close();
         }
         return result;
-      }
-
-      // Sum
-      friend double sum(const Vector &x){
-        double result = 0;
-        for(size_t i = 0; i < x.size(); ++i)
-          result += x[i];
-        return result;
-      }
-
-      friend double min(const Vector &x) {
-        double min_x = x[0];
-        for(size_t i=1; i<x.size(); ++i)
-          if( x[i] < min_x )
-            min_x = x[i];
-        return min_x;
-      }
-
-      // Max
-      friend double max(const Vector &x) {
-        double max_x = x[0];
-        for(size_t i=1; i<x.size(); ++i)
-          if( max_x < x[i] )
-            max_x = x[i];
-        return max_x;
       }
 
       void normalize() {
@@ -524,8 +457,12 @@ namespace pml {
   }
 
   Vector reverse(const Vector &v){
-    Vector result = v;
-    std::reverse(result.begin(), result.end());
+    Vector result(v.size());
+    if( v.size() > 0) {
+      size_t offset = v.size() - 1;
+      for (size_t i = 0; i < v.size(); ++i)
+        result[i] = v[offset - 1];
+    }
     return result;
   }
 
@@ -560,10 +497,10 @@ namespace pml {
   }
 
   // Power
-  inline Vector pow(const Vector &x, double p = 2){
-    Vector result(x);
-    for(double &d : result)
-      d = std::pow(d, p);
+  inline Vector pow(const Vector &x, double p){
+    Vector result(x.size());
+    for(size_t i = 0; i < x.size(); ++i)
+      result[i] = std::pow(x[i], p);
     return result;
   }
 
@@ -574,16 +511,6 @@ namespace pml {
     for(size_t i = 0; i < x.size(); ++i)
       result += x[i] * y[i];
     return result;
-  }
-
-  // Mean
-  inline double mean(const Vector &x){
-    return sum(x) / x.size();
-  }
-
-  // Variance
-  inline double var(const Vector &x){
-    return sum(pow(x - mean(x), 2)) / (x.size() - 1);
   }
 
   // Standard deviation
@@ -633,15 +560,6 @@ namespace pml {
     Vector result(x);
     result.normalizeExp();
     return result;
-  }
-
-  // Safe log(sum(exp(x)))
-  inline double logSumExp(const Vector &x) {
-    double result = 0;
-    double x_max = max(x);
-    for(size_t i=0; i<x.size(); ++i)
-      result += std::exp(x(i) - x_max);
-    return x_max + std::log(result);
   }
 
 } // namespace pml

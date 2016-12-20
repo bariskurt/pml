@@ -41,12 +41,11 @@ void test_vector(){
   // Test append, push_back
   Vector v6({1,2,3,4});
   v6.append(5);
-  v6.push_back(6);  assert(v6.size() == 6);
-  v6.pop_back();    assert(v6.size() == 5);
+  v6.append(6);  assert(v6.size() == 6);
 
   // Test append 2 Vectors
-  v6.append(Vector()); assert(v6.size() == 5);
-  v6.append(Vector({10,11})); assert(v6.size() == 7);
+  v6.append(Vector()); assert(v6.size() == 6);
+  v6.append(Vector({10,11})); assert(v6.size() == 8);
 
   // Assign, Copy
   Vector v7(v6);  assert(v6.equals(v7));
@@ -194,6 +193,27 @@ void test_vector_comparison() {
   std::cout << "OK.\n";
 }
 
+void test_range(){
+  std::cout << "test_range.\n";
+
+  Range r1(0,10);
+  assert(r1.size() == 10);
+
+  Range r2(0,10, 2);
+  assert(r2.size() == 5);
+
+  Range r3(0,9, 2);
+  assert(r3.size() == 5);
+
+  Range r4(0,9, 3);
+  assert(r4.size() == 3);
+
+  Range r5(0,9, 4);
+  assert(r5.size() == 3);
+
+  std::cout << "OK.\n";
+}
+
 int main(){
 
   test_vector();
@@ -201,6 +221,7 @@ int main(){
   test_vector_algebra();
   test_vector_comparison();
   test_vector_functions();
+  test_range();
 
   return 0;
 

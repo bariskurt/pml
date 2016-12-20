@@ -13,33 +13,45 @@ void dgetri_(int*, double*, int*, int*, double*, int*, int* );
 
 namespace pml {
 
-  class Matrix {
+  class Matrix : public Block {
 
     public:
 
       // Empty Matrix
       Matrix() : nrows_(0), ncols_(0) { }
 
+      // Matrix with given size.
+      Matrix(size_t num_rows, size_t num_cols)
+          : Block(num_rows * num_cols), nrows_(num_rows), ncols_(num_cols) {}
+
       // Matrix with given size and default value.
-      Matrix(size_t num_rows, size_t num_cols, double value = 0)
-          : nrows_(num_rows), ncols_(num_cols),
-            data_(num_rows * num_cols, value) {}
+      Matrix(size_t num_rows, size_t num_cols, double default_value)
+          : Block(num_rows * num_cols), nrows_(num_rows), ncols_(num_cols) {
+        fill(default_value);
+      }
 
       // Matrix with given dimensions and array.
       // Matrix is stored in column major order.
       Matrix(size_t num_rows, size_t num_cols, const double *values)
-          : nrows_(num_rows), ncols_(num_cols), data_(num_rows * num_cols) {
-        memcpy(this->data(), values, sizeof(double) * size());
+          : Block(num_rows * num_cols), nrows_(num_rows), ncols_(num_cols) {
+        std::memcpy(data_, values, sizeof(double) * size_);
       }
 
       // Matrix with given size and array.
       // Matrix is stored in column major order.
       Matrix(size_t num_rows, size_t num_cols,
              const std::initializer_list<double> &values)
-          : nrows_(num_rows), ncols_(num_cols), data_(values)  {}
+          : nrows_(num_rows), ncols_(num_cols){
+        for(const double d : values)
+          __push_back__(d);
+      }
 
       // Zero Matrix with given shape
-      Matrix(std::pair<size_t, size_t> shape, double value = 0) :
+      explicit Matrix(std::pair<size_t, size_t> shape) :
+          Matrix(shape.first, shape.second) {}
+
+      // Zero Matrix with given shape
+      Matrix(std::pair<size_t, size_t> shape, double value) :
           Matrix(shape.first, shape.second, value) { }
 
       // Matrix with given shape and values
@@ -79,10 +91,6 @@ namespace pml {
         return ncols_;
       }
 
-      size_t size() const{
-        return data_.size();
-      }
-
       // Get shape
       std::pair<size_t, size_t> shape() const{
         return {nrows_, ncols_};
@@ -92,12 +100,7 @@ namespace pml {
       void reshape(size_t new_nrows, size_t new_ncols){
         nrows_ = new_nrows;
         ncols_ = new_ncols;
-        data_.resize(nrows_ * ncols_);
-      }
-
-      // Checks empty.
-      bool empty() const {
-        return data_.empty();
+        __resize__(nrows_ * ncols_);
       }
 
       friend Matrix apply(const Matrix &m, double (*func)(double)){
@@ -107,26 +110,7 @@ namespace pml {
         return result;
       }
 
-      void apply(double (*func)(double)){
-        for(double &d : data_)
-          d = func(d);
-      }
-
     public:
-
-      friend bool any(const Matrix &m){
-        for(size_t i = 0; i < m.size(); ++i)
-          if( m[i] == 1 )
-            return true;
-        return false;
-      }
-
-      friend bool all(const Matrix &m){
-        for(size_t i = 0; i < m.size(); ++i)
-          if( m[i] == 0 )
-            return false;
-        return true;
-      }
 
       friend Matrix operator==(const Matrix &x, double v) {
         Matrix result(x.shape());
@@ -197,43 +181,8 @@ namespace pml {
       }
 
     public:
-      // -------- Iterators ---------
-
-      std::vector<double>::iterator begin() {
-        return data_.begin();
-      }
-
-      std::vector<double>::const_iterator begin() const {
-        return data_.cbegin();
-      }
-
-      std::vector<double>::iterator end() {
-        return data_.end();
-      }
-
-      std::vector<double>::const_iterator end() const {
-        return data_.cend();
-      }
-
-    public:
 
       // -------- Accessors ---------
-      inline double &operator[](const size_t i0) {
-        return data_[i0];
-      }
-
-      inline double operator[](const size_t i0) const {
-        return data_[i0];
-      }
-
-      inline double &operator()(const size_t i0) {
-        return data_[i0];
-      }
-
-      inline double operator()(const size_t i0) const {
-        return data_[i0];
-      }
-
       inline double &operator()(const size_t i0, const size_t i1) {
         return data_[i0 + nrows_ * i1];
       }
@@ -242,43 +191,38 @@ namespace pml {
         return data_[i0 + nrows_ * i1];
       }
 
-      double* data() {
-        return data_.data();
-      }
-
-      const double *data() const {
-        return data_.data();
-      }
-
-
     public:
 
       // ------- Self-Assignment Operations ------
 
-      void operator+=(double value) {
-        for (auto &d : data_) { d += value; }
+      void operator+=(const double value) {
+        for(size_t i=0; i < size_; ++i)
+          data_[i] += value;
       }
 
       // A = A - b
-      void operator-=(double value) {
-        for (auto &d : data_) { d -= value; }
+      void operator-=(const double value) {
+        for(size_t i=0; i < size_; ++i)
+          data_[i] -= value;
       }
 
       // A = A * b
-      void operator*=(double value) {
-        for (auto &d : data_) { d *= value; }
+      void operator*=(const double value) {
+        for(size_t i=0; i < size_; ++i)
+          data_[i] *= value;
       }
 
       // A = A / b
-      void operator/=(double value) {
-        for (auto &d : data_) { d /= value; }
+      void operator/=(const double value) {
+        for(size_t i=0; i < size_; ++i)
+          data_[i] /= value;
       }
 
       // A = A + B
       void operator+=(const Matrix &other) {
         ASSERT_TRUE(shape() == other.shape(),
                     "Matrix::operator+=:: Shape mismatch.");
-        for (size_t i = 0; i < data_.size(); ++i) {
+        for (size_t i = 0; i < size_; ++i) {
           data_[i] += other[i];
         }
       }
@@ -287,7 +231,7 @@ namespace pml {
       void operator-=(const Matrix &other) {
         ASSERT_TRUE(shape() == other.shape(),
                     "Matrix::operator-=:: Shape mismatch.");
-        for (size_t i = 0; i < data_.size(); ++i) {
+        for (size_t i = 0; i < size_; ++i) {
           data_[i] -= other[i];
         }
       }
@@ -296,7 +240,7 @@ namespace pml {
       void operator*=(const Matrix &other) {
         ASSERT_TRUE(shape() == other.shape(),
                     "Matrix::operator*=:: Shape mismatch.");
-        for (size_t i = 0; i < data_.size(); ++i) {
+        for (size_t i = 0; i < size_; ++i) {
           data_[i] *= other[i];
         }
       }
@@ -305,7 +249,7 @@ namespace pml {
       void operator/=(const Matrix &other) {
         ASSERT_TRUE(shape() == other.shape(),
                     "Matrix::operator/=:: Shape mismatch.");
-        for (size_t i = 0; i < data_.size(); ++i) {
+        for (size_t i = 0; i < size_; ++i) {
           data_[i] /= other[i];
         }
       }
@@ -357,8 +301,9 @@ namespace pml {
 
       // returns b / A
       friend Matrix operator/(double value, const Matrix &x) {
-        Matrix result(x);
-        for (auto &d : result) { d = value / d; }
+        Matrix result(x.shape());
+        for(size_t i = 0; i < x.size(); ++i)
+          result[i] = value / x[i];
         return result;
       }
 
@@ -467,17 +412,18 @@ namespace pml {
     public:
       // Returns a single column as Vector
       Vector getColumn(size_t col_num) const {
-        Vector column(nrows_);
-        memcpy(column.data(), &data_[col_num * nrows_],
-               sizeof(double) * nrows_);
-        return column;
+        return Vector(nrows_, &data_[col_num * nrows_]);
       }
 
       // Returns several columns as Matrix
       Matrix getColumns(Range range) const {
-        Matrix result;
-        for(size_t i = range.start; i < range.stop; i+=range.step){
-          result.appendColumn(getColumn(i));
+        Matrix result(nrows_, range.size());
+        size_t i = 0; j = range.start;
+        size_t num_bytes = sizeof(double) * nrows_;
+        for(int k = 0; k < range.size(); ++k){
+          memcpy(result.data_[i*nrows_], &data_[i * nrows_], num_bytes);
+          ++i;
+          j += range.step;
         }
         return result;
       }
@@ -585,7 +531,7 @@ namespace pml {
         }
         nrows_++;
       }
-
+*/
       // ---------- File Operations --------
 
     public:
@@ -602,9 +548,8 @@ namespace pml {
       }
 
       friend std::istream &operator>>(std::istream &in, Matrix &x) {
-        for (auto &value : x) {
-          in >> value;
-        }
+        for(size_t i=0; i < x.size(); ++i)
+          in >> x[i];
         return in;
       }
 
@@ -624,11 +569,11 @@ namespace pml {
       void saveTxt(const std::string &filename) const {
         std::ofstream ofs(filename);
         if (ofs.is_open()) {
-          ofs << 2 << std::endl;          // dimension
-          ofs << nrows() << std::endl;    // num. rows
-          ofs << ncols() << std::endl;    // num. cols
-          for(auto &value : data_)        // values
-            ofs << value << std::endl;
+          ofs << 2 << std::endl;              // dimension
+          ofs << nrows() << std::endl;        // num. rows
+          ofs << ncols() << std::endl;        // num. cols
+          for(size_t i=0; i < size_; ++i)    // values
+            ofs << data_[i] << std::endl;
           ofs.close();
         }
       }
@@ -651,31 +596,24 @@ namespace pml {
       }
 
       static Matrix loadTxt(const std::string &filename) {
-        Matrix result;
         std::ifstream ifs(filename);
-        size_t buffer;
         if (ifs.is_open()) {
-          // Read dimension
-          ifs >> buffer;
-          ASSERT_TRUE(buffer == 2, "Matrix::loadTxt:: dimension mismatch");
-          ifs >> result.nrows_;
-          ifs >> result.ncols_;
+          // Read dimensions
+          size_t ndims, nrows, ncols;
+          ifs >> ndims;
+          ASSERT_TRUE(ndims == 2, "Matrix::loadTxt:: dimension mismatch");
+          ifs >> nrows;
+          ifs >> ncols;
           // Allocate memory
-          result.data_.resize(result.nrows_ * result.ncols_ );
+          Matrix result(nrows, ncols);
           ifs >> result;
           ifs.close();
+          return result;
         }
-        return result;
+        return Matrix(0,0);
       }
 
       // Sum
-      friend double sum(const Matrix &x){
-        double result = 0;
-        for(size_t i=0; i<x.size(); ++i)
-          result += x[i];
-        return result;
-      }
-
       friend Vector sum(const Matrix &x, size_t axis) {
         ASSERT_TRUE(axis==0 || axis==1, "Matrix::sum axis out of bounds.");
         Vector result;
@@ -693,15 +631,7 @@ namespace pml {
         return result;
       }
 
-      // Min
-      friend double min(const Matrix &x) {
-        double min_x = x[0];
-        for(size_t i=1; i<x.size(); ++i)
-          if( x[i] < min_x )
-            min_x = x[i];
-        return min_x;
-      }
-
+/*
       friend Vector min(const Matrix &x, size_t axis) {
         ASSERT_TRUE(axis==0 || axis==1, "Matrix::max axis out of bounds.");
         Vector result;
@@ -719,15 +649,6 @@ namespace pml {
                 result[i] = x(i,j);
         }
         return result;
-      }
-
-      // Max
-      friend double max(const Matrix &x) {
-        double max_x = x[0];
-        for(size_t i=1; i<x.size(); ++i)
-          if( max_x < x[i] )
-            max_x = x[i];
-        return max_x;
       }
 
       friend Vector max(const Matrix &x, size_t axis) {
@@ -789,15 +710,32 @@ namespace pml {
           normalize();
         }
       }
-
+*/
     private:
       size_t nrows_;
       size_t ncols_;
-      std::vector<double> data_;
-
   };
 
-  // Concatanate two matrices as in Matlab
+  // Transpose
+  inline Matrix transpose(const Matrix &m){
+    Matrix result(m.ncols(), m.nrows());
+    for (size_t i = 0; i < m.nrows(); ++i)
+      for (size_t j = 0; j < m.ncols(); ++j)
+        result(j, i) = m(i, j);
+    return result;
+  }
+
+  inline Matrix tr(const Matrix &m){
+    return transpose(m);
+  }
+
+  // Returns a flat vector from Matrix x
+  inline Vector flatten(const Matrix &x){
+    return Vector(x.size(), x.data());
+  }
+
+/*
+  // Concatenate two matrices as in Matlab
   inline Matrix cat(const Matrix &m1, const Matrix &m2, size_t axis = 1){
     Matrix result(m1);
     result.append(m2, axis);
@@ -821,20 +759,7 @@ namespace pml {
     }
     return result;
   }
-
-  // Returns a flat vector from Matrix x
-  inline Vector flatten(const Matrix &x){
-    return Vector(x.size(), x.data());
-  }
-
-  // Transpose
-  inline Matrix transpose(const Matrix &m){
-    Matrix result(m.ncols(), m.nrows());
-    for (size_t i = 0; i < m.nrows(); ++i)
-      for (size_t j = 0; j < m.ncols(); ++j)
-        result(j, i) = m(i, j);
-    return result;
-  }
+*/
 
   // Inverse : will be added later in linear algebra package
   /*
@@ -852,7 +777,7 @@ namespace pml {
     return result;
   }
   */
-
+/*
   // repmat function of Matlab
   inline Matrix repmat(const Vector &x, int n, int m ){
     // Prepare initial column.
@@ -881,9 +806,6 @@ namespace pml {
     return result;
   }
 
-  inline double mean(const Matrix &x){
-    return sum(x) / x.size();
-  }
 
   inline Vector mean(const Matrix &x, int axis){
     ASSERT_TRUE(axis==0 || axis==1, "Matrix::max axis out of bounds.");
@@ -891,7 +813,7 @@ namespace pml {
       return sum(x, 0) / x.nrows();
     return sum(x,1) / x.ncols();
   }
-
+*/
   // Absolute value of x
   inline Matrix abs(const Matrix &x){
     return apply(x, std::fabs);
@@ -921,7 +843,7 @@ namespace pml {
   inline Matrix log(const Matrix &x){
     return apply(x, std::log);
   }
-
+/*
   // Normalize
   inline Matrix normalize(const Matrix  &x, int axis = 2) {
     Matrix result(x);
@@ -936,15 +858,6 @@ namespace pml {
     return result;
   }
 
-
-  // Safe LogSumExp(x)
-  inline double logSumExp(const Matrix &x) {
-    double result = 0;
-    double x_max = max(x);
-    for(size_t i=0; i<x.size(); ++i)
-      result += std::exp(x(i) - x_max);
-    return x_max + std::log(result);
-  }
 
   inline Vector logSumExp(const Matrix &x, int axis) {
     ASSERT_TRUE(axis==0 || axis==1, "Matrix::logSumExp axis out of bounds.");
@@ -974,7 +887,7 @@ namespace pml {
     }
     return result;
   }
-
+*/
   // Matrix - Vector Product
   inline Vector dot(const Matrix &X, const Vector &y,
                     bool x_transpose = false){

@@ -10,7 +10,16 @@
 
 namespace pml {
 
+  inline void ASSERT_TRUE(bool condition, const std::string &message) {
+    if (!condition) {
+      std::cout << "FATAL ERROR: " << message << std::endl;
+      exit(-1);
+    }
+  }
+
   class Block {
+
+    friend class PmlTester;
 
     public:
       static const size_t INITIAL_CAPACITY;
@@ -18,7 +27,7 @@ namespace pml {
 
     public:
       explicit Block(size_t size = 0) : data_(nullptr), size_(size){
-        realloc_data_(std::max(size, INITIAL_CAPACITY));
+        __realloc_data__(std::max(size, INITIAL_CAPACITY));
       }
 
       Block(const Block &that) : Block(that.size_){
@@ -35,8 +44,8 @@ namespace pml {
 
       Block& operator=(const Block &that) {
         if( &that != this ){
-          free_data_();
-          realloc_data_(that.capacity_);
+          __free_data__();
+          __realloc_data__(that.capacity_);
           memcpy(data_, that.data_, sizeof(double) * that.size_);
           size_ = that.size_;
         }
@@ -44,7 +53,7 @@ namespace pml {
       }
 
       Block& operator=(Block &&that) {
-        free_data_();
+        __free_data__();
         // hijack the data of that block
         data_ = that.data_;
         size_ = that.size_;
@@ -58,7 +67,7 @@ namespace pml {
 
       ~Block() {
         if( data_ )
-          free_data_();
+          __free_data__();
       }
 
     public:
@@ -87,30 +96,8 @@ namespace pml {
         size_ = 0;
       }
 
-      void fill(double value){
-        for(double *itr = data_; itr < data_ + size_; ++itr)
-          *itr = value;
-      }
-
-    protected:
-
-      void __resize__(size_t new_size) {
-        if( new_size > capacity_ )
-          realloc_data_(new_size);
-        size_ = new_size;
-      }
-
-      void __reserve__(size_t new_capacity) {
-        if (new_capacity > capacity_)
-          realloc_data_(new_capacity);
-      }
-
-      void __shrink_to_fit__() {
-        if (size_ < capacity_)
-          realloc_data_(size_);
-      }
-
     public:
+
       // -------- Accessors --------
       inline double &operator[](const size_t i) {
         return data_[i];
@@ -128,35 +115,95 @@ namespace pml {
         return data_[i];
       }
 
+      void fill(double value){
+        for(double *itr = data_; itr < data_ + size_; ++itr)
+          *itr = value;
+      }
+
     public:
-      void push_back(double value) {
+      // -------- Apply --------
+      void apply(double (*func)(const double&)){
+        for(size_t i=0; i < size_; ++i)
+          data_[i] = func(data_[i]);
+      }
+
+      void apply(double (*func)(const double&, const double&),
+                 const double value){
+        for(size_t i=0; i < size_; ++i)
+          data_[i] = func(data_[i], value);
+      }
+
+      void apply(double (*func)(const double&, const double&),
+                 const  double* other_data_){
+        for(size_t i=0; i < size_; ++i)
+          data_[i] = func(data_[i], other_data_[i]);
+      }
+
+    public:
+      // ---------- Any / Or ---------
+      friend bool any(const Block &b){
+        for(size_t i = 0; i < b.size_; ++i)
+          if( b.data_[i] == 1 )
+            return true;
+        return false;
+      }
+
+      friend bool all(const Block &b){
+        for(size_t i = 0; i < b.size_; ++i)
+          if( b.data_[i] == 0 )
+            return false;
+        return true;
+      }
+
+  protected:
+
+      void __resize__(size_t new_size) {
+        if( new_size > capacity_ )
+          __realloc_data__(new_size);
+        size_ = new_size;
+      }
+
+      void __reserve__(size_t new_capacity) {
+        if (new_capacity > capacity_)
+          __realloc_data__(new_capacity);
+      }
+
+      void __shrink_to_fit__() {
+        if (size_ < capacity_)
+          __realloc_data__(size_);
+      }
+
+    protected:
+
+      void __push_back__(double value) {
         if (size_ == capacity_) {
-          realloc_data_(capacity_ * GROWTH_RATIO);
+          __realloc_data__(capacity_ * GROWTH_RATIO);
         }
         data_[size_++] = value;
       }
 
-      void push_back(const Block &block) {
+      void __push_back__(const Block &block) {
         if (size_ + block.size() > capacity_) {
-          realloc_data_( (size_ + block.size_) * GROWTH_RATIO);
+          __realloc_data__( (size_ + block.size_) * GROWTH_RATIO);
         }
         double *source = &block == this ? data_ : block.data_;
         memcpy(data_ + size_, source, sizeof(double) * block.size_);
         size_ += block.size_;
       }
 
-      void pop_back(){
+      void __pop_back__(){
         if(size_ > 0)
           --size_;
       }
 
     private:
-      void realloc_data_(size_t new_capacity) {
+
+      void __realloc_data__(size_t new_capacity) {
         data_ = (double*) realloc(data_, sizeof(double) * new_capacity);
         capacity_ = new_capacity;
       }
 
-      void free_data_(){
+      void __free_data__(){
         if( data_ ){
           free(data_);
           data_ = nullptr;
@@ -164,12 +211,63 @@ namespace pml {
       }
 
     protected:
+
       double *data_;
       size_t capacity_;
       size_t size_;
   };
   const double Block::GROWTH_RATIO  = 1.5;
   const size_t Block::INITIAL_CAPACITY = 128; // start with 1K memory
+
+
+  inline double min(const Block &b) {
+    ASSERT_TRUE(!b.empty(), "Block::min()::error: Block empty");
+    double b_min = b[0];
+    for(size_t i=1; i<b.size(); ++i)
+      if( b[i] < b_min)
+        b_min= b[i];
+    return b_min;
+  }
+
+  inline double max(const Block &b) {
+    ASSERT_TRUE(!b.empty(), "Block::max()::error: Block empty");
+    double b_max = b[0];
+    for(size_t i=1; i<b.size(); ++i)
+      if( b_max < b[i] )
+        b_max = b[i];
+    return b_max;
+  }
+
+  inline double sum(const Block &b){
+    double result = 0;
+    for(size_t i=0; i<b.size(); ++i)
+      result += b[i];
+    return result;
+  }
+
+  // Safe log(sum(exp(x)))
+  inline double logSumExp(const Block &b) {
+    double result = 0;
+    double b_max = max(b);
+    for(size_t i=0; i<b.size(); ++i)
+      result += std::exp(b(i) - b_max);
+    return b_max + std::log(result);
+  }
+
+  // Mean
+  inline double mean(const Block &b){
+    return sum(b) / b.size();
+  }
+
+  // Variance
+  inline double var(const Block &b){
+    double b_mean = mean(b);
+    double result = 0;
+    for(size_t i = 0; i < b.size(); ++i)
+      result += std::pow(b[i] - b_mean, 2);
+    return result / (b.size() - 1);
+  }
+
 }
 
 #endif

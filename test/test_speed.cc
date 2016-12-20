@@ -20,7 +20,7 @@ void test_vector(){
   std::chrono::duration<double> t_elapsed = t_end-t_start;
   std::cout << "time elapsed: " <<  t_elapsed.count() <<" seconds.\n";
 }
-
+/*
 void test_matrix(){
   std::cout << "test_column_row_ops...\n";
 
@@ -37,10 +37,10 @@ void test_matrix(){
   std::chrono::duration<double> t_elapsed = t_end-t_start;
   std::cout << "time elapsed: " <<  t_elapsed.count() <<" seconds.\n";
 }
-
+*/
 
 int main(){
   test_vector();
-  test_matrix();
+ // test_matrix();
   return 0;
 }

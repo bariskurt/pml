@@ -34,6 +34,14 @@ void test_matrix(){
     }
   }
 
+  std::cout << "OK\n";
+}
+
+/*
+void test_rows_cols(){
+
+  std::cout << "test_rows_cols...\n";
+
   // Set & Get Columns
   Matrix m(3,4, {0,1,2,3,4,5,6,7,8,9,10,11});
   Vector v1 = m.getColumn(3);
@@ -62,6 +70,7 @@ void test_matrix(){
 
   std::cout << "OK\n";
 }
+*/
 
 void test_load_save(){
   std::cout << "test_load_save...\n";
@@ -79,7 +88,7 @@ void test_load_save(){
 
   std::cout << "OK\n";
 }
-
+/*
 void test_matrix_functions(){
   std::cout << "test_matrix_functions...\n";
 
@@ -226,14 +235,14 @@ void test_matrix_append(){
 
   std::cout << "OK\n";
 }
-
+*/
 
 int main(){
   test_matrix();
-  test_matrix_functions();
-  test_matrix_algebra();
-  test_matrix_append();
   test_load_save();
+  //test_matrix_functions();
+  //test_matrix_algebra();
+  //test_matrix_append();
   return 0;
 }
 
