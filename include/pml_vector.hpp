@@ -37,7 +37,6 @@ namespace pml {
 
   class Vector : public Block {
 
-
     public:
       // Empty Vector
       Vector() { }
@@ -96,85 +95,6 @@ namespace pml {
         __push_back__(v);
       }
 
-      friend Vector apply(const Vector &x, double (*func)(double)){
-        Vector result;
-        for(size_t i=0; i < x.size(); ++i)
-          result.append(func(x[i]));
-        return result;
-      }
-
-    public:
-
-      friend Vector operator==(const Vector &x, double v) {
-        Vector result(x.size());
-        for(size_t i = 0; i < x.size(); ++i)
-          result[i] = fequal(x[i], v);
-        return result;
-      }
-
-      friend Vector operator==(const Vector &x, const Vector &y) {
-        // Check sizes
-        ASSERT_TRUE(x.size() == y.size(),
-            "Vector::operator== cannot compare vectors of different size" );
-        // Check element-wise
-        Vector result(x.size());
-        for(size_t i = 0; i < x.size(); ++i)
-          result[i] = fequal(x[i], y[i]);
-        return result;
-      }
-
-
-      friend Vector operator<(const Vector &x, double d) {
-        // Check element-wise
-        Vector result(x.size());
-        for(size_t i = 0; i < x.size(); ++i)
-          result[i] = x[i] < d;
-        return result;
-      }
-
-      friend Vector operator<( double d, const Vector &x) {
-        return x > d;
-      }
-
-      friend Vector operator<(const Vector &x, const Vector &y) {
-        // Check sizes
-        ASSERT_TRUE(x.size() == y.size(),
-            "Vector::operator== cannot compare vectors of different size" );
-        // Check element-wise
-        Vector result(x.size());
-        for(size_t i = 0; i < x.size(); ++i)
-          result[i] = x[i] < y[i];
-        return result;
-      }
-
-      friend Vector operator>(const Vector &x, double d) {
-        Vector result(x.size());
-        for(size_t i = 0; i < x.size(); ++i)
-          result[i] = x[i] > d;
-        return result;
-      }
-
-      friend Vector operator>( double d, const Vector &x) {
-        return x < d;
-      }
-
-      friend Vector operator>(const Vector &x, const Vector &y) {
-        // Check sizes
-        ASSERT_TRUE(x.size() == y.size(),
-            "Vector::operator== cannot compare vectors of different size" );
-        // Check element-wise
-        Vector result(x.size());
-        for(size_t i = 0; i < x.size(); ++i)
-          result[i] = x[i] > y[i];
-        return result;
-      }
-
-      bool equals(const Vector &other){
-        if(size() != other.size())
-          return false;
-        return all(*this == other);
-      }
-
     public:
       // ------- Accessors -------
       double first() const {
@@ -201,162 +121,16 @@ namespace pml {
         return result;
       }
 
-    public:
-
-      // ------ Self Assignment Operators -------
-
-      void operator+=(const double value) {
-        for(size_t i=0; i < size_; ++i)
-          data_[i] += value;
+      // Returns the set of indices i of v, such that v[i] == 1.
+      friend Vector find(const Vector &v){
+        Vector result;
+        for(size_t i = 0; i < v.size_; ++i)
+          if( v.data_[i] == 1)
+            result.append(i);
+        return result;
       }
-
-      // A = A - b
-      void operator-=(const double value) {
-        for(size_t i=0; i < size_; ++i)
-          data_[i] -= value;
-      }
-
-      // A = A * b
-      void operator*=(const double value) {
-        for(size_t i=0; i < size_; ++i)
-          data_[i] *= value;
-      }
-
-      // A = A / b
-      void operator/=(const double value) {
-        for(size_t i=0; i < size_; ++i)
-          data_[i] /= value;
-      }
-
-
-      // A = A + B
-      void operator+=(const Vector &other) {
-        ASSERT_TRUE(size() == other.size(),
-                    "Vector::operator+=:: Size mismatch.");
-        for(size_t i=0; i < size_; ++i)
-          data_[i] += other.data_[i];
-      }
-
-      // A = A - B
-      void operator-=(const Vector &other) {
-        ASSERT_TRUE(size() == other.size(),
-                    "Vector::operator-=:: Size mismatch.");
-        for(size_t i=0; i < size_; ++i)
-          data_[i] -= other.data_[i];
-      }
-
-      // A = A * B (elementwise)
-      void operator*=(const Vector &other) {
-        ASSERT_TRUE(size() == other.size(),
-                    "Vector::operator*=:: Size mismatch.");
-        for(size_t i=0; i < size_; ++i)
-          data_[i] *= other.data_[i];
-      }
-
-      // A = A / B (elementwise)
-      void operator/=(const Vector &other) {
-        ASSERT_TRUE(size() == other.size(),
-                    "Vector::operator/=:: Size mismatch.");
-        for(size_t i=0; i < size_; ++i)
-          data_[i] /= other.data_[i];
-      }
-
-      // ------ Vector - Double Operations -------
 
     public:
-
-      // Returns A + b
-      friend Vector operator+(const Vector &x, double value) {
-        Vector result(x);
-        result += value;
-        return result;
-      }
-
-      // Returns b + A
-      friend Vector operator+(double value, const Vector &x) {
-        return x + value;
-      }
-
-      // Returns A * b
-      friend Vector operator*(const Vector &x, double value) {
-        Vector result(x);
-        result *= value;
-        return result;
-      }
-
-      // Returns b * A
-      friend Vector operator*(double value, const Vector &x) {
-        return x * value;
-      }
-
-      // Returns A - b
-      friend Vector operator-(const Vector &x, double value) {
-        Vector result(x);
-        result -= value;
-        return result;
-      }
-
-      // Returns b - A
-      friend Vector operator-(double value, const Vector &x) {
-        return (-1 * x) + value;
-      }
-
-      // returns A / b
-      friend Vector operator/(const Vector &x, double value) {
-        Vector result(x);
-        result /= value;
-        return result;
-      }
-
-      // returns b / A
-      friend Vector operator/(double value, const Vector &x) {
-        Vector result(x.size());
-        for(size_t i=0; i < x.size(); ++i)
-          result.data_[i] = value / x.data_[i];
-        return result;
-      }
-
-      // ------ Vector - Vector Operations -------
-
-      // R = A + B
-      friend Vector operator+(const Vector &x, const Vector &y) {
-        ASSERT_TRUE(x.size() == y.size(), "Vector::operator+:: Size mismatch.");
-        Vector result(x.size());
-        for (size_t i = 0; i < x.size(); ++i) {
-          result.data_[i] = x.data_[i] + y.data_[i];
-        }
-        return result;
-      }
-
-      // R = A - B
-      friend Vector operator-(const Vector &x, const Vector &y) {
-        ASSERT_TRUE(x.size() == y.size(), "Vector::operator-:: Size mismatch.");
-        Vector result(x.size());
-        for (size_t i = 0; i < x.size(); ++i) {
-          result.data_[i] = x.data_[i] - y.data_[i];
-        }
-        return result;
-      }
-
-      // R = A * B (elementwise)
-      friend Vector operator*(const Vector &x, const Vector &y) {
-        ASSERT_TRUE(x.size() == y.size(), "Vector::operator*:: Size mismatch.");
-        Vector result(x.size());
-        for (size_t i = 0; i < x.size(); ++i) {
-          result.data_[i] = x.data_[i] * y.data_[i];
-        }
-        return result;
-      }
-
-      // R = A / B (elementwise)
-      friend Vector operator/(const Vector &x, const Vector &y) {
-        ASSERT_TRUE(x.size() == y.size(), "Vector::operator/:: Size mismatch.");
-        Vector result(x.size());
-        for (size_t i = 0; i < x.size(); ++i) {
-          result.data_[i] = x.data_[i] / y.data_[i];
-        }
-        return result;
-      }
 
       // Load and Save
       friend std::ostream &operator<<(std::ostream &out,
@@ -431,73 +205,445 @@ namespace pml {
       }
   };
 
-  Vector cat(const Vector &v1, const Vector &v2){
-    Vector result(v1);
-    result.append(v2);
+
+  //  ----------- Vector View --------------
+  template <bool is_const>
+  class GenericVectorView{
+
+    typedef typename std::conditional<is_const,
+            const Vector, Vector>::type ViewType;
+
+    typedef typename std::conditional<is_const,
+            const double*, double*>::type PointerType;
+
+    typedef typename std::conditional<is_const,
+            const double&, double&>::type ReferenceType;
+
+    public:
+      class iterator{
+        public:
+          iterator(PointerType data, size_t stride)
+                  : data_(data), stride_(stride) {}
+
+          bool operator== (const iterator& other) const {
+            return data_ == other.data_;
+          }
+
+          bool operator!= (const iterator& other) const {
+            return !(*this == other);
+          }
+
+          ReferenceType operator*() {
+            return *data_;
+          }
+
+          // prefix: ++it
+          iterator& operator++(){
+            data_ += stride_;
+            return *this;
+          }
+
+          // postfix: it++
+          iterator operator++(int){
+            const iterator old(*this);
+            data_ += stride_;
+            return old;
+          }
+
+          // prefix: --it
+          iterator& operator--(){
+            data_ -= stride_;
+            return *this;
+          }
+
+          // postfix: it--
+          iterator operator--(int){
+            const iterator old(*this);
+            data_ -= stride_;
+            return old;
+          }
+
+        private:
+          PointerType data_;
+          size_t stride_;
+      };
+
+    public:
+      GenericVectorView(PointerType data, size_t size, size_t stride = 1)
+              : data_(data), size_(size), stride_(stride){}
+
+      GenericVectorView(ViewType &v)
+              : data_(v.data()), size_(v.size()), stride_(1){ }
+
+      GenericVectorView(const GenericVectorView<false> &vw)
+              : data_(vw.data_), size_(vw.size_), stride_(vw.stride_){ }
+
+      iterator begin(){
+        return iterator(data_, stride_);
+      }
+
+      iterator end(){
+        return iterator(data_ + (stride_ * size_), stride_);
+      }
+
+      size_t size() const{
+        return size_;
+      }
+
+      bool empty() const{
+        return size_ == 0;
+      }
+
+      Vector copy() {
+        // stride 1 is just memcpy
+        if(stride_ == 1)
+          return Vector(size_, data_);
+        // stride > 1 needs individual copies
+        Vector v(size_);
+        size_t i = 0;
+        for(auto it = begin(); it != end(); ++it)
+          v[i++] = *it;
+        return v;
+      }
+
+    private:
+      PointerType data_;
+      size_t size_;
+      size_t stride_;
+  };
+
+  typedef GenericVectorView<false> VectorView;
+  typedef GenericVectorView<true>  ConstVectorView;
+
+
+  // Apply1 : v[i] = f(cvw[i])
+  Vector apply(ConstVectorView cvw, double (*func)(double)){
+    Vector result(cvw.size());
+    size_t i = 0;
+    for(const double d : cvw)
+      result[i++] = func(d);
     return result;
   }
 
-  Vector cat(const std::vector<Vector> &v_list){
-    Vector result;
-    for(const Vector &v : v_list)
-      result.append(v);
+  // Apply2 : v[i] = f(cvw[i], value)
+  Vector apply(ConstVectorView cvw,
+                      double (*func)(double, double), double value){
+    Vector result(cvw.size());
+    size_t i = 0;
+    for(const double d : cvw)
+      result[i++] = func(d, value);
     return result;
   }
 
-  Vector reverse(const Vector &v){
-    Vector result(v.size());
-    if( v.size() > 0) {
-      size_t offset = v.size() - 1;
-      for (size_t i = 0; i < v.size(); ++i)
-        result[i] = v[offset - 1];
+  // Apply3 : v[i] = f(cvw[i], other[i])
+  Vector apply(ConstVectorView cvw,
+                      double (*func)(double, double), ConstVectorView other){
+    ASSERT_TRUE(cvw.size() == other.size(), "apply: size mismatch");
+    Vector result(cvw.size());
+    ConstVectorView::iterator it1 = cvw.begin();
+    ConstVectorView::iterator it2 = other.begin();
+    for(size_t i = 0; i < cvw.size(); ++i, ++it1, ++it2) {
+      result[i] = func(*it1, *it2);
     }
     return result;
   }
 
-  // Returns the set of indices i of v, such that v[i] == 1.
-  Vector find(const Vector &v){
-    Vector result;
-    for(size_t i=0; i < v.size(); ++i){
-      if(v[i] == 1)
-        result.append(i);
-    }
+  // ---------- Any / Or ---------
+  bool any(ConstVectorView cvw){
+    for(const double d : cvw)
+      if( d == 1 )
+        return true;
+    return false;
+  }
+
+  bool all(ConstVectorView cvw){
+    for(const double d : cvw)
+      if( d == 0 )
+        return false;
+    return true;
+  }
+
+  Vector operator==(ConstVectorView cvw, double d) {
+    return apply(cvw, [](double d1, double d2) -> double {
+        return fequal(d1, d2);}, d);
+  }
+
+  Vector operator==(ConstVectorView cvw, ConstVectorView other) {
+    return apply(cvw, [](double d1, double d2) -> double {
+        return fequal(d1, d2);}, other);
+  }
+
+  Vector operator<(ConstVectorView cvw, double d) {
+    return apply(cvw, [](double d1, double d2) -> double { return d1 < d2;}, d);
+  }
+
+  Vector operator<(ConstVectorView cvw, ConstVectorView other) {
+    return apply(cvw, [](double d1, double d2) -> double {
+        return d1 < d2;}, other);
+  }
+
+  Vector operator>(ConstVectorView cvw, double d) {
+    return apply(cvw, [](double d1, double d2) -> double { return d1 > d2;}, d);
+  }
+
+
+  Vector operator<( double d, ConstVectorView cvw) {
+    return cvw > d;
+  }
+
+  Vector operator>( double d, ConstVectorView cvw) {
+    return cvw < d;
+  }
+
+  Vector operator>(ConstVectorView cvw, ConstVectorView other) {
+    return apply(cvw, [](double d1, double d2) -> double {
+        return d1 > d2;}, other);
+  }
+
+  bool fequal(ConstVectorView cvw1, ConstVectorView cvw2){
+    if(cvw1.size() != cvw2.size())
+      return false;
+    ConstVectorView::iterator it1 = cvw1.begin();
+    ConstVectorView::iterator it2 = cvw2.begin();
+    for(; it1 != cvw1.end(); ++it1, ++it2)
+      if( !fequal(*it1, *it2))
+        return false;
+    return true;
+  }
+
+  inline void operator+=(VectorView vw, const double value){
+    for(double &d : vw)
+      d += value;
+  }
+
+  inline void operator-=(VectorView vw, const double value){
+    for(double &d : vw)
+      d -= value;
+  }
+
+  void operator*=(VectorView vw, const double value){
+    for(double &d : vw)
+      d *= value;
+  }
+
+  void operator/=(VectorView vw, const double value){
+    for(double &d : vw)
+      d /= value;
+  }
+
+  void operator+=(VectorView vw, ConstVectorView cvw){
+    ASSERT_TRUE(vw.size() == cvw.size(),
+                "VectorView::operator+: size mismatch");
+    ConstVectorView::iterator cit = cvw.begin();
+    for(VectorView::iterator it = vw.begin(); it != vw.end(); ++it, ++cit)
+      *it += *cit;
+  }
+
+  void operator-=(VectorView vw, ConstVectorView cvw){
+    ASSERT_TRUE(vw.size() == cvw.size(),
+                "VectorView::operator-: size mismatch");
+    ConstVectorView::iterator cit = cvw.begin();
+    for(VectorView::iterator it = vw.begin(); it != vw.end(); ++it, ++cit)
+      *it -= *cit;
+  }
+
+  void operator*=(VectorView vw, ConstVectorView cvw){
+    ASSERT_TRUE(vw.size() == cvw.size(),
+                "VectorView::operator*: size mismatch");
+    ConstVectorView::iterator cit = cvw.begin();
+    for(VectorView::iterator it = vw.begin(); it != vw.end(); ++it, ++cit)
+      *it *= *cit;
+  }
+
+  void operator/=(VectorView vw, ConstVectorView cvw){
+    ASSERT_TRUE(vw.size() == cvw.size(),
+                "VectorView::operator/: size mismatch");
+    ConstVectorView::iterator cit = cvw.begin();
+    for(VectorView::iterator it = vw.begin(); it != vw.end(); ++it, ++cit)
+      *it /= *cit;
+  }
+
+  // Returns A + b
+  Vector operator+(ConstVectorView cvw, const double d) {
+    return apply(cvw, [](double d1, double d2) { return d1 + d2;}, d);
+  }
+
+  // Returns b + A
+  Vector operator+(const double value, ConstVectorView cvw) {
+    return cvw + value;
+  }
+
+  // Returns A * b
+  Vector operator*(ConstVectorView cvw, const double d) {
+    return apply(cvw, [](double d1, double d2) { return d1 * d2;}, d);
+  }
+
+  // Returns b + A
+  Vector operator*(const double value, ConstVectorView cvw) {
+    return cvw * value;
+  }
+
+  // Returns A - b
+  Vector operator-(ConstVectorView cvw, const double d) {
+    return apply(cvw, [](double d1, double d2) { return d1 - d2;}, d);
+  }
+
+  // Returns b - A
+  Vector operator-(const double d, ConstVectorView cvw) {
+    return apply(cvw, [](double d1, double d2) { return d2 - d1;}, d);
+  }
+
+  // Returns A / b
+  Vector operator/(ConstVectorView cvw, const double d) {
+    return apply(cvw, [](double d1, double d2) { return d1 / d2;}, d);
+  }
+
+  // Returns b / A
+  Vector operator/(const double d, ConstVectorView cvw) {
+    return apply(cvw, [](double d1, double d2) { return d2 / d1;}, d);
+  }
+
+  // Returns A + B
+  Vector operator+(ConstVectorView cvw1, ConstVectorView cvw2) {
+    return apply(cvw1, [](double d1, double d2) {return d1 + d2;}, cvw2);
+  }
+
+  // Returns A - B
+  Vector operator-(ConstVectorView cvw1, ConstVectorView cvw2) {
+    return apply(cvw1, [](double d1, double d2) { return d1 - d2;}, cvw2);
+  }
+
+  Vector operator*(ConstVectorView cvw1, ConstVectorView cvw2) {
+    return apply(cvw1, [](double d1, double d2) { return d1 * d2;}, cvw2);
+  }
+
+  Vector operator/(ConstVectorView cvw1, ConstVectorView cvw2) {
+    return apply(cvw1, [](double d1, double d2) { return d1 / d2;}, cvw2);
+  }
+
+  double sum(ConstVectorView cvw){
+    double result = 0;
+    for(const double d : cvw)
+      result += d;
+    return result;
+  }
+
+  double mean(ConstVectorView cvw){
+    return sum(cvw) / cvw.size();
+  }
+
+  double var(ConstVectorView cvw){
+    double cvw_mean = mean(cvw);
+    double result = 0;
+    for(const double d : cvw)
+      result += std::pow(d - cvw_mean, 2);
+    return result / (cvw.size() - 1);
+  }
+
+  double min(ConstVectorView cvw) {
+    ASSERT_TRUE(!cvw.empty(), "ConstVectorView::min()::error: Block empty");
+    double cvw_min = std::numeric_limits<double>::max();
+    for(const double d : cvw)
+      cvw_min = std::min(cvw_min, d);
+    return cvw_min;
+  }
+
+  double max(ConstVectorView cvw) {
+    ASSERT_TRUE(!cvw.empty(), "ConstVectorView::min()::error: Block empty");
+    double cvw_max = std::numeric_limits<double>::min();
+    for(const double d : cvw)
+      cvw_max = std::max(cvw_max, d);
+    return cvw_max;
+  }
+
+  // Safe log(sum(exp(x)))
+  double logSumExp(ConstVectorView cvw) {
+    double result = 0;
+    double cvw_max = max(cvw);
+    for(const double d : cvw)
+      result += std::exp(d - cvw_max);
+    return cvw_max + std::log(result);
+  }
+
+  // Standard deviation
+  double stdev(ConstVectorView cvw){
+    return std::sqrt(var(cvw));
+  }
+
+  // Absolute value of x
+  Vector abs(ConstVectorView cvw){
+    return apply(cvw, std::fabs);
+  }
+
+  // Round to nearest integer
+  Vector round(ConstVectorView cvw){
+    return apply(cvw, std::round);
+  }
+
+  // Ceiling
+  Vector ceil(ConstVectorView cvw) {
+    return apply(cvw, std::ceil);
+  }
+
+  // Floor
+  Vector floor(ConstVectorView cvw) {
+    return apply(cvw, std::floor);
+  }
+
+  // Exponential
+  Vector exp(ConstVectorView cvw) {
+    return apply(cvw, std::exp);
+  }
+
+  // Logarithm
+  Vector log(ConstVectorView cvw) {
+    return apply(cvw, std::log);
+  }
+
+  // Normalize
+  Vector normalize(ConstVectorView cvw) {
+    Vector result = cvw.copy();
+    result /= sum(result);
+    return result;
+  }
+
+  // Safe normalize(exp(x))
+  Vector normalizeExp(ConstVectorView cvw) {
+    return normalize(exp(cvw - max(cvw)));
+  }
+
+  Vector reverse(ConstVectorView cvw){
+    Vector result(cvw.size());
+    size_t i = cvw.size();
+    for(auto it = cvw.begin(); it != cvw.end(); ++it)
+      result[--i] = *it;
     return result;
   }
 
   // is_nan
-  Vector is_nan(const Vector &v){
-    Vector result = Vector::zeros(v.size());
-    for(size_t i=0; i < v.size(); ++i){
-      if(std::isnan(v[i]))
-        result[i] = 1;
-    }
-    return result;
+  Vector is_nan(ConstVectorView cvw){
+    return apply(cvw, [](double d1) -> double { return std::isnan(d1); });
   }
 
   // is_inf
-  Vector is_inf(const Vector &v){
-    Vector result = Vector::zeros(v.size());
-    for(size_t i=0; i < v.size(); ++i){
-      if(std::isinf(v[i]))
-        result[i] = 1;
-    }
-    return result;
+  Vector is_inf(ConstVectorView cvw){
+    return apply(cvw, [](double d1) -> double { return std::isinf(d1); });
   }
 
   // Power
-  inline Vector pow(const Vector &x, double p){
-    Vector result(x.size());
-    for(size_t i = 0; i < x.size(); ++i)
-      result[i] = std::pow(x[i], p);
-    return result;
+  Vector pow(ConstVectorView cvw, double p){
+    return apply(cvw, [](double d1, double d2) { return std::pow(d1, d2);} ,p);
   }
 
   // Dot product
-  inline double dot(const Vector &x, const Vector &y) {
-    ASSERT_TRUE(x.size() == y.size(), "Vector::dot() Vector sizes mismatch");
+  double dot(ConstVectorView cvw1, ConstVectorView cvw2) {
+    ASSERT_TRUE(cvw1.size() == cvw2.size(),
+                "Vector::dot() Vector sizes mismatch");
+    ConstVectorView::iterator it1 = cvw1.begin();
+    ConstVectorView::iterator it2 = cvw2.begin();
     double result = 0;
-    for(size_t i = 0; i < x.size(); ++i)
-      result += x[i] * y[i];
+    for(; it1 != cvw1.end(); ++it1, ++it2)
+      result += (*it1) * (*it2);
     return result;
   }
 

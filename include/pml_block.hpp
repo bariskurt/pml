@@ -120,42 +120,7 @@ namespace pml {
           *itr = value;
       }
 
-    public:
-      // -------- Apply --------
-      void apply(double (*func)(const double&)){
-        for(size_t i=0; i < size_; ++i)
-          data_[i] = func(data_[i]);
-      }
-
-      void apply(double (*func)(const double&, const double&),
-                 const double value){
-        for(size_t i=0; i < size_; ++i)
-          data_[i] = func(data_[i], value);
-      }
-
-      void apply(double (*func)(const double&, const double&),
-                 const  double* other_data_){
-        for(size_t i=0; i < size_; ++i)
-          data_[i] = func(data_[i], other_data_[i]);
-      }
-
-    public:
-      // ---------- Any / Or ---------
-      friend bool any(const Block &b){
-        for(size_t i = 0; i < b.size_; ++i)
-          if( b.data_[i] == 1 )
-            return true;
-        return false;
-      }
-
-      friend bool all(const Block &b){
-        for(size_t i = 0; i < b.size_; ++i)
-          if( b.data_[i] == 0 )
-            return false;
-        return true;
-      }
-
-  protected:
+    protected:
 
       void __resize__(size_t new_size) {
         if( new_size > capacity_ )
