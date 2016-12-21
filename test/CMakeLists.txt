@@ -8,6 +8,8 @@ add_executable(test_memory test_memory.cc)
 
 add_executable(test_vector test_vector.cc)
 
+add_executable(test_vector_view test_vector_view.cc)
+
 add_executable(test_matrix test_matrix.cc)
 
 add_executable(test_random test_random.cc)

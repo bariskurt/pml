@@ -219,55 +219,6 @@ namespace pml {
   const double Block::GROWTH_RATIO  = 1.5;
   const size_t Block::INITIAL_CAPACITY = 128; // start with 1K memory
 
-
-  inline double min(const Block &b) {
-    ASSERT_TRUE(!b.empty(), "Block::min()::error: Block empty");
-    double b_min = b[0];
-    for(size_t i=1; i<b.size(); ++i)
-      if( b[i] < b_min)
-        b_min= b[i];
-    return b_min;
-  }
-
-  inline double max(const Block &b) {
-    ASSERT_TRUE(!b.empty(), "Block::max()::error: Block empty");
-    double b_max = b[0];
-    for(size_t i=1; i<b.size(); ++i)
-      if( b_max < b[i] )
-        b_max = b[i];
-    return b_max;
-  }
-
-  inline double sum(const Block &b){
-    double result = 0;
-    for(size_t i=0; i<b.size(); ++i)
-      result += b[i];
-    return result;
-  }
-
-  // Safe log(sum(exp(x)))
-  inline double logSumExp(const Block &b) {
-    double result = 0;
-    double b_max = max(b);
-    for(size_t i=0; i<b.size(); ++i)
-      result += std::exp(b(i) - b_max);
-    return b_max + std::log(result);
-  }
-
-  // Mean
-  inline double mean(const Block &b){
-    return sum(b) / b.size();
-  }
-
-  // Variance
-  inline double var(const Block &b){
-    double b_mean = mean(b);
-    double result = 0;
-    for(size_t i = 0; i < b.size(); ++i)
-      result += std::pow(b[i] - b_mean, 2);
-    return result / (b.size() - 1);
-  }
-
 }
 
 #endif

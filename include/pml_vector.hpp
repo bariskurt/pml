@@ -228,6 +228,7 @@ namespace pml {
           data_[i] /= value;
       }
 
+
       // A = A + B
       void operator+=(const Vector &other) {
         ASSERT_TRUE(size() == other.size(),
@@ -428,19 +429,6 @@ namespace pml {
         }
         return result;
       }
-
-      void normalize() {
-        double sum_x = sum(*this);
-        for(size_t i=0; i < size(); ++i)
-          data_[i] /= sum_x;
-      }
-
-      void normalizeExp(){
-        double x_max = max(*this);
-        for (size_t i = 0; i < size(); ++i)
-          data_[i] = std::exp(data_[i] - x_max);
-        normalize();
-      }
   };
 
   Vector cat(const Vector &v1, const Vector &v2){
@@ -513,54 +501,7 @@ namespace pml {
     return result;
   }
 
-  // Standard deviation
-  inline double stdev(const Vector &x){
-    return std::sqrt(var(x));
-  }
 
-  // Absolute value of x
-  inline Vector abs(const Vector &x){
-    return apply(x, std::fabs);
-  }
-
-  // Round to nearest integer
-  inline Vector round(const Vector &x){
-    return apply(x, std::round);
-  }
-
-  // Ceiling
-  inline Vector ceil(const Vector &x){
-    return apply(x, std::ceil);
-  }
-
-  // Floor
-  inline Vector floor(const Vector &x){
-    return apply(x, std::floor);
-  }
-
-  // Exponential
-  inline Vector exp(const Vector &x){
-    return apply(x, std::exp);
-  }
-
-  // Logarithm
-  inline Vector log(const Vector &x){
-    return apply(x, std::log);
-  }
-
-  // Normalize
-  inline Vector normalize(const Vector &x) {
-    Vector result(x);
-    result.normalize();
-    return result;
-  }
-
-  // Safe normalize(exp(x))
-  inline Vector normalizeExp(const Vector &x) {
-    Vector result(x);
-    result.normalizeExp();
-    return result;
-  }
 
 } // namespace pml
 

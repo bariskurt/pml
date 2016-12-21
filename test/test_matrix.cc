@@ -37,12 +37,12 @@ void test_matrix(){
   std::cout << "OK\n";
 }
 
-/*
+
 void test_rows_cols(){
 
   std::cout << "test_rows_cols...\n";
 
-  // Set & Get Columns
+  // Set & Get Column
   Matrix m(3,4, {0,1,2,3,4,5,6,7,8,9,10,11});
   Vector v1 = m.getColumn(3);
   Vector v2(m.nrows());
@@ -56,7 +56,7 @@ void test_rows_cols(){
   assert(m(1,2) == 1);
   assert(m(2,2) == 1);
 
-  // Set & Get Rows
+  // Set & Get Row
   m = Matrix(3,4, {0,1,2,3,4,5,6,7,8,9,10,11});
   v1 = m.getRow(2);
   v2 = Vector({m(2,0), m(2,1), m(2,2), m(2,3)});
@@ -68,9 +68,19 @@ void test_rows_cols(){
   assert(m(1,2) == 1);
   assert(m(1,3) == 1);
 
+  // Get Columns
+  m = Matrix(3,4, {0,1,2,3,4,5,6,7,8,9,10,11});
+  Matrix m2 = m.getColumns({0, 4, 2});
+  assert(m2.nrows() == 3);
+  assert(m2.ncols() == 2);
+  for(size_t i=0; i<m.nrows(); ++i){
+    assert(m(i,0) == m2(i,0));
+    assert(m(i,2) == m2(i,1));
+  }
+
   std::cout << "OK\n";
 }
-*/
+
 
 void test_load_save(){
   std::cout << "test_load_save...\n";
@@ -88,7 +98,7 @@ void test_load_save(){
 
   std::cout << "OK\n";
 }
-/*
+
 void test_matrix_functions(){
   std::cout << "test_matrix_functions...\n";
 
@@ -134,10 +144,10 @@ void test_matrix_functions(){
   assert(logSumExp(m5,1).equals(log(sum(m4,1))));
 
   // Tile
-  Vector v = {1,2};
-  assert(tile(v, 2).equals(Matrix(2,2, {1,1,2,2})));
-  assert(tile(v, 2, 1).equals(Matrix(2,2, {1,2,1,2})));
-  assert(repmat(v, 2, 2).equals(Matrix(4,2, {1,2,1,2,1,2,1,2})));
+  //Vector v = {1,2};
+  //assert(tile(v, 2).equals(Matrix(2,2, {1,1,2,2})));
+  //assert(tile(v, 2, 1).equals(Matrix(2,2, {1,2,1,2})));
+  //assert(repmat(v, 2, 2).equals(Matrix(4,2, {1,2,1,2,1,2,1,2})));
 
    std::cout << "OK\n";
 }
@@ -198,7 +208,7 @@ void test_matrix_algebra(){
 
   std::cout << "OK\n";
 }
-
+/*
 void test_matrix_append(){
 
   std::cout << "test_matrix_append...\n";
@@ -240,8 +250,9 @@ void test_matrix_append(){
 int main(){
   test_matrix();
   test_load_save();
-  //test_matrix_functions();
-  //test_matrix_algebra();
+  test_rows_cols();
+  test_matrix_functions();
+  test_matrix_algebra();
   //test_matrix_append();
   return 0;
 }

@@ -418,13 +418,9 @@ namespace pml {
       // Returns several columns as Matrix
       Matrix getColumns(Range range) const {
         Matrix result(nrows_, range.size());
-        size_t i = 0; j = range.start;
         size_t num_bytes = sizeof(double) * nrows_;
-        for(int k = 0; k < range.size(); ++k){
-          memcpy(result.data_[i*nrows_], &data_[i * nrows_], num_bytes);
-          ++i;
-          j += range.step;
-        }
+        for(size_t i=0, j = range.start; j < range.stop; j+=range.step, ++i)
+          memcpy(&result.data_[i*nrows_], &data_[j * nrows_], num_bytes);
         return result;
       }
 
@@ -440,11 +436,8 @@ namespace pml {
       // Returns a single row as vector
       Vector getRow(size_t row_num) const {
         Vector row(ncols_);
-        size_t idx = row_num;
-        for(size_t i=0; i < ncols_; ++i){
-          row(i) = data_[idx];
-          idx += nrows_;
-        }
+        for(size_t i=0, j = row_num; i < ncols_; ++i, j+=nrows_)
+          row(i) = data_[j];
         return row;
       }
 
@@ -454,11 +447,32 @@ namespace pml {
                     "Matrix::setRow:: row_num exceeds number of rows");
         ASSERT_TRUE(ncols_ == row.size(),
                     "Matrix::setRow:: Vector size mismatch");
-        size_t idx = row_num;
-        for(size_t i=0; i < ncols_; ++i){
-          data_[idx] = row(i);
-          idx += nrows_;
+        for(size_t i=0, j=row_num; i < ncols_; ++i, j+=nrows_)
+          data_[j] = row(i);
+      }
+
+      // Appends a column to the right.
+      void appendColumn(const Vector &v){
+        ASSERT_TRUE( empty() | (nrows_ == v.size()),
+                     "Matrix::appendColumn:: Vector size mismatch");
+        __push_back__(v);
+        if(empty())
+          nrows_ = size_;
+        ++ncols_;
+      }
+/*
+      // Appends a row to the bottom.
+      void appendRow(const Vector &v){
+        ASSERT_TRUE(empty() | (ncols_ == v.size()),
+                    "Matrix::appendRow:: Vector size mismatch");
+        if(empty()) {
+          __push_back__(v);
+          ncols_ = size_;
+        } else {
+          __resize__(size_ + v.size());
+
         }
+        nrows_++;
       }
 
       // Appends a column to the right.
@@ -499,37 +513,6 @@ namespace pml {
           data_ = std::move(new_data);
           ncols_ += m.ncols();
         }
-      }
-
-      // Appends a column to the right.
-      void appendColumn(const Vector &v){
-        ASSERT_TRUE( empty() | (nrows_ == v.size()),
-                    "Matrix::appendColumn:: Vector size mismatch");
-        if(empty()){
-          nrows_ = v.size();
-        }
-        data_.insert(data_.end(), v.begin(), v.end());
-        ncols_++;
-      }
-
-      // Appends a row to the bottom.
-      void appendRow(const Vector &v){
-        ASSERT_TRUE(empty() | (ncols_ == v.size()),
-                    "Matrix::appendRow:: Vector size mismatch");
-        if(empty()) {
-          data_.insert(data_.end(), v.begin(), v.end());
-          ncols_ = v.size();
-        } else {
-          Matrix temp(nrows_+1, ncols_);
-          double *temp_data = temp.data();
-          for(size_t i=0; i < ncols_; ++i){
-            memcpy(&temp_data[i * (nrows_+1)], &data_[i * nrows_],
-                   sizeof(double) * nrows_);
-            temp(nrows_, i) = v(i);
-          }
-          data_ = std::move(temp.data_);
-        }
-        nrows_++;
       }
 */
       // ---------- File Operations --------
@@ -613,63 +596,6 @@ namespace pml {
         return Matrix(0,0);
       }
 
-      // Sum
-      friend Vector sum(const Matrix &x, size_t axis) {
-        ASSERT_TRUE(axis==0 || axis==1, "Matrix::sum axis out of bounds.");
-        Vector result;
-        if (axis == 0){
-          result = Vector::zeros(x.ncols());
-          for(size_t i=0; i < x.nrows(); ++i)
-            for(size_t j=0; j < x.ncols(); ++j)
-              result[j] += x(i,j);
-        } else {
-          result = Vector::zeros(x.nrows());
-          for(size_t i=0; i < x.nrows(); ++i)
-            for(size_t j=0; j < x.ncols(); ++j)
-              result[i] += x(i,j);
-        }
-        return result;
-      }
-
-/*
-      friend Vector min(const Matrix &x, size_t axis) {
-        ASSERT_TRUE(axis==0 || axis==1, "Matrix::max axis out of bounds.");
-        Vector result;
-        if (axis == 0){
-          result = x.getRow(0);
-          for(size_t i=1; i < x.nrows(); ++i)
-            for(size_t j=0; j < x.ncols(); ++j)
-              if( x(i,j) < result[j] )
-                result[j] = x(i,j);
-        } else {
-          result = x.getColumn(0);
-          for(size_t i=0; i < x.nrows(); ++i)
-            for(size_t j=1; j < x.ncols(); ++j)
-              if( x(i,j) < result[i] )
-                result[i] = x(i,j);
-        }
-        return result;
-      }
-
-      friend Vector max(const Matrix &x, size_t axis) {
-        ASSERT_TRUE(axis==0 || axis==1, "Matrix::max axis out of bounds.");
-        Vector result;
-        if (axis == 0){
-          result = x.getRow(0);
-          for(size_t i=1; i < x.nrows(); ++i)
-            for(size_t j=0; j < x.ncols(); ++j)
-              if( result[j] < x(i,j) )
-                result[j] = x(i,j);
-        } else {
-          result = x.getColumn(0);
-          for(size_t i=0; i < x.nrows(); ++i)
-            for(size_t j=1; j < x.ncols(); ++j)
-              if( result[i] < x(i,j) )
-                result[i] = x(i,j);
-        }
-        return result;
-      }
-
       void normalize(size_t axis = 2){
         ASSERT_TRUE(axis<=2, "Matrix::normalize axis out of bounds.");
         if( axis == 0){
@@ -733,6 +659,44 @@ namespace pml {
   inline Vector flatten(const Matrix &x){
     return Vector(x.size(), x.data());
   }
+
+  // Sum
+  inline Vector sum(const Matrix &x, size_t axis) {
+    ASSERT_TRUE(axis==0 || axis==1, "Matrix::sum axis out of bounds.");
+    size_t i = 0, j = 0;
+    size_t len = (axis == 0) ?  x.ncols() : x.nrows();
+    size_t *k =  (axis == 0) ? &i : &j;
+    Vector result = Vector::zeros(len);
+    for(; i < x.nrows(); ++i)
+      for(; j < x.ncols(); ++j)
+        result[*k] += x(i,j);
+    return result;
+  }
+
+  inline Vector min(const Matrix &x, size_t axis) {
+    ASSERT_TRUE(axis==0 || axis==1, "Matrix::max axis out of bounds.");
+    size_t i = 0, j = 0;
+    size_t len = (axis == 0) ?  x.ncols() : x.nrows();
+    size_t *k =  (axis == 0) ? &i : &j;
+    Vector result = Vector(len, std::numeric_limits<double>::max());
+    for(; i < x.nrows(); ++i)
+      for(; j < x.ncols(); ++j)
+        result[*k] = std::min(result[*k], x(i,j));
+    return result;
+  }
+
+  inline Vector max(const Matrix &x, size_t axis) {
+    ASSERT_TRUE(axis==0 || axis==1, "Matrix::max axis out of bounds.");
+    size_t i = 0, j = 0;
+    size_t len = (axis == 0) ?  x.ncols() : x.nrows();
+    size_t *k =  (axis == 0) ? &i : &j;
+    Vector result = Vector(len, std::numeric_limits<double>::max());
+    for(; i < x.nrows(); ++i)
+      for(; j < x.ncols(); ++j)
+        result[*k] = std::max(result[*k], x(i,j));
+    return result;
+  }
+
 
 /*
   // Concatenate two matrices as in Matlab
