@@ -166,7 +166,7 @@ namespace pml {
           --size_;
       }
 
-    private:
+    protected:
 
       void __realloc_data__(size_t new_capacity) {
         data_ = (double*) realloc(data_, sizeof(double) * new_capacity);

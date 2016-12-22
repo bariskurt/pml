@@ -35,6 +35,9 @@ namespace pml {
     return fabs(a - b) < 1e-6;
   }
 
+  class ConstVectorView;
+  class VectorView;
+
   class Vector : public Block {
 
     public:
@@ -81,20 +84,17 @@ namespace pml {
         Block::operator=(that);
         return *this;
       }
-/*
-      Vector& operator=(ConstVectorView cvw){
-        __clear__();
-        __reserve__(cvw.size());
 
-        if(cvw.stride() == 1)
-          __copy_from__(*cvw.begin(), cvw.size());
-        else{
-          for(const double d : cvw)
-            __push_back__(d);
-        }
-        return *this;
-      }
-*/
+    public:
+      // Generate from views
+      explicit Vector(ConstVectorView cvw);
+
+      explicit Vector(VectorView vw);
+
+      Vector& operator=(ConstVectorView v);
+
+      Vector& operator=(VectorView v);
+
     public:
       // Vector resize. If new size is smaller, the data_ is cropped.
       // If new size is larger, garbage values are appended.
@@ -224,42 +224,26 @@ namespace pml {
       }
   };
 
-  class Matrix;
-    
-  //  ----------- Vector View --------------
-  template <bool is_const>
-  class GenericVectorView{
+  class ConstVectorView {
 
-    typedef typename std::conditional<is_const,
-            const Vector, Vector>::type ViewType;
-
-    typedef typename std::conditional<is_const,
-            const Matrix, Matrix>::type MatrixViewType;
-
-    typedef typename std::conditional<is_const,
-            const double*, double*>::type PointerType;
-
-    typedef typename std::conditional<is_const,
-            const double&, double&>::type ReferenceType;
-
-    friend GenericVectorView<false>;
-    friend GenericVectorView<true>;
+    friend class Vector;
+    friend class VectorView;
 
     public:
       class iterator{
         public:
-          iterator(PointerType data, size_t stride)
+          iterator(const double *data, size_t stride)
                   : data_(data), stride_(stride) {}
 
-          bool operator== (const iterator& other) const {
+          bool operator==(const iterator& other) const {
             return data_ == other.data_;
           }
 
-          bool operator!= (const iterator& other) const {
+          bool operator!=(const iterator& other) const {
             return !(*this == other);
           }
 
-          ReferenceType operator*() {
+          const double& operator*() const{
             return *data_;
           }
 
@@ -290,28 +274,33 @@ namespace pml {
           }
 
         private:
-          PointerType data_;
+          const double* data_;
           size_t stride_;
       };
 
     public:
-      explicit GenericVectorView(PointerType data, size_t size, size_t stride = 1)
+      // Create explicitly
+      explicit ConstVectorView (const double *data, size_t size, size_t stride = 1)
               : data_(data), size_(size), stride_(stride){}
 
-      GenericVectorView(ViewType &v)
-              : data_(v.data()), size_(v.size()), stride_(1){ }
+      // Create implicitly by Vector&
+      ConstVectorView (const Vector &v)
+              : data_(v.data()), size_(v.size()), stride_(1){}
 
-      explicit GenericVectorView(MatrixViewType &v)
-              : data_(v.data()), size_(v.size()), stride_(1){ }
+      ConstVectorView(const ConstVectorView &that)
+              : data_(that.data_), size_(that.size_), stride_(that.stride_){}
 
-      GenericVectorView(const GenericVectorView<false> &vw)
-              : data_(vw.data_), size_(vw.size_), stride_(vw.stride_){ }
+      ConstVectorView(const VectorView &that);
+              //: data_(that.data_), size_(that.size_), stride_(that.stride_){}
 
-      iterator begin(){
+      // Delete operator=
+      ConstVectorView& operator=(const ConstVectorView& that) = delete;
+
+      iterator begin() const {
         return iterator(data_, stride_);
       }
 
-      iterator end(){
+      iterator end() const {
         return iterator(data_ + (stride_ * size_), stride_);
       }
 
@@ -327,44 +316,8 @@ namespace pml {
         return size_ == 0;
       }
 
-      Vector get() {
-        // stride 1 is just memcpy
-        if(stride_ == 1)
-          return Vector(size_, data_);
-        // stride > 1 needs individual copies
-        Vector v(size_);
-        size_t i = 0;
-        for(auto it = begin(); it != end(); ++it)
-          v[i++] = *it;
-        return v;
-      }
-
-      GenericVectorView<is_const> operator=(double d){
-        for(auto it = begin(); it != end(); ++it)
-          *it = d;
-        return *this;
-      }
-
-      GenericVectorView<is_const> operator=(GenericVectorView<true> v){
-        ASSERT_TRUE(size_ == v.size(),
-                    "GenericVectorView::operator: size mismatch");
-        if(stride_ == 1 && v.stride_ == 1){
-          memcpy(data_, v.data_, sizeof(double) * size_);
-        } else {
-          auto src = v.begin();
-          for(auto dst = begin(); dst != end(); ++dst)
-            *dst = *src++;
-        }
-        return *this;
-      }
-
-      GenericVectorView<is_const> operator=(GenericVectorView<false> v){
-        *this = GenericVectorView<true>(v);
-        return *this;
-      }
-
-      friend std::ostream &operator<<(std::ostream &out,
-                                      GenericVectorView<is_const> cvw) {
+    public:
+      friend std::ostream &operator<<(std::ostream &out, ConstVectorView cvw) {
         out << std::setprecision(DEFAULT_PRECISION) << std::fixed;
         for(auto it = cvw.begin(); it != cvw.end(); ++it)
           out << *it << "  ";
@@ -372,14 +325,155 @@ namespace pml {
       }
 
     private:
-      PointerType data_;
+      const double *data_;
       size_t size_;
       size_t stride_;
   };
 
-  typedef GenericVectorView<false> VectorView;
-  typedef GenericVectorView<true>  ConstVectorView;
+  class VectorView {
 
+    friend class Vector;
+    friend class ConstVectorView;
+
+    public:
+      class iterator{
+        public:
+          iterator(double *data, size_t stride)
+                  : data_(data), stride_(stride) {}
+
+          bool operator==(const iterator& other) const {
+            return data_ == other.data_;
+          }
+
+          bool operator!=(const iterator& other) const {
+            return !(*this == other);
+          }
+
+          double& operator*() {
+            return *data_;
+          }
+
+          // prefix: ++it
+          iterator& operator++(){
+            data_ += stride_;
+            return *this;
+          }
+
+          // postfix: it++
+          iterator operator++(int){
+            const iterator old(*this);
+            data_ += stride_;
+            return old;
+          }
+
+          // prefix: --it
+          iterator& operator--(){
+            data_ -= stride_;
+            return *this;
+          }
+
+          // postfix: it--
+          iterator operator--(int){
+            const iterator old(*this);
+            data_ -= stride_;
+            return old;
+          }
+
+        private:
+          double* data_;
+          size_t stride_;
+      };
+
+    public:
+      // Create explicitly
+      explicit VectorView(double *data, size_t size, size_t stride = 1)
+              : data_(data), size_(size), stride_(stride){}
+
+      // Create implicitly by Vector&
+      VectorView(Vector &v)
+              : data_(v.data()), size_(v.size()), stride_(1){}
+
+      VectorView(const VectorView &that)
+              : data_(that.data_), size_(that.size_), stride_(that.stride_){}
+
+      iterator begin() const{
+        return iterator(data_, stride_);
+      }
+
+      iterator end() const{
+        return iterator(data_ + (stride_ * size_), stride_);
+      }
+
+      size_t size() const{
+        return size_;
+      }
+
+      size_t stride() const{
+        return stride_;
+      }
+
+      bool empty() const{
+        return size_ == 0;
+      }
+
+      VectorView operator=(const double d){
+        for(iterator it = begin(); it != end(); ++it)
+          *it = d;
+        return *this;
+      }
+
+      VectorView operator=(const ConstVectorView &cvw){
+        ASSERT_TRUE(size_ == cvw.size_, "VectorView::operator= size mismatch");
+        if(stride_ == 1 && cvw.stride_ == 1){
+          memcpy(data_, cvw.data_, sizeof(double)*size_);
+        } else {
+          ConstVectorView::iterator src = cvw.begin();
+          for (iterator dst = begin(); dst != end(); ++dst, ++src)
+            *dst = *src;
+        }
+        return *this;
+      }
+
+      VectorView operator=(const VectorView &vw){
+        return *this = ConstVectorView(vw);
+      }
+
+
+    public:
+      friend std::ostream &operator<<(std::ostream &out, VectorView vw) {
+        out << ConstVectorView(vw);
+        return out;
+      }
+
+    private:
+      double *data_;
+      size_t size_;
+      size_t stride_;
+  };
+
+  ConstVectorView::ConstVectorView(const VectorView &that)
+          : data_(that.data_), size_(that.size_), stride_(that.stride_){}
+
+
+  Vector::Vector(ConstVectorView cvw) : Block(cvw.size()){
+    __copy_from__(cvw.data_, cvw.size_);
+  }
+
+  Vector& Vector::operator=(ConstVectorView cvw){
+    __free_data__();
+    __copy_from__(cvw.data_, cvw.size_);
+    return *this;
+  }
+
+  Vector::Vector(VectorView vw) : Block(vw.size()){
+    __copy_from__(vw.data_, vw.size_);
+  }
+
+  Vector& Vector::operator=(VectorView vw){
+    __free_data__();
+    __copy_from__(vw.data_, vw.size_);
+    return *this;
+  }
 
   // Apply1 : v[i] = f(cvw[i])
   Vector apply(ConstVectorView cvw, double (*func)(double)){
@@ -667,7 +761,7 @@ namespace pml {
 
   // Normalize
   Vector normalize(ConstVectorView cvw) {
-    Vector result = cvw.get();
+    Vector result(cvw);
     result /= sum(result);
     return result;
   }

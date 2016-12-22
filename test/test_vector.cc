@@ -61,7 +61,7 @@ void test_vector_view(){
   VectorView vw(v);
   VectorView vw2(v);
 
-  vw = vw2;     // meaningless but ok.
+  vw = vw2;
 
   // Fill v with 5
   vw = 5;
@@ -81,7 +81,7 @@ void test_vector_view(){
 
   std::cout << "OK.\n";
 }
-
+/*
 void test_load_save(){
   std::cout << "test_load_save...\n";
 
@@ -240,16 +240,16 @@ void test_range(){
 
   std::cout << "OK.\n";
 }
-
+*/
 int main(){
 
   test_vector();
   test_vector_view();
-  test_load_save();
-  test_vector_algebra();
-  test_vector_comparison();
-  test_vector_functions();
-  test_range();
+//  test_load_save();
+//  test_vector_algebra();
+//  test_vector_comparison();
+//  test_vector_functions();
+//  test_range();
 
   return 0;
 
