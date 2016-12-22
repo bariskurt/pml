@@ -31,7 +31,7 @@ namespace pml {
       }
 
       Block(const Block &that) : Block(that.size_){
-        memcpy(data_, that.data_, sizeof(double) * that.size_);
+        __copy_from__(that.data_, that.size_);
       }
 
       Block(Block &&that) : data_(that.data_),
@@ -45,9 +45,7 @@ namespace pml {
       Block& operator=(const Block &that) {
         if( &that != this ){
           __free_data__();
-          __realloc_data__(that.capacity_);
-          memcpy(data_, that.data_, sizeof(double) * that.size_);
-          size_ = that.size_;
+          __copy_from__(that.data_, that.size_);
         }
         return *this;
       }
@@ -92,10 +90,6 @@ namespace pml {
         return size_ == 0;
       }
 
-      void clear() {
-        size_ = 0;
-      }
-
     public:
 
       // -------- Accessors --------
@@ -122,6 +116,10 @@ namespace pml {
 
     protected:
 
+      void __clear__() {
+        size_ = 0;
+      }
+
       void __resize__(size_t new_size) {
         if( new_size > capacity_ )
           __realloc_data__(new_size);
@@ -136,6 +134,13 @@ namespace pml {
       void __shrink_to_fit__() {
         if (size_ < capacity_)
           __realloc_data__(size_);
+      }
+
+      void __copy_from__(const double* src, size_t size){
+        if( size > capacity_ )
+          __reserve__(size);
+        memcpy(data_, src, sizeof(double) * size);
+        size_ = size;
       }
 
     protected:
@@ -172,6 +177,8 @@ namespace pml {
         if( data_ ){
           free(data_);
           data_ = nullptr;
+          size_ = 0;
+          capacity_ = 0;
         }
       }
 

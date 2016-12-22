@@ -54,6 +54,33 @@ void test_vector(){
   std::cout << "OK.\n";
 }
 
+void test_vector_view(){
+  std::cout << "test_vector_view...\n";
+
+  Vector v = {0, 1, 2, 3, 4, 5, 6, 7};
+  VectorView vw(v);
+  VectorView vw2(v);
+
+  vw = vw2;     // meaningless but ok.
+
+  // Fill v with 5
+  vw = 5;
+  assert(all(v==5));
+
+  const Vector cv = {7, 6, 5, 4, 3, 2, 1, 0};
+  ConstVectorView cvw(cv);
+  ConstVectorView cvw2(cv);
+
+  vw = cvw;
+  assert(fequal(vw, cvw));
+
+  // These should give compile errors
+  // cvw = 5;
+  // cvw = vw;
+  // cvw = cvw2;
+
+  std::cout << "OK.\n";
+}
 
 void test_load_save(){
   std::cout << "test_load_save...\n";
@@ -217,6 +244,7 @@ void test_range(){
 int main(){
 
   test_vector();
+  test_vector_view();
   test_load_save();
   test_vector_algebra();
   test_vector_comparison();

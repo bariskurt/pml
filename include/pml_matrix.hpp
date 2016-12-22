@@ -103,83 +103,6 @@ namespace pml {
         __resize__(nrows_ * ncols_);
       }
 
-      friend Matrix apply(const Matrix &m, double (*func)(double)){
-        Matrix result(m.shape());
-        for(size_t i=0; i < m.size(); ++i)
-          result[i] = func(m[i]);
-        return result;
-      }
-
-    public:
-
-      friend Matrix operator==(const Matrix &x, double v) {
-        Matrix result(x.shape());
-        for(size_t i = 0; i < x.size(); ++i)
-          result[i] = fequal(x[i], v);
-        return result;
-      }
-
-      friend Matrix operator==(const Matrix &x, const Matrix &y) {
-        // Check sizes
-        ASSERT_TRUE(x.shape() == y.shape(),
-            "Matrix::operator== cannot compare matrices of different shape" );
-        // Check element-wise
-        Matrix result(x.shape());
-        for(size_t i = 0; i < x.size(); ++i)
-          result[i] = fequal(x[i], y[i]);
-        return result;
-      }
-
-      friend Matrix operator<(const Matrix &x, double v) {
-        Matrix result(x.shape());
-        for(size_t i = 0; i < x.size(); ++i)
-          result[i] = x[i] <  v;
-        return result;
-      }
-
-      friend Matrix operator<(double v, const Matrix &x) {
-        return x > v;
-      }
-
-      friend Matrix operator<(const Matrix &x, const Matrix &y) {
-        // Check sizes
-        ASSERT_TRUE(x.shape() == y.shape(),
-            "Matrix::operator== cannot compare matrices of different shape" );
-        // Check element-wise
-        Matrix result(x.shape());
-        for(size_t i = 0; i < x.size(); ++i)
-          result[i] = x[i] <  y[i];
-        return result;
-      }
-
-      friend Matrix operator>(const Matrix &x, double v) {
-        Matrix result(x.shape());
-        for(size_t i = 0; i < x.size(); ++i)
-          result[i] = x[i] > v;
-        return result;
-      }
-
-      friend Matrix operator>(double v, const Matrix &x) {
-        return x < v;
-      }
-
-      friend Matrix operator>(const Matrix &x, const Matrix &y) {
-        // Check sizes
-        ASSERT_TRUE(x.shape() == y.shape(),
-            "Matrix::operator== cannot compare matrices of different shape" );
-        // Check element-wise
-        Matrix result(x.shape());
-        for(size_t i = 0; i < x.size(); ++i)
-          result[i] = x[i] > y[i];
-        return result;
-      }
-
-      bool equals(const Matrix &other){
-        if(shape() != other.shape())
-          return false;
-        return all(*this == other);
-      }
-
     public:
 
       // -------- Accessors ---------
@@ -192,263 +115,20 @@ namespace pml {
       }
 
     public:
-
-      // ------- Self-Assignment Operations ------
-
-      void operator+=(const double value) {
-        for(size_t i=0; i < size_; ++i)
-          data_[i] += value;
+      VectorView col(size_t i){
+        return VectorView(&data_[i * nrows_], nrows_);
       }
 
-      // A = A - b
-      void operator-=(const double value) {
-        for(size_t i=0; i < size_; ++i)
-          data_[i] -= value;
+      ConstVectorView col(size_t i) const{
+        return ConstVectorView(&data_[i * nrows_], nrows_);
       }
 
-      // A = A * b
-      void operator*=(const double value) {
-        for(size_t i=0; i < size_; ++i)
-          data_[i] *= value;
+      VectorView row(size_t i){
+        return VectorView(&data_[i], ncols_, nrows_);
       }
 
-      // A = A / b
-      void operator/=(const double value) {
-        for(size_t i=0; i < size_; ++i)
-          data_[i] /= value;
-      }
-
-      // A = A + B
-      void operator+=(const Matrix &other) {
-        ASSERT_TRUE(shape() == other.shape(),
-                    "Matrix::operator+=:: Shape mismatch.");
-        for (size_t i = 0; i < size_; ++i) {
-          data_[i] += other[i];
-        }
-      }
-
-      // A = A - B
-      void operator-=(const Matrix &other) {
-        ASSERT_TRUE(shape() == other.shape(),
-                    "Matrix::operator-=:: Shape mismatch.");
-        for (size_t i = 0; i < size_; ++i) {
-          data_[i] -= other[i];
-        }
-      }
-
-      // A = A * B (elementwise)
-      void operator*=(const Matrix &other) {
-        ASSERT_TRUE(shape() == other.shape(),
-                    "Matrix::operator*=:: Shape mismatch.");
-        for (size_t i = 0; i < size_; ++i) {
-          data_[i] *= other[i];
-        }
-      }
-
-      // A = A / B (elementwise)
-      void operator/=(const Matrix &other) {
-        ASSERT_TRUE(shape() == other.shape(),
-                    "Matrix::operator/=:: Shape mismatch.");
-        for (size_t i = 0; i < size_; ++i) {
-          data_[i] /= other[i];
-        }
-      }
-
-      // ------- Matrix-Double Operations -------
-
-      // returns A + b
-      friend Matrix operator+(const Matrix &x, double value) {
-        Matrix result(x);
-        result += value;
-        return result;
-      }
-
-      // returns b + A
-      friend Matrix operator+(double value, const Matrix &x) {
-        return x + value;
-      }
-
-      // returns A * b
-      friend Matrix operator*(const Matrix &x, double value) {
-        Matrix result(x);
-        result *= value;
-        return result;
-      }
-
-      // returns b * A
-      friend Matrix operator*(double value, const Matrix &x) {
-        return x * value;
-      }
-
-      // returns A - b
-      friend Matrix operator-(const Matrix &x, double value) {
-        Matrix result(x);
-        result -= value;
-        return result;
-      }
-
-      // returns b - A
-      friend Matrix operator-(double value, const Matrix &x) {
-        return (-1 * x) + value;
-      }
-
-      // returns A / b
-      friend Matrix operator/(const Matrix &x, double value) {
-        Matrix result(x);
-        result /= value;
-        return result;
-      }
-
-      // returns b / A
-      friend Matrix operator/(double value, const Matrix &x) {
-        Matrix result(x.shape());
-        for(size_t i = 0; i < x.size(); ++i)
-          result[i] = value / x[i];
-        return result;
-      }
-
-      // ----------- Matrix - Matrix operations --------
-
-      // R = A + B
-      friend Matrix operator+(const Matrix &x, const Matrix &y) {
-        ASSERT_TRUE(x.shape() == x.shape(),
-                    "Matrix::operator+:: Shape mismatch.");
-        Matrix result(x.shape());
-        for (size_t i = 0; i < x.size(); ++i) {
-          result[i] = x[i] + y[i];
-        }
-        return result;
-      }
-
-      // R = A - B
-      friend Matrix operator-(const Matrix &x, const Matrix &y) {
-        ASSERT_TRUE(x.shape() == x.shape(),
-                    "Matrix::operator-:: Shape mismatch.");
-        Matrix result(x.shape());
-        for (size_t i = 0; i < x.size(); ++i) {
-          result[i] = x[i] - y[i];
-        }
-        return result;
-      }
-
-      // R = A * B (elementwise)
-      friend Matrix operator*(const Matrix &x, const Matrix &y) {
-        ASSERT_TRUE(x.shape() == x.shape(),
-                    "Matrix::operator*:: Shape mismatch.");
-        Matrix result(x.shape());
-        for (size_t i = 0; i < x.size(); ++i) {
-          result[i] = x[i] * y[i];
-        }
-        return result;
-      }
-
-      // R = A / B (elementwise)
-      friend Matrix operator/(const Matrix &x, const Matrix &y) {
-        ASSERT_TRUE(x.shape() == x.shape(),
-                    "Matrix::operator/:: Shape mismatch.");
-        Matrix result(x.shape());
-        for (size_t i = 0; i < x.size(); ++i) {
-          result[i] = x[i] / y[i];
-        }
-        return result;
-      }
-
-      // ------- Matrix - Vector Operations --------
-
-      // R = A + [b b ... b]
-      friend Matrix operator+(const Matrix &x, const Vector &v) {
-        ASSERT_TRUE(x.nrows_ == v.size(),
-                    "Matrix::operator+:: Vector size mismatch.");
-        Matrix result(x.shape());
-        for (size_t i = 0; i < x.nrows_; ++i) {
-          for (size_t j = 0; j < x.ncols_; ++j) {
-            result(i,j) = x(i,j) + v[i];
-          }
-        }
-        return result;
-      }
-
-      // R = A - [v v ... v]
-      friend Matrix operator-(const Matrix &x, const Vector &v) {
-        ASSERT_TRUE(x.nrows_ == v.size(),
-                    "Matrix::operator-:: Vector size mismatch.");
-        Matrix result(x.shape());
-        for (size_t i = 0; i < x.nrows_; ++i) {
-          for (size_t j = 0; j < x.ncols_; ++j) {
-            result(i,j) = x(i,j) - v[i];
-          }
-        }
-        return result;
-      }
-
-      // R = A * [b b ... b]
-      friend Matrix operator*(const Matrix &x, const Vector &v) {
-        ASSERT_TRUE(x.nrows_ == v.size(),
-                    "Matrix::operator*:: Vector size mismatch.");
-        Matrix result(x.shape());
-        for (size_t i = 0; i < x.nrows_; ++i) {
-          for (size_t j = 0; j < x.ncols_; ++j) {
-            result(i,j) = x(i,j) * v[i];
-          }
-        }
-        return result;
-      }
-
-      // R = A / [v v ... v]
-      friend Matrix operator/(const Matrix &x, const Vector &v) {
-        ASSERT_TRUE(x.nrows_ == v.size(),
-                    "Matrix::operator/:: Vector size mismatch.");
-        Matrix result(x.shape());
-        for (size_t i = 0; i < x.nrows_; ++i) {
-          for (size_t j = 0; j < x.ncols_; ++j) {
-            result(i,j) = x(i,j) / v[i];
-          }
-        }
-        return result;
-      }
-
-      // --------- Row and Column Operations -----------
-
-    public:
-      // Returns a single column as Vector
-      Vector getColumn(size_t col_num) const {
-        return Vector(nrows_, &data_[col_num * nrows_]);
-      }
-
-      // Returns several columns as Matrix
-      Matrix getColumns(Range range) const {
-        Matrix result(nrows_, range.size());
-        size_t num_bytes = sizeof(double) * nrows_;
-        for(size_t i=0, j = range.start; j < range.stop; j+=range.step, ++i)
-          memcpy(&result.data_[i*nrows_], &data_[j * nrows_], num_bytes);
-        return result;
-      }
-
-      // Sets a single column
-      void setColumn(size_t col_num, const Vector &v) {
-        ASSERT_TRUE(col_num < ncols(),
-                    "Matrix::setColumn:: col_num exceeds number of columns");
-        ASSERT_TRUE(nrows() == v.size(),
-                    "Matrix::setColumn:: Vector size mismatch");
-        memcpy(&data_[col_num * nrows_], v.data(), sizeof(double) * nrows_);
-      }
-
-      // Returns a single row as vector
-      Vector getRow(size_t row_num) const {
-        Vector row(ncols_);
-        for(size_t i=0, j = row_num; i < ncols_; ++i, j+=nrows_)
-          row(i) = data_[j];
-        return row;
-      }
-
-      // Sets a single row.
-      void setRow(size_t row_num, const Vector &row) {
-        ASSERT_TRUE(row_num < nrows(),
-                    "Matrix::setRow:: row_num exceeds number of rows");
-        ASSERT_TRUE(ncols_ == row.size(),
-                    "Matrix::setRow:: Vector size mismatch");
-        for(size_t i=0, j=row_num; i < ncols_; ++i, j+=nrows_)
-          data_[j] = row(i);
+      ConstVectorView row(size_t i) const{
+        return ConstVectorView(&data_[i], ncols_, nrows_);
       }
 
       // Appends a column to the right.
@@ -460,62 +140,6 @@ namespace pml {
           nrows_ = size_;
         ++ncols_;
       }
-/*
-      // Appends a row to the bottom.
-      void appendRow(const Vector &v){
-        ASSERT_TRUE(empty() | (ncols_ == v.size()),
-                    "Matrix::appendRow:: Vector size mismatch");
-        if(empty()) {
-          __push_back__(v);
-          ncols_ = size_;
-        } else {
-          __resize__(size_ + v.size());
-
-        }
-        nrows_++;
-      }
-
-      // Appends a column to the right.
-      void append(const Matrix &m, size_t axis = 1){
-        ASSERT_TRUE(axis == 0 || axis == 1,
-                    "Matrix::append(const Matrix &):: axis out of bounds");
-        if(m.empty())
-          return;
-        if(axis == 0){
-          // Append row-wise
-          if(empty()){
-            ncols_ = m.ncols();
-          } else {
-            ASSERT_TRUE(ncols() == m.ncols(),
-                  "Matrix::append(const Matrix &, 1):: column sizes mismatch.");
-          }
-          std::vector<double> new_data(size() + m.size());
-          size_t nrows_new = nrows() + m.nrows();
-          for(size_t i=0; i < ncols(); ++i){
-            memcpy(&new_data[nrows_new*i], &data_[nrows() * i],
-                   sizeof(double) * nrows());
-            memcpy(&new_data[nrows_new*i + nrows()], &m.data_[m.nrows() * i],
-                   sizeof(double) * m.nrows());
-          }
-          data_ = std::move(new_data);
-          nrows_ = nrows_new;
-        } else {
-          // Append column-wise
-          if(empty()){
-            nrows_ = m.nrows();
-          } else {
-            ASSERT_TRUE(nrows() == m.nrows(),
-                  "Matrix::append(const Matrix &, 1):: column sizes mismatch.");
-          }
-          std::vector<double> new_data(size() + m.size());
-          memcpy(new_data.data(), data(), sizeof(double) * size());
-          memcpy(new_data.data() + size(), m.data(), sizeof(double) * m.size());
-          data_ = std::move(new_data);
-          ncols_ += m.ncols();
-        }
-      }
-*/
-      // ---------- File Operations --------
 
     public:
       friend std::ostream &operator<<(std::ostream &out,
@@ -596,54 +220,237 @@ namespace pml {
         return Matrix(0,0);
       }
 
-      void normalize(size_t axis = 2){
-        ASSERT_TRUE(axis<=2, "Matrix::normalize axis out of bounds.");
-        if( axis == 0){
-          Vector col_sums = sum(*this, 0);
-          for(size_t i=0; i < nrows_; ++i)
-            for(size_t j=0; j < ncols_; ++j)
-              (*this)(i,j) /= col_sums[j];
-        } else if( axis == 1){
-          Vector row_sums = sum(*this, 1);
-          for(size_t i=0; i < nrows_; ++i)
-            for(size_t j=0; j < ncols_; ++j)
-              (*this)(i,j) /= row_sums[i];
-        } else {
-          double sum_x = sum(*this);
-          for(size_t i=0; i < size(); ++i)
-            data_[i] /= sum_x;
-        }
-      }
-
-      void normalizeExp(size_t axis = 2){
-        ASSERT_TRUE(axis<=2, "Matrix::normalizeExp axis out of bounds.");
-        if( axis == 0) {
-          Vector col_max = max(*this, 0);
-          for(size_t i=0; i < nrows_; ++i)
-            for(size_t j=0; j < ncols_; ++j)
-              (*this)(i,j) = std::exp((*this)(i,j) - col_max[j]);
-          normalize(0);
-        } else if( axis == 1) {
-          Vector row_max = max(*this, 1);
-          for (size_t i = 0; i < nrows_; ++i)
-            for (size_t j = 0; j < ncols_; ++j)
-              (*this)(i, j) = std::exp((*this)(i, j) - row_max[i]);
-          normalize(1);
-        } else {
-          double x_max = max(*this);
-          for (size_t i = 0; i < size(); ++i)
-            data_[i] = std::exp(data_[i] - x_max);
-          normalize();
-        }
-      }
-*/
     private:
       size_t nrows_;
       size_t ncols_;
   };
 
+  Matrix apply(const Matrix &x, double (*func)(double)){
+    Matrix result(x.shape());
+    for(size_t i=0; i < x.size(); ++i)
+      result[i] = func(x[i]);
+    return result;
+  }
+
+  Matrix apply(const Matrix &x, double (*func)(double, double), double d){
+    Matrix result(x.shape());
+    for(size_t i=0; i < x.size(); ++i)
+      result[i] = func(x[i], d);
+    return result;
+  }
+
+  Matrix apply(const Matrix &x, double(*func)(double, double), const Matrix &y){
+    ASSERT_TRUE(x.shape() == y.shape(),
+           "Matrix::apply == cannot compare matrices of different shape");
+    Matrix result(x.shape());
+    for(size_t i=0; i < x.size(); ++i)
+      result[i] = func(x[i], y[i]);
+    return result;
+  }
+
+  bool any(const Matrix &m){
+    return any(ConstVectorView(m));
+  }
+
+  bool all(const Matrix &m){
+    return all(ConstVectorView(m));
+  }
+
+  void operator+=(Matrix &m, const double value) {
+    VectorView(m) += value;
+  }
+
+  // A = A - b
+  void operator-=(Matrix &m, const double value) {
+    VectorView(m) -= value;
+  }
+
+  // A = A * b
+  void operator*=(Matrix &m, const double value) {
+    VectorView(m) *= value;
+  }
+
+  // A = A / b
+  void operator/=(Matrix &m, const double value) {
+    VectorView(m) /= value;
+  }
+
+  // A = A + B
+  void operator+=(Matrix &m, const Matrix &other) {
+    ASSERT_TRUE(m.shape() == other.shape(),
+                "Matrix::operator+=:: Shape mismatch.");
+    VectorView(m) += ConstVectorView(other);
+  }
+
+  // A = A - B
+  void operator-=(Matrix &m, const Matrix &other) {
+    ASSERT_TRUE(m.shape() == other.shape(),
+                "Matrix::operator-=:: Shape mismatch.");
+    VectorView(m) -= ConstVectorView(other);
+  }
+
+  // A = A * B (elementwise)
+  void operator*=(Matrix &m, const Matrix &other) {
+    ASSERT_TRUE(m.shape() == other.shape(),
+                "Matrix::operator*=:: Shape mismatch.");
+    VectorView(m) *= ConstVectorView(other);
+  }
+
+  // A = A / B (elementwise)
+  void operator/=(Matrix &m, const Matrix &other) {
+    ASSERT_TRUE(m.shape() == other.shape(),
+                "Matrix::operator/=:: Shape mismatch.");
+    VectorView(m) /= ConstVectorView(other);
+  }
+
+  // returns A + b
+  Matrix operator+(const Matrix &x, double d) {
+    return apply(x, [](double d1, double d2) { return d1 + d2;}, d);
+  }
+
+  // returns b + A
+  Matrix operator+(double d, const Matrix &x) {
+    return x + d;
+  }
+
+  // returns A * b
+  Matrix operator*(const Matrix &x, double d) {
+    return apply(x, [](double d1, double d2) { return d1 * d2;}, d);
+  }
+
+  // returns b * A
+  Matrix operator*(double d, const Matrix &x) {
+    return x * d;
+  }
+
+  // returns A - b
+  Matrix operator-(const Matrix &x, double d) {
+    return apply(x, [](double d1, double d2) { return d1 - d2;}, d);
+  }
+
+  // returns b - A
+  Matrix operator-(double d, const Matrix &x) {
+    return apply(x, [](double d1, double d2) { return d2 - d1;}, d);
+  }
+
+  // returns A / b
+  Matrix operator/(const Matrix &x, double d) {
+    return apply(x, [](double d1, double d2) { return d1 / d2;}, d);
+  }
+
+  // returns b / A
+  Matrix operator/(double d, const Matrix &x) {
+    return apply(x, [](double d1, double d2) { return d2 / d1;}, d);
+  }
+
+  // R = A + [b b ... b]
+  Matrix operator+(const Matrix &x, const Vector &v) {
+    ASSERT_TRUE(x.nrows() == v.size(), "Matrix::operator*:: Size mismatch.");
+    Matrix result(x);
+    for(size_t i=0; i < result.ncols(); ++i)
+      result.col(i) += v;
+    return result;
+  }
+
+  // R = A - [v v ... v]
+  Matrix operator-(const Matrix &x, const Vector &v) {
+    ASSERT_TRUE(x.nrows() == v.size(), "Matrix::operator*:: Size mismatch.");
+    Matrix result(x);
+    for(size_t i=0; i < result.ncols(); ++i)
+      result.col(i) -= v;
+    return result;
+  }
+
+  // R = A * [b b ... b]
+  Matrix operator*(const Matrix &x, const Vector &v) {
+    ASSERT_TRUE(x.nrows() == v.size(), "Matrix::operator*:: Size mismatch.");
+    Matrix result(x);
+    for(size_t i=0; i < result.ncols(); ++i)
+      result.col(i) *= v;
+    return result;
+  }
+
+  // R = A / [v v ... v]
+  Matrix operator/(const Matrix &x, const Vector &v) {
+    ASSERT_TRUE(x.nrows() == v.size(), "Matrix::operator/:: Size mismatch.");
+    Matrix result(x);
+    for(size_t i=0; i < result.ncols(); ++i)
+      result.col(i) /= v;
+    return result;
+  }
+
+  // R = A + B
+  Matrix operator+(const Matrix &x, const Matrix &y) {
+    ASSERT_TRUE(x.shape() == x.shape(), "Matrix::operator+:: Shape mismatch.");
+    return apply(x, [](double d1, double d2) {return d1 + d2;}, y);
+  }
+
+  // R = A - B
+  Matrix operator-(const Matrix &x, const Matrix &y) {
+    ASSERT_TRUE(x.shape() == x.shape(), "Matrix::operator-:: Shape mismatch.");
+    return apply(x, [](double d1, double d2) {return d1 - d2;}, y);
+  }
+
+  // R = A * B (elementwise)
+  Matrix operator*(const Matrix &x, const Matrix &y) {
+    ASSERT_TRUE(x.shape() == x.shape(), "Matrix::operator*:: Shape mismatch.");
+    return apply(x, [](double d1, double d2) {return d1 * d2;}, y);
+  }
+
+  // R = A / B (elementwise)
+  Matrix operator/(const Matrix &x, const Matrix &y) {
+    ASSERT_TRUE(x.shape() == x.shape(), "Matrix::operator/:: Shape mismatch.");
+    return apply(x, [](double d1, double d2) {return d1 / d2;}, y);
+  }
+
+  Matrix operator==(const Matrix &x, double v) {
+    return apply(x, [](double d1, double d2) -> double {
+        return fequal(d1, d2);}, v);
+  }
+
+  Matrix operator==(const Matrix &x, const Matrix &y) {
+    return apply(x, [](double d1, double d2) -> double {
+        return fequal(d1, d2);}, y);
+  }
+
+  Matrix operator<(const Matrix &x, double v) {
+    return apply(x, [](double d1, double d2) -> double { return d1 < d2;}, v);
+  }
+
+  Matrix operator<(const Matrix &x, const Matrix &y) {
+    // Check sizes
+    ASSERT_TRUE(x.shape() == y.shape(),
+                "Matrix::operator== cannot compare matrices of different shape" );
+    return apply(x, [](double d1, double d2) -> double { return d1 < d2;}, y);
+  }
+
+  Matrix operator>(const Matrix &x, double v) {
+    return apply(x, [](double d1, double d2) -> double { return d1 > d2;}, v);
+  }
+
+  Matrix operator>(const Matrix &x, const Matrix &y) {
+    // Check sizes
+    ASSERT_TRUE(x.shape() == y.shape(),
+                "Matrix::operator== cannot compare matrices of different shape" );
+    return apply(x, [](double d1, double d2) -> double { return d1 > d2;}, y);
+  }
+
+  Matrix operator>(double v, const Matrix &x) {
+    return x < v;
+  }
+
+  Matrix operator<(double v, const Matrix &x) {
+    return x > v;
+  }
+
+  bool fequal(const Matrix &m1, const Matrix &m2){
+    if(m1.shape() != m2.shape())
+      return false;
+    return fequal(ConstVectorView(m1), ConstVectorView(m2));
+  }
+
   // Transpose
-  inline Matrix transpose(const Matrix &m){
+  Matrix transpose(const Matrix &m){
     Matrix result(m.ncols(), m.nrows());
     for (size_t i = 0; i < m.nrows(); ++i)
       for (size_t j = 0; j < m.ncols(); ++j)
@@ -651,76 +458,82 @@ namespace pml {
     return result;
   }
 
-  inline Matrix tr(const Matrix &m){
+  Matrix tr(const Matrix &m){
     return transpose(m);
   }
 
   // Returns a flat vector from Matrix x
-  inline Vector flatten(const Matrix &x){
+  Vector flatten(const Matrix &x){
     return Vector(x.size(), x.data());
   }
 
-  // Sum
-  inline Vector sum(const Matrix &x, size_t axis) {
-    ASSERT_TRUE(axis==0 || axis==1, "Matrix::sum axis out of bounds.");
-    size_t i = 0, j = 0;
-    size_t len = (axis == 0) ?  x.ncols() : x.nrows();
-    size_t *k =  (axis == 0) ? &i : &j;
-    Vector result = Vector::zeros(len);
-    for(; i < x.nrows(); ++i)
-      for(; j < x.ncols(); ++j)
-        result[*k] += x(i,j);
-    return result;
-  }
+//-----------------------------------
 
-  inline Vector min(const Matrix &x, size_t axis) {
-    ASSERT_TRUE(axis==0 || axis==1, "Matrix::max axis out of bounds.");
-    size_t i = 0, j = 0;
-    size_t len = (axis == 0) ?  x.ncols() : x.nrows();
-    size_t *k =  (axis == 0) ? &i : &j;
-    Vector result = Vector(len, std::numeric_limits<double>::max());
-    for(; i < x.nrows(); ++i)
-      for(; j < x.ncols(); ++j)
-        result[*k] = std::min(result[*k], x(i,j));
-    return result;
-  }
+double sum(const Matrix &x) {
+  return sum(ConstVectorView(x));
+}
 
-  inline Vector max(const Matrix &x, size_t axis) {
-    ASSERT_TRUE(axis==0 || axis==1, "Matrix::max axis out of bounds.");
-    size_t i = 0, j = 0;
-    size_t len = (axis == 0) ?  x.ncols() : x.nrows();
-    size_t *k =  (axis == 0) ? &i : &j;
-    Vector result = Vector(len, std::numeric_limits<double>::max());
-    for(; i < x.nrows(); ++i)
-      for(; j < x.ncols(); ++j)
-        result[*k] = std::max(result[*k], x(i,j));
-    return result;
-  }
+Vector sum(const Matrix &x, const size_t axis) {
+  // if axis = 0 then sum cols, else sum rows
+  ASSERT_TRUE(axis==0 || axis==1, "Matrix::sum axis out of bounds.");
+  Vector result;
+  for(size_t i=0; i < (axis ? x.nrows() : x.ncols()); ++i)
+    result.append( axis ? sum(x.row(i)) : sum(x.col(i)) );
+  return result;
+}
 
+double min(const Matrix &x) {
+  return min(ConstVectorView(x));
+}
+
+Vector min(const Matrix &x, size_t axis) {
+  ASSERT_TRUE(axis==0 || axis==1, "Matrix::max axis out of bounds.");
+  Vector result;
+  for(size_t i=0; i < (axis ? x.nrows() : x.ncols()); ++i)
+    result.append( axis ? min(x.row(i)) : min(x.col(i)) );
+  return result;
+}
+
+double max(const Matrix &x) {
+  return max(ConstVectorView(x));
+}
+
+Vector max(const Matrix &x, size_t axis) {
+  ASSERT_TRUE(axis==0 || axis==1, "Matrix::max axis out of bounds.");
+  Vector result;
+  for(size_t i=0; i < (axis ? x.nrows() : x.ncols()); ++i)
+    result.append( axis ? max(x.row(i)) : max(x.col(i)) );
+  return result;
+}
+
+// Flip Left-Right
+Matrix fliplr(const Matrix &x){
+  Matrix result(x.shape());
+  size_t offset = x.ncols()-1;
+  for(size_t i = 0; i < x.ncols(); ++i) {
+    VectorView vw = result.row(i);
+    ConstVectorView cvw = x.col(offset - i);
+    vw = cvw;
+  }
+  return result;
+}
+
+/*
+// Flip Up-Down
+Matrix flipud(const Matrix &x){
+  Matrix result(x.shape());
+  size_t offset = x.nrows()-1;
+  //for(size_t i = 0; i < x.ncols(); ++i)
+  //  result.row(i) = x.row(offset-i);
+  return result;
+}
+*/
 
 /*
   // Concatenate two matrices as in Matlab
   inline Matrix cat(const Matrix &m1, const Matrix &m2, size_t axis = 1){
     Matrix result(m1);
     result.append(m2, axis);
-    return result;
-  }
-
-  // Flip Left-Right
-  inline Matrix fliplr(const Matrix &x){
-    Matrix result;
-    for(size_t i = x.ncols() ; i > 0; --i){
-      result.appendColumn(x.getColumn(i-1));
-    }
-    return result;
-  }
-
-  // Flip Up-Down
-  inline Matrix flipud(const Matrix &x){
-    Matrix result;
-    for(size_t i = x.nrows() ; i > 0; --i){
-      result.appendRow(x.getRow(i-1));
-    }
     return result;
   }
 */

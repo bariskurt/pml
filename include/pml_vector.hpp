@@ -77,6 +77,25 @@ namespace pml {
       }
 
     public:
+      Vector& operator=(const Vector& that){
+        Block::operator=(that);
+        return *this;
+      }
+/*
+      Vector& operator=(ConstVectorView cvw){
+        __clear__();
+        __reserve__(cvw.size());
+
+        if(cvw.stride() == 1)
+          __copy_from__(*cvw.begin(), cvw.size());
+        else{
+          for(const double d : cvw)
+            __push_back__(d);
+        }
+        return *this;
+      }
+*/
+    public:
       // Vector resize. If new size is smaller, the data_ is cropped.
       // If new size is larger, garbage values are appended.
       void resize(size_t new_size) {
@@ -205,7 +224,8 @@ namespace pml {
       }
   };
 
-
+  class Matrix;
+    
   //  ----------- Vector View --------------
   template <bool is_const>
   class GenericVectorView{
@@ -214,10 +234,16 @@ namespace pml {
             const Vector, Vector>::type ViewType;
 
     typedef typename std::conditional<is_const,
+            const Matrix, Matrix>::type MatrixViewType;
+
+    typedef typename std::conditional<is_const,
             const double*, double*>::type PointerType;
 
     typedef typename std::conditional<is_const,
             const double&, double&>::type ReferenceType;
+
+    friend GenericVectorView<false>;
+    friend GenericVectorView<true>;
 
     public:
       class iterator{
@@ -269,10 +295,13 @@ namespace pml {
       };
 
     public:
-      GenericVectorView(PointerType data, size_t size, size_t stride = 1)
+      explicit GenericVectorView(PointerType data, size_t size, size_t stride = 1)
               : data_(data), size_(size), stride_(stride){}
 
       GenericVectorView(ViewType &v)
+              : data_(v.data()), size_(v.size()), stride_(1){ }
+
+      explicit GenericVectorView(MatrixViewType &v)
               : data_(v.data()), size_(v.size()), stride_(1){ }
 
       GenericVectorView(const GenericVectorView<false> &vw)
@@ -290,11 +319,15 @@ namespace pml {
         return size_;
       }
 
+      size_t stride() const{
+        return stride_;
+      }
+
       bool empty() const{
         return size_ == 0;
       }
 
-      Vector copy() {
+      Vector get() {
         // stride 1 is just memcpy
         if(stride_ == 1)
           return Vector(size_, data_);
@@ -304,6 +337,38 @@ namespace pml {
         for(auto it = begin(); it != end(); ++it)
           v[i++] = *it;
         return v;
+      }
+
+      GenericVectorView<is_const> operator=(double d){
+        for(auto it = begin(); it != end(); ++it)
+          *it = d;
+        return *this;
+      }
+
+      GenericVectorView<is_const> operator=(GenericVectorView<true> v){
+        ASSERT_TRUE(size_ == v.size(),
+                    "GenericVectorView::operator: size mismatch");
+        if(stride_ == 1 && v.stride_ == 1){
+          memcpy(data_, v.data_, sizeof(double) * size_);
+        } else {
+          auto src = v.begin();
+          for(auto dst = begin(); dst != end(); ++dst)
+            *dst = *src++;
+        }
+        return *this;
+      }
+
+      GenericVectorView<is_const> operator=(GenericVectorView<false> v){
+        *this = GenericVectorView<true>(v);
+        return *this;
+      }
+
+      friend std::ostream &operator<<(std::ostream &out,
+                                      GenericVectorView<is_const> cvw) {
+        out << std::setprecision(DEFAULT_PRECISION) << std::fixed;
+        for(auto it = cvw.begin(); it != cvw.end(); ++it)
+          out << *it << "  ";
+        return out;
       }
 
     private:
@@ -411,12 +476,12 @@ namespace pml {
     return true;
   }
 
-  inline void operator+=(VectorView vw, const double value){
+  void operator+=(VectorView vw, const double value){
     for(double &d : vw)
       d += value;
   }
 
-  inline void operator-=(VectorView vw, const double value){
+  void operator-=(VectorView vw, const double value){
     for(double &d : vw)
       d -= value;
   }
@@ -602,7 +667,7 @@ namespace pml {
 
   // Normalize
   Vector normalize(ConstVectorView cvw) {
-    Vector result = cvw.copy();
+    Vector result = cvw.get();
     result /= sum(result);
     return result;
   }
