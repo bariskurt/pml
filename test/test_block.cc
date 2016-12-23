@@ -1,6 +1,7 @@
 #include <cassert>
 #include <cmath>
 #include <iostream>
+#include <vector>
 
 #include "pml_block.hpp"
 
@@ -42,9 +43,16 @@ namespace pml {
         // Assignment operator
         Block b3;
         b3 = b;
+        std::cout << b3.capacity() << std::endl;
         assert(b3.capacity() == Block::INITIAL_CAPACITY);
         assert(b3.size() == 10);
         assert(b3.data() != b.data());
+
+        // Copy Initialization
+        Block b4 = b;
+        assert(b4.capacity() == Block::INITIAL_CAPACITY);
+        assert(b4.size() == 10);
+        assert(b4.data() != b.data());
 
         std::cout << "OK.\n";
       }
@@ -168,6 +176,7 @@ namespace pml {
 }
 
 int main(){
+  test_std_vector();
   PmlTester blockTester;
   blockTester.test_constructors();
   blockTester.test_size();

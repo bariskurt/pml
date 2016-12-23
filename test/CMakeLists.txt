@@ -4,6 +4,8 @@ include_directories(../include/ml)
 link_libraries(gsl)
 link_libraries(gslcblas)
 
+add_executable(test_block test_block.cc)
+
 add_executable(test_memory test_memory.cc)
 
 add_executable(test_vector test_vector.cc)
@@ -25,7 +27,5 @@ add_executable(test_hmm test_hmm.cc)
 add_executable(test_nmf test_nmf.cc)
 
 add_executable(test_bcpm test_bcpm.cc)
-
-add_executable(test_block test_block.cc)
 
 

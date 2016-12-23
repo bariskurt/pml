@@ -22,21 +22,22 @@ namespace pml {
     friend class PmlTester;
 
     public:
-      static const size_t INITIAL_CAPACITY;
+      static const size_t MINIMUM_CAPACITY;
       static const double GROWTH_RATIO;
 
     public:
-      explicit Block(size_t size = 0) : data_(nullptr), size_(size){
-        __realloc_data__(std::max(size, INITIAL_CAPACITY));
+      explicit Block(size_t size = 0)
+          : data_(nullptr), size_(size), capacity_(capacity){
+        if(size_ > 0)
+          __realloc_data__(size);
       }
 
       Block(const Block &that) : Block(that.size_){
-        __copy_from__(that.data_, that.size_);
+        memcpy(data_, that.data_, sizeof(double) * that.size_);
       }
 
-      Block(Block &&that) : data_(that.data_),
-                            capacity_(that.capacity_),
-                            size_(that.size_) {
+      Block(Block &&that)
+          : data_(that.data_), capacity_(that.capacity_), size_(that.size_) {
         that.data_ = nullptr;
         that.size_ = 0;
         that.capacity_ = 0;
@@ -45,7 +46,8 @@ namespace pml {
       Block& operator=(const Block &that) {
         if( &that != this ){
           __free_data__();
-          __copy_from__(that.data_, that.size_);
+          __resize__(that.size_);
+          memcpy(data_, that.data_, sizeof(double) * that.size_);
         }
         return *this;
       }
@@ -116,35 +118,6 @@ namespace pml {
 
     protected:
 
-      void __clear__() {
-        size_ = 0;
-      }
-
-      void __resize__(size_t new_size) {
-        if( new_size > capacity_ )
-          __realloc_data__(new_size);
-        size_ = new_size;
-      }
-
-      void __reserve__(size_t new_capacity) {
-        if (new_capacity > capacity_)
-          __realloc_data__(new_capacity);
-      }
-
-      void __shrink_to_fit__() {
-        if (size_ < capacity_)
-          __realloc_data__(size_);
-      }
-
-      void __copy_from__(const double* src, size_t size){
-        if( size > capacity_ )
-          __reserve__(size);
-        memcpy(data_, src, sizeof(double) * size);
-        size_ = size;
-      }
-
-    protected:
-
       void __push_back__(double value) {
         if (size_ == capacity_) {
           __realloc_data__(capacity_ * GROWTH_RATIO);
@@ -161,14 +134,36 @@ namespace pml {
         size_ += block.size_;
       }
 
-      void __pop_back__(){
+      void __pop_back__() {
         if(size_ > 0)
           --size_;
       }
 
     protected:
 
+      void __clear__() {
+        size_ = 0;
+      }
+
+      void __resize__(size_t new_size) {
+        if( new_size > capacity_ )
+          __realloc_data__(new_size);
+        size_ = new_size;
+      }
+
+      void __reserve__(size_t new_capacity) {
+        if (new_capacity > capacity_)
+          __realloc_data__(new_capacity);
+      }
+
+      void __shrink_to_fit__() {
+          __realloc_data__(size_);
+      }
+
+    private:
+
       void __realloc_data__(size_t new_capacity) {
+        new_capacity = std::max(MINIMUM_CAPACITY, new_capacity);
         data_ = (double*) realloc(data_, sizeof(double) * new_capacity);
         capacity_ = new_capacity;
       }

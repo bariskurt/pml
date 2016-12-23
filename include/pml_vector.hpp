@@ -456,20 +456,24 @@ namespace pml {
 
 
   Vector::Vector(ConstVectorView cvw) : Block(cvw.size()){
+    std::cout << "Vector(ConstVectorView vw)\n";
     __copy_from__(cvw.data_, cvw.size_);
   }
 
   Vector& Vector::operator=(ConstVectorView cvw){
+    std::cout << "Vector::operator=(ConstVectorView vw)\n";
     __free_data__();
     __copy_from__(cvw.data_, cvw.size_);
     return *this;
   }
 
   Vector::Vector(VectorView vw) : Block(vw.size()){
+    std::cout << "Vector(VectorView vw)\n";
     __copy_from__(vw.data_, vw.size_);
   }
 
   Vector& Vector::operator=(VectorView vw){
+    std::cout << "Vector::operator=(VectorView vw)\n";
     __free_data__();
     __copy_from__(vw.data_, vw.size_);
     return *this;

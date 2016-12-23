@@ -7,8 +7,18 @@ using namespace pml;
 
 std::string test_dir = "/tmp/";
 
-void test_vector(){
-  std::cout << "test_vector...\n";
+void assert_equal(const Vector&x, const Vector&x2){
+  assert(x.size() == x2.size());
+  for(size_t i=0; i < x.size(); ++i)
+    assert(fequal(x[i], x2[i]));
+}
+
+void assert_not_the_same(const Vector&x, const Vector&x2){
+  assert(x.data() != x2.data());
+}
+
+void test_vector_constructors() {
+  std::cout << "test_vector_constructors...\n";
 
   // Constructor 1
   Vector v1(5, 3);
@@ -26,18 +36,55 @@ void test_vector(){
   assert(v2.last() == 4);
 
   // Constructor 3
-  Vector v3({5,6,7});
+  Vector v3({5, 6, 7});
   assert(v3.size() == 3);
 
-  // Zeros & Ones
+  // Zeros
   Vector v4 = Vector::zeros(5);
   assert(v4.size() == 5);
   assert(all(v4 == 0));
 
+  // Ones
   Vector v5 = Vector::ones(7);
   assert(v5.size() == 7);
   assert(all(v5 == 1));
 
+  std::cout << "OK.\n";
+}
+
+void test_vector_copy_constructors(){
+  std::cout << "test_vector_copy_constructors...\n";
+
+  Vector x({1,2,3,4,5,6,7,8});
+
+  // Copy Constructor
+  {
+    Vector x2(x);
+    assert_not_the_same(x, x2);
+    assert_equal(x, x2);
+  }
+
+  // Assignment
+  {
+    Vector x2 = x;
+    assert(fequal(x, x2));
+    assert_not_the_same(x, x2);
+    assert_equal(x, x2);
+  }
+
+  // Assignment 2
+  {
+    Vector x2;
+    x2 = x;
+    assert(fequal(x, x2));
+    assert_not_the_same(x, x2);
+    assert_equal(x, x2);
+  }
+
+  std::cout << "OK.\n";
+}
+
+/*
   // Test append, push_back
   Vector v6({1,2,3,4});
   v6.append(5);
@@ -53,35 +100,8 @@ void test_vector(){
 
   std::cout << "OK.\n";
 }
+*/
 
-void test_vector_view(){
-  std::cout << "test_vector_view...\n";
-
-  Vector v = {0, 1, 2, 3, 4, 5, 6, 7};
-  VectorView vw(v);
-  VectorView vw2(v);
-
-  vw = vw2;
-
-  // Fill v with 5
-  vw = 5;
-  assert(all(v==5));
-
-  const Vector cv = {7, 6, 5, 4, 3, 2, 1, 0};
-  ConstVectorView cvw(cv);
-  ConstVectorView cvw2(cv);
-
-  vw = cvw;
-  assert(fequal(vw, cvw));
-
-  // These should give compile errors
-  // cvw = 5;
-  // cvw = vw;
-  // cvw = cvw2;
-
-  std::cout << "OK.\n";
-}
-/*
 void test_load_save(){
   std::cout << "test_load_save...\n";
 
@@ -100,6 +120,49 @@ void test_load_save(){
   std::cout << "OK.\n";
 }
 
+void test_vector_view(){
+  std::cout << "test_vector_view...\n";
+
+  // Part 1: ConstVectorView -> Vector
+  {
+    Vector v = {0, 1, 2, 3, 4, 5, 6, 7};
+    ConstVectorView cvw(v);
+
+    Vector v2(cvw);  assert(fequal(v, v2));
+
+    Vector v3 = v;  assert(fequal(v, v3));
+
+    Vector v4; v4 = cvw; assert(fequal(v, v4));
+  }
+
+  // Part 2: VectorView -> Vector
+
+  // Part 3: ConstVectorView -> VectorView
+
+  // Part 4: VectorView -> VectorView
+
+  // Part5 : ConstVectorView -> X
+
+
+
+  Vector v = {0, 1, 2, 3, 4, 5, 6, 7};
+  VectorView vw(v);
+
+  // VectorView -> Vector
+
+
+
+  Vector cv = {7, 6, 5, 4, 3, 2, 1, 0};
+  ConstVectorView cvw(cv);
+
+  // ConstVectorView -> Vector
+  //Vector a1(cvw);  assert(fequal(v, a1));
+  //Vector a2(cv);  assert(fequal(v, a2));
+
+  std::cout << "OK.\n";
+}
+
+/*
 void test_vector_algebra(){
   std::cout << "test_vector_algebra...\n";
   Vector x(5, 3);
@@ -243,8 +306,10 @@ void test_range(){
 */
 int main(){
 
-  test_vector();
-  test_vector_view();
+  test_vector_constructors();
+  test_vector_copy_constructors();
+
+//  test_vector_view();
 //  test_load_save();
 //  test_vector_algebra();
 //  test_vector_comparison();
