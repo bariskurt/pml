@@ -18,6 +18,7 @@ int main(){
   A(0,2) = 0.1;
   Matrix B = normalize(Matrix::identity(N) * 0.8 + Uniform().rand(N,N) * 0.2);
 
+
   DiscreteHMM dhmm(p1, A, B);
 
   Vector states, obs;
@@ -26,6 +27,7 @@ int main(){
   auto alpha = dhmm.forward(obs);
   auto beta = dhmm.backward(obs);
   Matrix gamma = alpha + beta;
+
 
 
   dhmm.save("/tmp");

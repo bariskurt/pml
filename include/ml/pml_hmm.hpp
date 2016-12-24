@@ -78,7 +78,7 @@ namespace pml {
         // Generate Hidden Sequence
         std::vector<Categorical> a_dist;
         for(size_t i=0; i < A.ncols(); ++i){
-          a_dist.emplace_back(A.getColumn(i));
+          a_dist.emplace_back(A.col(i));
         }
         states.append(Categorical(p1).rand());
         for (size_t t=1; t<T; t++)
@@ -87,7 +87,7 @@ namespace pml {
         // Generate Observations:
         std::vector<Categorical> b_dist;
         for(size_t i=0; i < B.ncols(); ++i){
-          b_dist.emplace_back(B.getColumn(i));
+          b_dist.emplace_back(B.col(i));
         }
         for (size_t t=0; t<T; t++)
           obs.append(b_dist[states[t]].rand());
@@ -105,10 +105,10 @@ namespace pml {
         Matrix logA = log(A), logB = log(B);
         for(size_t t = 0; t < obs.size(); ++t){
           if( t == 0){
-            alpha_last = log(p1) + logB.getRow(obs(t));
+            alpha_last = log(p1) + logB.row(obs(t));
           } else {
             Matrix temp = tile(alpha_last, alpha_last.size());
-            alpha_last = logSumExp(logA + temp, 1) + logB.getRow(obs(t));
+            alpha_last = logSumExp(logA + temp, 1) + logB.row(obs(t));
           }
           alpha.appendColumn(alpha_last);
         }
@@ -127,7 +127,7 @@ namespace pml {
           if( t == obs.size() ){
             beta_last = Vector::zeros(p1.size());
           } else {
-            Matrix temp = tile(logB.getRow(obs(t)), beta_last.size());
+            Matrix temp = tile(logB.row(obs(t)), beta_last.size());
             beta_last = logSumExp(logA + beta_last + temp, 0);
           }
           beta.appendColumn(beta_last);
@@ -150,7 +150,7 @@ namespace pml {
       //            = \sum_{h_t} gamma(t)
       double log_likelihood(const Vector &obs){
         Matrix gamma = FB_Smoother(obs);
-        return logSumExp(gamma.getColumn(0));
+        return logSumExp(gamma.col(0));
       }
 
     protected:

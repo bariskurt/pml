@@ -102,8 +102,8 @@ namespace pml {
 
   class Categorical : public Distribution1D{
     public:
-      Categorical(const Vector &p_) {
-        p = normalize(p_);
+      Categorical(ConstVectorView cvw) {
+        p = normalize(cvw);
         ptable = gsl_ran_discrete_preproc (p.size(), p.data());
       }
 
@@ -111,9 +111,10 @@ namespace pml {
         return gsl_ran_discrete(rnd_get_rng(), ptable);
       }
 
-      static Categorical fit(const Vector &data, size_t K){
+      static Categorical fit(ConstVectorView cvw, size_t K){
         Vector h = Vector::zeros(K);
-        for(auto d : data) ++h[d];
+        for(auto d : cvw)
+          ++h[d];
         return Categorical(h);
       }
 
@@ -146,7 +147,7 @@ namespace pml {
   class Multinomial : public DistributionND{
 
     public:
-      Multinomial(const Vector &p_, size_t trials_){
+      Multinomial(ConstVectorView p_, size_t trials_){
         p = normalize(p_);
         trials = trials_;
       }
@@ -187,7 +188,7 @@ namespace pml {
         return mu + gsl_ran_gaussian(rnd_get_rng(), sigma);
       }
 
-      static Gaussian fit(const Vector &data){
+      static Gaussian fit(ConstVectorView data){
         double mean_x = mean(data);
         double var_x = sum(pow(data - mean_x, 2)) / data.size();
         return Gaussian::fit(mean_x, var_x);
@@ -228,7 +229,7 @@ namespace pml {
         return gsl_ran_gamma_knuth(rnd_get_rng(), a, b);
       }
 
-      static Gamma fit(const Vector &data, double scale = 0){
+      static Gamma fit(ConstVectorView data, double scale = 0){
         if ( scale > 0 )
           return Gamma::fit_shape(mean(log(data)), scale);
         return Gamma::fit_all(mean(data), mean(log(data)));
@@ -279,7 +280,7 @@ namespace pml {
       static const size_t MAX_ITER = 1000;
 
     public:
-      Dirichlet(const Vector &alpha_) : alpha(alpha_) { }
+      Dirichlet(ConstVectorView alpha_) : alpha(alpha_) { }
 
       Vector randgen() override {
         Vector result(alpha.size());
@@ -292,14 +293,14 @@ namespace pml {
         return fit( mean(log(data),1), precision);
       }
 
-      static Dirichlet fit(const Vector &ss, double precision = 0){
+      static Dirichlet fit(ConstVectorView ss, double precision = 0){
         if(precision > 0)
           return fit_mean(ss, precision);
         return fit_all(ss);
       }
 
     private:
-      static Dirichlet fit_all(const Vector &ss){
+      static Dirichlet fit_all(ConstVectorView ss){
         Vector alpha = normalize(ss);
         Vector alpha_new;
         for(size_t iter=0; iter < MAX_ITER; iter++) {
@@ -312,7 +313,7 @@ namespace pml {
         return Dirichlet(alpha);
       }
 
-      static Dirichlet fit_mean(const Vector &ss, double precision){
+      static Dirichlet fit_mean(ConstVectorView ss, double precision){
         Vector m = normalizeExp(ss);
         Vector m_new;
         for(size_t iter=0; iter < MAX_ITER; iter++) {

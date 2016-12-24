@@ -12,11 +12,12 @@ namespace pml{
   }
 
   inline Vector gammaln(const Vector &x){
-    return apply(x, std::lgamma);
+    //return apply(x, std::lgamma);
+    return apply(x, [](double d) {return std::lgamma(d);} );
   }
 
   inline Matrix gammaln(const Matrix &m){
-    return apply(m, std::lgamma);
+    return apply(m, [](double d) { return std::lgamma(d);} );
   }
 
   // -------  Polygamma Function -------
@@ -29,17 +30,11 @@ namespace pml{
   }
 
   inline Vector psi(const Vector &x, int n = 0){
-    Vector y = x;
-    for(auto &d : y)
-      d = gsl_sf_psi_n(n, d);
-    return y;
+    return apply(x, [n](double d) {return gsl_sf_psi_n(n, d);});
   }
 
   inline Matrix psi(const Matrix &x, int n = 0){
-    Matrix y = x;
-    for(auto &d : y)
-      d = gsl_sf_psi_n(n, d);
-    return y;
+    return apply(x, [n](double d) {return gsl_sf_psi_n(n, d);} );
   }
 
   // Inverse Polygamma Function with Newton Method
@@ -52,11 +47,11 @@ namespace pml{
   }
 
   inline Vector inv_psi(const Vector &v){
-    return apply(v, inv_psi);
+    return apply(v, [](double d) { return inv_psi(d);} );
   }
 
   inline Matrix inv_psi(const Matrix  &m){
-    return apply(m, inv_psi);
+    return apply(m, [](double d) { return inv_psi(d);} );
   }
 
   // KL Divergence Between Vectors

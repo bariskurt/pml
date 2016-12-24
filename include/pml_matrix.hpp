@@ -115,6 +115,22 @@ namespace pml {
         return VectorView(data_, size_, 1);
       }
 
+      VectorView::iterator begin(){
+        return VectorView::iterator(data_, 1);
+      }
+
+      ConstVectorView::iterator begin() const{
+        return ConstVectorView::iterator(data_, 1);
+      }
+
+      VectorView::iterator end(){
+        return VectorView::iterator(data_ + size_, 1);
+      }
+
+      ConstVectorView::iterator end() const{
+        return ConstVectorView::iterator(data_ + size_, 1);
+      }
+
     public:
       // Get dimensions
       size_t nrows() const{
@@ -287,26 +303,29 @@ namespace pml {
       size_t ncols_;
   };
 
-  Matrix apply(const Matrix &x, double (*func)(double)){
+  template <typename Function>
+  Matrix apply(const Matrix &x, Function f){
     Matrix result(x.shape());
     for(size_t i=0; i < x.size(); ++i)
-      result[i] = func(x[i]);
+      result[i] = f(x[i]);
     return result;
   }
 
-  Matrix apply(const Matrix &x, double (*func)(double, double), double d){
+  template <typename Function>
+  Matrix apply(const Matrix &x, Function f, double d){
     Matrix result(x.shape());
     for(size_t i=0; i < x.size(); ++i)
-      result[i] = func(x[i], d);
+      result[i] = f(x[i], d);
     return result;
   }
 
-  Matrix apply(const Matrix &x, double(*func)(double, double), const Matrix &y){
+  template <typename Function>
+  Matrix apply(const Matrix &x, Function f, const Matrix &y){
     ASSERT_TRUE(x.shape() == y.shape(),
            "Matrix::apply == cannot compare matrices of different shape");
     Matrix result(x.shape());
     for(size_t i=0; i < x.size(); ++i)
-      result[i] = func(x[i], y[i]);
+      result[i] = f(x[i], y[i]);
     return result;
   }
 
@@ -628,11 +647,8 @@ namespace pml {
   Matrix fliplr(const Matrix &x){
     Matrix result(x.shape());
     size_t offset = x.ncols()-1;
-    for(size_t i = 0; i < x.ncols(); ++i) {
-      VectorView vw = result.row(i);
-      ConstVectorView cvw = x.col(offset - i);
-      vw = cvw;
-    }
+    for(size_t i = 0; i < x.ncols(); ++i)
+      result.col(i) = x.col(offset - i);
     return result;
   }
 
@@ -664,29 +680,44 @@ namespace pml {
   }
 
 
+  // Copies column x, n times along the axis.
+  // tile(x, n, 0)  --> appendRow(x) n times
+  // tile(x, n, 1)  --> appendColumn(x) n times
+  Matrix tile(const Vector &x, size_t n, int axis = 0){
+    ASSERT_TRUE(axis==0 || axis==1, "Matrix::tile axis out of bounds.");
+    Matrix result;
+    for(size_t i = 0; i < n; ++i){
+      if ( axis == 0)
+        result.appendRow(x);
+      else
+        result.appendColumn(x);
+    }
+    return result;
+  }
+
   // Absolute value of x
   Matrix abs(const Matrix &x){
-    return apply(x, std::fabs);
+    return apply(x, [](double d) { return std::fabs(d);} );
   }
 
   // Round to nearest integer
   Matrix round(const Matrix &x){
-    return apply(x, std::round);
+    return apply(x, [](double d) { return std::round(d);} );
   }
 
   // Ceiling
   Matrix ceil(const Matrix &x){
-    return apply(x, std::ceil);
+    return apply(x, [](double d) { return std::ceil(d);} );
   }
 
   // Floor
   Matrix floor(const Matrix &x){
-    return apply(x, std::floor);
+    return apply(x, [](double d) { return std::floor(d);} );
   }
 
   // Exponential
   Matrix exp(const Matrix &x){
-    return apply(x, std::exp);
+    return apply(x, [](double d) { return std::exp(d);} );
   }
 
   // NormalizeExp
@@ -700,7 +731,7 @@ namespace pml {
 
   // Logarithm
   Matrix log(const Matrix &x){
-    return apply(x, std::log);
+    return apply(x, [](double d) { return std::log(d);} );
   }
 
   // LogSumExp
