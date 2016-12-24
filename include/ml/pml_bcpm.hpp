@@ -35,7 +35,7 @@ namespace pml {
         alpha = Vector::ones(K);
       }
 
-      DirichletPotential(const Vector& alpha_, double log_c_ = 0)
+      DirichletPotential(ConstVectorView alpha_, double log_c_ = 0)
           : Potential(log_c_), alpha(alpha_) {}
 
       static DirichletPotential rand_gen(size_t K, double precision = 1){
@@ -60,7 +60,7 @@ namespace pml {
                                   log_c + p.log_c + delta);
       }
 
-      DirichletPotential obs2Potential(const Vector& obs) const{
+      DirichletPotential obs2Potential(ConstVectorView obs) const{
         double log_c = gammaln(sum(obs)+1)
                        - gammaln(sum(obs)+obs.size());
         return DirichletPotential(obs+1, log_c);
@@ -84,7 +84,7 @@ namespace pml {
         std::cout << alpha << " log_c:" << log_c << std::endl;
       }
 
-      void fit(const Vector &ss, double precision = 0){
+      void fit(ConstVectorView ss, double precision = 0){
         alpha = Dirichlet::fit(ss, precision).alpha;
       }
 
@@ -136,7 +136,7 @@ namespace pml {
       }
 
 
-      void fit(const Vector &ss, double scale = 0){
+      void fit(ConstVectorView ss, double scale = 0){
         Gamma g_est = Gamma::fit(ss[0], ss[1], scale);
         a = g_est.a;
         b = g_est.b;
@@ -185,7 +185,7 @@ namespace pml {
         return Vector({mu, std::pow(sigma,2)});
       }
 
-      void fit(const Vector &ss) {
+      void fit(ConstVectorView ss) {
         mu = ss(0);
         sigma = std::sqrt(ss(1));
       }
@@ -233,7 +233,7 @@ namespace pml {
         log_p0 = std::log(1-p1);
       }
 
-      virtual P obs2Potential(const Vector &obs){
+      virtual P obs2Potential(ConstVectorView obs){
         return prior.obs2Potential(obs);
       }
 
@@ -256,8 +256,8 @@ namespace pml {
       }
 
     public:
-      virtual Vector rand(const Vector &state) const = 0;
-      virtual void fit(const Vector &ss, double p1_new) = 0;
+      virtual Vector rand(ConstVectorView state) const = 0;
+      virtual void fit(ConstVectorView ss, double p1_new) = 0;
       virtual void saveTxt(const std::string &filename) const = 0;
       virtual void loadTxt(const std::string &filename) = 0;
       virtual void print() const = 0;
@@ -276,11 +276,11 @@ namespace pml {
         scale = fixed_scale ? b : 0;
       }
 
-      Vector rand(const Vector &state) const override {
-        return Poisson(state.first()).rand(1);
+      Vector rand(ConstVectorView state) const override {
+        return Poisson(state[0]).rand(1);
       }
 
-      void fit(const Vector &ss, double p1_new) override {
+      void fit(ConstVectorView ss, double p1_new) override {
         prior.fit(ss, scale);
         set_p1(p1_new);
       }
@@ -315,17 +315,17 @@ namespace pml {
   class DM_Model: public Model<DirichletPotential> {
 
     public:
-      DM_Model(const Vector &alpha, double p1_,
+      DM_Model(ConstVectorView alpha, double p1_,
                bool fixed_precision = false) : Model( p1_) {
         prior = DirichletPotential(alpha);
         precision = fixed_precision ? sum(alpha) : 0;
       }
 
-      Vector rand(const Vector &state) const override {
+      Vector rand(ConstVectorView state) const override {
         return Multinomial(state, 20).rand();
       }
 
-      void fit(const Vector &ss, double p1_new) override {
+      void fit(ConstVectorView ss, double p1_new) override {
         prior.fit(ss, precision);
         set_p1(p1_new);
       }
@@ -365,11 +365,11 @@ namespace pml {
         prior = GaussianPotential(mu, sigma);
       }
 
-      Vector rand(const Vector &state) const override {
-        return Gaussian(state.first()).rand(1);
+      Vector rand(ConstVectorView state) const override {
+        return Gaussian(state[0]).rand(1);
       }
 
-      void fit(const Vector &ss, double p1_new) override {
+      void fit(ConstVectorView ss, double p1_new) override {
         prior.fit(ss);
         set_p1(p1_new);
       }
@@ -584,7 +584,7 @@ namespace pml {
         return message;
       }
 
-      MessageType update(const MessageType &prev, const Vector &obs){
+      MessageType update(const MessageType &prev, ConstVectorView obs){
         MessageType message = prev;
         for(auto &potential : message.potentials) {
           potential *= model->obs2Potential(obs);
@@ -618,12 +618,12 @@ namespace pml {
         alpha.clear();
         alpha_predict.clear();
         for (size_t i=0; i<obs.ncols(); i++) {
-          oneStepForward(obs.getColumn(i));
+          oneStepForward(obs.col(i));
           alpha.back().prune(max_components);
         }
       }
 
-      void oneStepForward(const Vector& obs) {
+      void oneStepForward(ConstVectorView  obs) {
         // Predict step
         if (alpha_predict.empty()) {
           Message<P> message;
@@ -658,12 +658,12 @@ namespace pml {
             c = model->log_p1 + temp.log_likelihood();
 
             // Update :
-            message = update(beta.back(), obs.getColumn(idx));
+            message = update(beta.back(), obs.col(idx));
             for(auto &potential : message.potentials){
               potential.log_c += model->log_p0;
             }
           }
-          P pot = model->obs2Potential(obs.getColumn(idx));
+          P pot = model->obs2Potential(obs.col(idx));
           pot.log_c += c;
           message.add_potential(pot);
           message.prune(max_components);

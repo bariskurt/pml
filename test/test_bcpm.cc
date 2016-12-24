@@ -301,10 +301,10 @@ void test_g_em(){
 int main() {
 
   //test_dm();
-  //test_dm_em();
+  test_dm_em();
 
   //test_pg();
-  test_pg_em();
+  //test_pg_em();
 
   //test_g();
   //test_g_em();
