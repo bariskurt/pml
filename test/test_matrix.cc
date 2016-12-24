@@ -282,33 +282,28 @@ void test_matrix_functions(){
   assert(all(exp(m3) == 1.64872127));
 
   // Normalizations
-/*
+
   Matrix m4(2,2, {1, 2, 3, 4});
-  assert(normalize(m4).equals(Matrix(2,2, {0.1, 0.2, 0.3, 0.4})));
-  assert(normalize(m4,0).equals(Matrix(2,2, {1.0/3, 2.0/3, 3.0/7, 4.0/7})));
-  assert(normalize(m4,1).equals(Matrix(2,2, {1.0/4, 2.0/6, 3.0/4, 4.0/6})));
+  assert(fequal(normalize(m4),   Matrix(2,2, {0.1, 0.2, 0.3, 0.4})));
+  assert(fequal(normalize(m4,0), Matrix(2,2, {1.0/3, 2.0/3, 3.0/7, 4.0/7})));
+  assert(fequal(normalize(m4,1), Matrix(2,2, {1.0/4, 2.0/6, 3.0/4, 4.0/6})));
 
   // Normalize Exp
+
   Matrix m5 = log(m4);
-  assert(normalizeExp(m5).equals(Matrix(2,2, {0.1, 0.2, 0.3, 0.4})));
-  assert(normalizeExp(m5,0).equals(Matrix(2,2, {1.0/3, 2.0/3, 3.0/7, 4.0/7})));
-  assert(normalizeExp(m5,1).equals(Matrix(2,2, {1.0/4, 2.0/6, 3.0/4, 4.0/6})));
+  assert(fequal(normalizeExp(m5)   ,Matrix(2,2, {0.1, 0.2, 0.3, 0.4})));
+  assert(fequal(normalizeExp(m5,0) ,Matrix(2,2, {1.0/3, 2.0/3, 3.0/7, 4.0/7})));
+  assert(fequal(normalizeExp(m5,1) ,Matrix(2,2, {1.0/4, 2.0/6, 3.0/4, 4.0/6})));
 
   // LogSumExp
   assert(fequal(logSumExp(m5), std::log(10)));
-  assert(logSumExp(m5,0).equals(log(sum(m4,0))));
-  assert(logSumExp(m5,1).equals(log(sum(m4,1))));
+  assert(fequal(logSumExp(m5,0) ,log(sum(m4,0))));
+  assert(fequal(logSumExp(m5,1) ,log(sum(m4,1))));
 
-  // Tile
-  //Vector v = {1,2};
-  //assert(tile(v, 2).equals(Matrix(2,2, {1,1,2,2})));
-  //assert(tile(v, 2, 1).equals(Matrix(2,2, {1,2,1,2})));
-  //assert(repmat(v, 2, 2).equals(Matrix(4,2, {1,2,1,2,1,2,1,2})));
-*/
    std::cout << "OK\n";
 }
 
-/*
+
 void test_matrix_append(){
 
   std::cout << "test_matrix_append...\n";
@@ -318,34 +313,33 @@ void test_matrix_append(){
   m1.appendColumn(Vector({1,2,3,4}));
   assert(m1.nrows()==4);
   assert(m1.ncols()==2);
-  assert(m1.getColumn(0).equals(Vector({1,2,3,4})));
-  assert(m1.getColumn(1).equals(Vector({1,2,3,4})));
+  assert(fequal(m1.col(0) ,Vector({1,2,3,4})));
+  assert(fequal(m1.col(1) ,Vector({1,2,3,4})));
 
   Matrix m2;
   m2.appendRow(Vector({1,2,3,4}));
   m2.appendRow(Vector({1,2,3,4}));
   assert(m2.nrows()==2);
   assert(m2.ncols()==4);
-  assert(m2.getRow(0).equals(Vector({1,2,3,4})));
-  assert(m2.getRow(1).equals(Vector({1,2,3,4})));
+  assert(fequal(m2.row(0) ,Vector({1,2,3,4})));
+  assert(fequal(m2.row(1) ,Vector({1,2,3,4})));
 
   // append column wise
   Matrix m3 = cat(Matrix(), m1);
-  assert(m3.equals(m1));
+  assert(fequal(m3,m1));
   m3 = cat(m1, m1);
   for(int i=0; i < 4; ++i)
-    assert(m3.getColumn(i).equals(Vector({1,2,3,4})));
+    assert(fequal(m3.col(i) ,Vector({1,2,3,4})));
 
   // append row wise
   Matrix m4 = cat(Matrix(), m2, 0);
-  assert(m4.equals(m2));
+  assert(fequal(m4 ,m2));
   m4 = cat(m2, m2, 0);
   for(int i=0; i < 4; ++i)
-    assert(m4.getRow(i).equals(Vector({1,2,3,4})));
+    assert(fequal(m4.row(i) , Vector({1,2,3,4})));
 
   std::cout << "OK\n";
 }
-*/
 
 int main(){
   test_matrix();
@@ -354,7 +348,7 @@ int main(){
   test_matrix_algebra();
   test_rows_cols();
   test_matrix_functions();
-  //test_matrix_append();
+  test_matrix_append();
   return 0;
 }
 

@@ -126,10 +126,8 @@ namespace pml {
         __push_back__(value);
       }
 
-      // Append a Vector
-      void append(const Vector &v) {
-        __push_back__(v);
-      }
+      // Append a VectorView
+      void append(ConstVectorView cvw);
 
     public:
       // ------- Accessors -------
@@ -244,6 +242,7 @@ namespace pml {
   class ConstVectorView {
 
     friend class Vector;
+    friend class Matrix;
     friend class VectorView;
 
     public:
@@ -363,6 +362,7 @@ namespace pml {
   class VectorView {
 
     friend class Vector;
+    friend class Matrix;
     friend class ConstVectorView;
 
     public:
@@ -519,12 +519,20 @@ namespace pml {
     if( cvw.size_ != size_)
       __resize__(cvw.size_, true);
     if(cvw.stride_ == 1)
-      memcpy(data_, cvw.data_, sizeof(double) * size_);
+      memcpy(data_, cvw.data_, sizeof(double) * cvw.size_);
     else{
       size_t i = 0;
       for(auto it = cvw.begin(); it != cvw.end(); ++it)
         data_[i++] = *it;
     }
+  }
+
+  void Vector::append(ConstVectorView cvw) {
+    if( cvw.empty() )
+      return;
+    __reserve__(size_ + cvw.size_);
+    for(auto it = cvw.begin(); it != cvw.end(); ++it)
+      __push_back__(*it);
   }
 
   // Apply1 : v[i] = f(cvw[i])

@@ -166,13 +166,41 @@ namespace pml {
       }
 
       // Appends a column to the right.
-      void appendColumn(const Vector &v){
-        ASSERT_TRUE( empty() | (nrows_ == v.size()),
+      void appendColumn(ConstVectorView cvw){
+        ASSERT_TRUE( empty() || (nrows_ == cvw.size()),
                      "Matrix::appendColumn:: Vector size mismatch");
-        __push_back__(v);
-        if(empty())
+        __reserve__(size_ + cvw.size_);
+        for(auto it = cvw.begin(); it != cvw.end(); ++it)
+          __push_back__(*it);
+        if(nrows_ == 0 )
           nrows_ = size_;
         ++ncols_;
+      }
+
+      void appendRow(ConstVectorView cvw){
+        ASSERT_TRUE( empty() || (ncols_ == cvw.size()),
+                     "Matrix::appendRow:: Vector size mismatch");
+        if(ncols_ == 0 ) {
+          ncols_ = cvw.size_;
+          __reserve__(size_ + cvw.size_);
+          for(auto it = cvw.begin(); it != cvw.end(); ++it)
+            __push_back__(*it);
+        } else {
+          __resize__(size_ + cvw.size_);
+          // shift columns to make space for the new row
+          for(int i = ncols_-1; i >= 0; --i ){
+            double *src = data_ + (i * nrows_);
+            double *dst = data_ + (i * nrows_) + i;
+            memcpy(dst, src, sizeof(double) * nrows_);
+          }
+          //copy data
+          size_t i = nrows_;
+          for(auto it = cvw.begin(); it != cvw.end(); ++it) {
+            data_[i] = *it;
+            i = i + nrows_ + 1;
+          }
+        }
+        ++nrows_;
       }
 
     public:
@@ -279,6 +307,34 @@ namespace pml {
     Matrix result(x.shape());
     for(size_t i=0; i < x.size(); ++i)
       result[i] = func(x[i], y[i]);
+    return result;
+  }
+
+  Vector apply_cols(const Matrix &x, double(*func)(ConstVectorView) ){
+    Vector result(x.ncols());
+    for(size_t i=0; i < x.ncols(); ++i)
+      result[i] = func(x.col(i));
+    return result;
+  }
+
+  Vector apply_rows(const Matrix &x, double(*func)(ConstVectorView) ){
+    Vector result(x.nrows());
+    for(size_t i=0; i < x.nrows(); ++i)
+      result[i] = func(x.row(i));
+    return result;
+  }
+
+  Matrix apply_cols(const Matrix &x, Vector(*func)(ConstVectorView) ){
+    Matrix result(x.shape());
+    for(size_t i=0; i < x.ncols(); ++i)
+      result.col(i) = func(x.col(i));
+    return result;
+  }
+
+  Matrix apply_rows(const Matrix &x, Vector(*func)(ConstVectorView) ){
+    Matrix result(x.shape());
+    for(size_t i=0; i < x.nrows(); ++i)
+      result.row(i) = func(x.row(i));
     return result;
   }
 
@@ -501,204 +557,164 @@ namespace pml {
     return Vector(x.size(), x.data());
   }
 
-//-----------------------------------
+  //-----------------------------------
 
-double sum(const Matrix &x) {
-  return sum(x.const_view());
-}
-
-Vector sum(const Matrix &x, const size_t axis) {
-  // if axis = 0 then sum cols, else sum rows
-  ASSERT_TRUE(axis==0 || axis==1, "Matrix::sum axis out of bounds.");
-  Vector result;
-  for(size_t i=0; i < (axis ? x.nrows() : x.ncols()); ++i)
-    result.append( axis ? sum(x.row(i)) : sum(x.col(i)) );
-  return result;
-}
-
-double min(const Matrix &x) {
-  return min(x.const_view());
-}
-
-Vector min(const Matrix &x, size_t axis) {
-  ASSERT_TRUE(axis==0 || axis==1, "Matrix::max axis out of bounds.");
-  Vector result;
-  for(size_t i=0; i < (axis ? x.nrows() : x.ncols()); ++i)
-    result.append( axis ? min(x.row(i)) : min(x.col(i)) );
-  return result;
-}
-
-double max(const Matrix &x) {
-  return max(x.const_view());
-}
-
-Vector max(const Matrix &x, size_t axis) {
-  ASSERT_TRUE(axis==0 || axis==1, "Matrix::max axis out of bounds.");
-  Vector result;
-  for(size_t i=0; i < (axis ? x.nrows() : x.ncols()); ++i)
-    result.append( axis ? max(x.row(i)) : max(x.col(i)) );
-  return result;
-}
-
-// Flip Left-Right
-Matrix fliplr(const Matrix &x){
-  Matrix result(x.shape());
-  size_t offset = x.ncols()-1;
-  for(size_t i = 0; i < x.ncols(); ++i) {
-    VectorView vw = result.row(i);
-    ConstVectorView cvw = x.col(offset - i);
-    vw = cvw;
-  }
-  return result;
-}
-
-/*
-// Flip Up-Down
-Matrix flipud(const Matrix &x){
-  Matrix result(x.shape());
-  size_t offset = x.nrows()-1;
-  //for(size_t i = 0; i < x.ncols(); ++i)
-  //  result.row(i) = x.row(offset-i);
-  return result;
-}
-*/
-
-/*
-  // Concatenate two matrices as in Matlab
-  inline Matrix cat(const Matrix &m1, const Matrix &m2, size_t axis = 1){
-    Matrix result(m1);
-    result.append(m2, axis);
-    return result;
-  }
-*/
-
-  // Inverse : will be added later in linear algebra package
-  /*
-  Matrix inv(const Matrix &matrix) {
-    Matrix result(matrix);
-    int N = matrix.nrows();
-    int *IPIV = new int[N+1];
-    int LWORK = N*N;
-    double *WORK = new double[LWORK];
-    int INFO;
-    dgetrf_(&N,&N,result.data(),&N,IPIV,&INFO);
-    dgetri_(&N,result.data(),&N,IPIV,WORK,&LWORK,&INFO);
-    delete IPIV;
-    delete WORK;
-    return result;
-  }
-  */
-/*
-  // repmat function of Matlab
-  inline Matrix repmat(const Vector &x, int n, int m ){
-    // Prepare initial column.
-    Vector initial_column;
-    for(int i=0; i < n; ++i)
-      initial_column.append(x);
-    // Replicate initial_column to form result.
-    Matrix result;
-    for(int i=0; i < m; ++i)
-      result.appendColumn(initial_column);
-    return result;
+  double sum(const Matrix &x) {
+    return sum(x.const_view());
   }
 
-  // Copies column x, n times along the axis.
-  // tile(x, n, 0)  --> appendRow(x) n times
-  // tile(x, n, 1)  --> appendColumn(x) n times
-  inline Matrix tile(const Vector &x, size_t n, int axis = 0){
-    ASSERT_TRUE(axis==0 || axis==1, "Matrix::tile axis out of bounds.");
-    Matrix result;
-    for(size_t i = 0; i < n; ++i){
-      if ( axis == 0)
-        result.appendRow(x);
-      else
-        result.appendColumn(x);
-    }
-    return result;
+  Vector sum(const Matrix &x, const size_t axis) {
+    // if axis = 0 then sum cols, else sum rows
+    ASSERT_TRUE(axis==0 || axis==1, "Matrix::sum axis out of bounds.");
+    if( axis == 0)
+      return apply_cols(x, sum);
+    return apply_rows(x, sum);
   }
 
+  double min(const Matrix &x) {
+    return min(x.const_view());
+  }
 
-  inline Vector mean(const Matrix &x, int axis){
+  Vector min(const Matrix &x, size_t axis) {
+    ASSERT_TRUE(axis==0 || axis==1, "Matrix::max axis out of bounds.");
+    if( axis == 0)
+      return apply_cols(x, min);
+    return apply_rows(x, min);
+  }
+
+  double max(const Matrix &x) {
+    return max(x.const_view());
+  }
+
+  Vector max(const Matrix &x, size_t axis) {
+    ASSERT_TRUE(axis==0 || axis==1, "Matrix::max axis out of bounds.");
+    if( axis == 0)
+      return apply_cols(x, max);
+    return apply_rows(x, max);
+  }
+
+  double mean(const Matrix &x){
+    return mean(x.const_view());
+  }
+
+  Vector mean(const Matrix &x, int axis){
     ASSERT_TRUE(axis==0 || axis==1, "Matrix::max axis out of bounds.");
     if (axis == 0)
       return sum(x, 0) / x.nrows();
     return sum(x,1) / x.ncols();
   }
-*/
+
+  double var(const Matrix &x){
+    return var(x.const_view());
+  }
+
+  Vector var(const Matrix &x, int axis){
+    ASSERT_TRUE(axis==0 || axis==1, "Matrix::max axis out of bounds.");
+    if( axis == 0)
+      return apply_cols(x, var);
+    return apply_rows(x, var);
+  }
+
+  // Normalize
+  Matrix normalize(const Matrix  &x, int axis = 2) {
+    if( axis == 0)
+      return apply_cols(x, normalize);
+    if( axis == 1)
+      return apply_rows(x, normalize);
+    return x / sum(x);
+  }
+
+  // Flip Left-Right
+  Matrix fliplr(const Matrix &x){
+    Matrix result(x.shape());
+    size_t offset = x.ncols()-1;
+    for(size_t i = 0; i < x.ncols(); ++i) {
+      VectorView vw = result.row(i);
+      ConstVectorView cvw = x.col(offset - i);
+      vw = cvw;
+    }
+    return result;
+  }
+
+  // Flip Up-Down
+  Matrix flipud(const Matrix &x){
+    Matrix result(x.shape());
+    size_t offset = x.nrows()-1;
+    for(size_t i = 0; i < x.ncols(); ++i)
+      result.row(i) = x.row(offset-i);
+    return result;
+  }
+
+
+  // Concatenate two matrices as in Matlab
+  Matrix cat(const Matrix &m1, const Matrix &m2, size_t axis = 1){
+    if (m1.empty()) return m2;
+    if (m2.empty()) return m1;
+    Matrix result(m1);
+    if( axis == 0 ){
+      ASSERT_TRUE(m1.ncols() == m2.ncols(), "Matrix::cat: ncols mismatch");
+      for(size_t i = 0; i < m2.nrows(); ++i)
+        result.appendRow(m2.row(i));
+    } else {
+      ASSERT_TRUE(m1.nrows() == m2.nrows(), "Matrix::cat: nrows mismatch");
+      for(size_t i = 0; i < m2.ncols(); ++i)
+        result.appendColumn(m2.col(i));
+    }
+    return result;
+  }
+
+
   // Absolute value of x
-  inline Matrix abs(const Matrix &x){
+  Matrix abs(const Matrix &x){
     return apply(x, std::fabs);
   }
 
   // Round to nearest integer
-  inline Matrix round(const Matrix &x){
+  Matrix round(const Matrix &x){
     return apply(x, std::round);
   }
 
   // Ceiling
-  inline Matrix ceil(const Matrix &x){
+  Matrix ceil(const Matrix &x){
     return apply(x, std::ceil);
   }
 
   // Floor
-  inline Matrix floor(const Matrix &x){
+  Matrix floor(const Matrix &x){
     return apply(x, std::floor);
   }
 
   // Exponential
-  inline Matrix exp(const Matrix &x){
+  Matrix exp(const Matrix &x){
     return apply(x, std::exp);
   }
 
+  // NormalizeExp
+  Matrix normalizeExp(const Matrix &x, int axis = 2) {
+    if( axis == 0 )
+      return apply_cols(x, normalizeExp);
+    if( axis == 1 )
+      return apply_rows(x, normalizeExp);
+    return normalize(exp(x - max(x)));
+  }
+
   // Logarithm
-  inline Matrix log(const Matrix &x){
+  Matrix log(const Matrix &x){
     return apply(x, std::log);
   }
-/*
-  // Normalize
-  inline Matrix normalize(const Matrix  &x, int axis = 2) {
-    Matrix result(x);
-    result.normalize(axis);
-    return result;
+
+  // LogSumExp
+  double logSumExp(const Matrix &x) {
+    return logSumExp(x.const_view());
   }
 
-  // Safe  NormalizeExp
-  inline Matrix normalizeExp(const Matrix &x, int axis = 2) {
-    Matrix result(x);
-    result.normalizeExp(axis);
-    return result;
+  Vector logSumExp(const Matrix &x, int axis) {
+    ASSERT_TRUE(axis==0 || axis==1, "Matrix::max axis out of bounds.");
+    if( axis == 0)
+      return apply_cols(x, logSumExp);
+    return apply_rows(x, logSumExp);
   }
 
-
-  inline Vector logSumExp(const Matrix &x, int axis) {
-    ASSERT_TRUE(axis==0 || axis==1, "Matrix::logSumExp axis out of bounds.");
-    Vector result;
-    if(axis == 0){
-      Vector col_max = max(x,0);
-      result = Vector::zeros(x.ncols());
-      for(size_t i=0; i < x.nrows(); ++i){
-        for(size_t j=0; j < x.ncols(); ++j){
-          result[j] += std::exp(x(i,j) - col_max[j]);
-        }
-      }
-      for(size_t j=0; j < x.ncols(); ++j){
-        result[j] = std::log(result[j]) + col_max[j];
-      }
-    } else {
-      Vector row_max = max(x,1);
-      result = Vector::zeros(x.nrows());
-      for(size_t i=0; i < x.nrows(); ++i){
-        for(size_t j=0; j < x.ncols(); ++j){
-          result[i] += std::exp(x(i,j) - row_max[i]);
-        }
-      }
-      for(size_t i=0; i < x.nrows(); ++i){
-        result[i] = std::log(result[i]) + row_max[i];
-      }
-    }
-    return result;
-  }
-*/
   // Matrix - Vector Product
   inline Vector dot(const Matrix &X, const Vector &y,
                     bool x_transpose = false){
@@ -747,6 +763,22 @@ Matrix flipud(const Matrix &x){
 
     return result;
   }
+
+/*
+  Matrix inv(const Matrix &matrix) {
+    Matrix result(matrix);
+    int N = matrix.nrows();
+    int *IPIV = new int[N+1];
+    int LWORK = N*N;
+    double *WORK = new double[LWORK];
+    int INFO;
+    dgetrf_(&N,&N,result.data(),&N,IPIV,&INFO);
+    dgetri_(&N,result.data(),&N,IPIV,WORK,&LWORK,&INFO);
+    delete IPIV;
+    delete WORK;
+    return result;
+  }
+*/
 
 } // namespace pml
 
