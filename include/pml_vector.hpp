@@ -63,6 +63,26 @@ namespace pml {
           __push_back__(d);
       }
 
+      // Copy constructor
+      Vector(const Vector &other) : Block(other) {}
+
+      // Move-Copy constructor
+      Vector(Vector &&other) : Block(std::move(other)) { }
+
+      // Assignment
+      Vector& operator=(const Vector &other) {
+        Block::operator=(other);
+        return *this;
+      }
+
+      // Move-Assignment
+      Vector& operator=(Vector &&other) {
+        Block::operator=(std::move(other));
+        return *this;
+      }
+
+
+
       // Vector from range
       explicit Vector(Range range) {
         for (double d = range.start; d < range.stop; d += range.step)
@@ -77,12 +97,6 @@ namespace pml {
       // Vector of ones of given length.
       static Vector ones(size_t length) {
         return Vector(length, 1.0);
-      }
-
-    public:
-      Vector& operator=(const Vector& that){
-        Block::operator=(that);
-        return *this;
       }
 
     public:
@@ -301,6 +315,10 @@ namespace pml {
       // Delete operator=
       ConstVectorView& operator=(const ConstVectorView& that) = delete;
 
+      operator Vector() {
+        return Vector(*this);
+      }
+
       iterator begin() const {
         return iterator(data_, stride_);
       }
@@ -319,6 +337,15 @@ namespace pml {
 
       bool empty() const{
         return size_ == 0;
+      }
+
+    public:
+      double operator[](size_t i) const{
+        return data_[i * stride_];
+      }
+
+      double operator()(size_t i) const{
+        return data_[i * stride_];
       }
 
     public:
@@ -401,6 +428,10 @@ namespace pml {
       VectorView(const VectorView &that)
               : data_(that.data_), size_(that.size_), stride_(that.stride_){}
 
+      operator Vector() {
+        return Vector(*this);
+      }
+
       iterator begin() const{
         return iterator(data_, stride_);
       }
@@ -419,6 +450,14 @@ namespace pml {
 
       bool empty() const{
         return size_ == 0;
+      }
+
+      double& operator[](size_t i) {
+        return data_[i * stride_];
+      }
+
+      double& operator()(size_t i) {
+        return data_[i * stride_];
       }
 
       VectorView operator=(const double d){
@@ -461,23 +500,19 @@ namespace pml {
 
 
   Vector::Vector(ConstVectorView cvw) : Block(cvw.size()) {
-    std::cout << "Vector(ConstVectorView vw)\n";
     copyFromView(cvw);
   }
 
   Vector& Vector::operator=(ConstVectorView cvw){
-    std::cout << "Vector::operator=(ConstVectorView vw)\n";
     copyFromView(cvw);
     return *this;
   }
 
   Vector::Vector(VectorView vw) : Block(vw.size()){
-    std::cout << "Vector(VectorView vw)\n";
     copyFromView(vw);
   }
 
   Vector& Vector::operator=(VectorView vw){
-    std::cout << "Vector::operator=(VectorView vw)\n";
     copyFromView(vw);
     return *this;
   }

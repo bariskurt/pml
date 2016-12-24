@@ -20,6 +20,11 @@ void assert_not_the_same(const Vector&x, const Vector&x2){
 void test_vector_constructors() {
   std::cout << "test_vector_constructors...\n";
 
+  // Constructor 0
+  Vector v0;
+  assert(v0.size() == 0);
+  assert(v0.empty());
+
   // Constructor 1
   Vector v1(5, 3);
   assert(v1.size() == 5);
@@ -55,10 +60,9 @@ void test_vector_constructors() {
 void test_vector_copy_constructors(){
   std::cout << "test_vector_copy_constructors...\n";
 
-  Vector x({1,2,3,4,5,6,7,8});
-
-  // Copy Constructor
+    // Copy Constructor
   {
+    Vector x({1,2,3,4,5,6,7,8});
     Vector x2(x);
     assert_not_the_same(x, x2);
     assert_equal(x, x2);
@@ -66,6 +70,7 @@ void test_vector_copy_constructors(){
 
   // Assignment
   {
+    Vector x({1,2,3,4,5,6,7,8});
     Vector x2 = x;
     assert(fequal(x, x2));
     assert_not_the_same(x, x2);
@@ -74,12 +79,65 @@ void test_vector_copy_constructors(){
 
   // Assignment 2
   {
+    Vector x({1,2,3,4,5,6,7,8});
     Vector x2;
     x2 = x;
     assert(fequal(x, x2));
     assert_not_the_same(x, x2);
     assert_equal(x, x2);
   }
+
+  // Move constructor
+  {
+    Vector x({1,2,3,4,5,6,7,8});
+    const double *data_ = x.data();
+    const size_t x_size = x.size();
+
+    Vector x2(std::move(x));
+    assert(x.size() == 0);
+    assert(x.data() != data_);
+
+    assert(x2.data() == data_);
+    assert(x2.size() == x_size);
+    for(size_t i = 0; i < x_size; ++i)
+      assert( x2[i] == i+1);
+
+  }
+
+  // Move Assignment
+  {
+    Vector x({1,2,3,4,5,6,7,8});
+    const double *data_ = x.data();
+    const size_t x_size = x.size();
+
+    Vector x2; x2 = std::move(x);
+
+    assert(x.size() == 0);
+    assert(x.data() != data_);
+
+    assert(x2.data() == data_);
+    assert(x2.size() == x_size);
+    for(size_t i = 0; i < x_size; ++i)
+      assert( x2[i] == i+1);
+  }
+
+  std::cout << "OK.\n";
+}
+
+void test_load_save(){
+  std::cout << "test_load_save...\n";
+
+  Vector x({1,2,3,4,5,6,7,8});
+
+  // Load and Save in Binary
+  x.save("/tmp/test_vector.pml");
+  Vector y = Vector::load("/tmp/test_vector.pml");
+  assert(fequal(x,y));
+
+  // Load and Save in Text
+  x.saveTxt("/tmp/test_vector.txt");
+  Vector z = Vector::loadTxt("/tmp/test_vector.txt");
+  assert(fequal(x, z));
 
   std::cout << "OK.\n";
 }
@@ -102,20 +160,70 @@ void test_vector_copy_constructors(){
 }
 */
 
-void test_load_save(){
-  std::cout << "test_load_save...\n";
+void test_const_vector_view(){
+  std::cout << "test_const_vector_view...\n";
 
-  Vector x({1,2,3,4,5,6,7,8});
+  Vector v = {0, 1, 2, 3, 4, 5, 6, 7};
 
-  // Load and Save in Binary
-  x.save("/tmp/test_vector.pml");
-  Vector y = Vector::load("/tmp/test_vector.pml");
-  assert(fequal(x,y));
+  // Part 1: ConstVectorView for all
+  {
+    ConstVectorView cvw(v);
 
-  // Load and Save in Text
-  x.saveTxt("/tmp/test_vector.txt");
-  Vector z = Vector::loadTxt("/tmp/test_vector.txt");
-  assert(fequal(x, z));
+    assert(cvw.size() == v.size());
+    assert(cvw.stride() == 1);
+
+    ConstVectorView::iterator it = cvw.begin();
+    for(size_t i=0; i < v.size(); ++i)
+      assert(*it++ == i);
+    assert(it == cvw.end());
+
+  }
+
+  // Part 2: ConstVectorView for even positions
+  {
+    size_t even_size = v.size() / 2;
+    ConstVectorView cvw(v.data(), even_size, 2);
+
+    assert(cvw.size() == even_size);
+    assert(cvw.stride() == 2);
+    ConstVectorView::iterator it = cvw.begin();
+    for(size_t i=0; i < v.size(); i+=2)
+      assert(*it++ == i);
+    assert(it == cvw.end());
+  }
+
+  // Part 3: Vector from ConstVectorView
+  {
+    ConstVectorView cvw(v);
+
+    // Constructor
+    Vector v2(cvw);
+    assert_not_the_same(v, v2);
+    assert_equal(v, v2);
+
+    // Copy Constructor
+    Vector v3; v3 = cvw;
+    assert_not_the_same(v, v3);
+    assert_equal(v, v3);
+
+    // Copy Initializer
+    Vector v4 = cvw;
+    assert_not_the_same(v, v4);
+    assert_equal(v, v4);
+  }
+
+  // Must give compile errors
+  {
+    ConstVectorView cvw(v);
+    // that's OK.
+    ConstVectorView cvw2(cvw);
+
+    VectorView vw(v);
+    // these are NOT OK.
+    //cvw = v;
+    //cvw = cvw2;
+    //cvw = vw;
+  }
 
   std::cout << "OK.\n";
 }
@@ -123,46 +231,113 @@ void test_load_save(){
 void test_vector_view(){
   std::cout << "test_vector_view...\n";
 
-  // Part 1: ConstVectorView -> Vector
+  // Part 1: VectorView for all
   {
     Vector v = {0, 1, 2, 3, 4, 5, 6, 7};
-    ConstVectorView cvw(v);
+    VectorView vw(v);
 
-    Vector v2(cvw);  assert(fequal(v, v2));
+    assert(vw.size() == v.size());
+    assert(vw.stride() == 1);
 
-    Vector v3 = v;  assert(fequal(v, v3));
+    VectorView::iterator it = vw.begin();
+    for(size_t i=0; i < v.size(); ++i)
+      assert(*it++ == i);
+    assert(it == vw.end());
 
-    Vector v4; v4 = cvw; assert(fequal(v, v4));
+    // Modify vector
+    for(size_t i=0; i < v.size(); ++i)
+      vw[i] = 9 * i;
+
+    for(size_t i=0; i < v.size(); ++i)
+      assert(v[i] == 9 * i);
+
   }
 
-  // Part 2: VectorView -> Vector
+  // Part 2: VectorView for even positions
+  {
+    Vector v = {0, 1, 2, 3, 4, 5, 6, 7};
+    size_t even_size = v.size() / 2;
+    VectorView vw(v.data(), even_size, 2);
 
-  // Part 3: ConstVectorView -> VectorView
+    assert(vw.size() == even_size);
+    assert(vw.stride() == 2);
+    VectorView::iterator it = vw.begin();
+    for(size_t i=0; i < v.size(); i+=2)
+      assert(*it++ == i);
+    assert(it == vw.end());
 
-  // Part 4: VectorView -> VectorView
+    // Modify vector
+    for(size_t i=0; i < even_size; ++i)
+      vw[i] = 666;
 
-  // Part5 : ConstVectorView -> X
+    for(size_t i=0; i < even_size; ++i)
+      v[2*i] = 666;
 
+  }
 
+  // Part 3: ConstVectorView from VectorView
+  {
+    Vector v = {0, 1, 2, 3, 4, 5, 6, 7};
+    VectorView vw(v);
+    ConstVectorView cvw(vw);
+    assert(*vw.begin() == *cvw.begin());
+    assert(vw.size() == cvw.size());
+    assert(vw.stride() == cvw.stride());
+  }
 
-  Vector v = {0, 1, 2, 3, 4, 5, 6, 7};
-  VectorView vw(v);
+  // Part 4: VectorView from VectorView
+  {
+    Vector v = {0, 1, 2, 3, 4, 5, 6, 7};
+    VectorView vw(v);
 
-  // VectorView -> Vector
+    // Constructor
+    Vector v2(vw);
+    assert_not_the_same(v, v2);
+    assert_equal(v, v2);
 
+    // Copy Constructor
+    Vector v3; v3 = vw;
+    assert_not_the_same(v, v3);
+    assert_equal(v, v3);
 
+    // Copy Initializer
+    Vector v4 = vw;
+    assert_not_the_same(v, v4);
+    assert_equal(v, v4);
+  }
 
-  Vector cv = {7, 6, 5, 4, 3, 2, 1, 0};
-  ConstVectorView cvw(cv);
+  // Part5 : VectorView to VectorView
+  {
+    Vector x = {0, 1, 2, 3, 4, 5, 6, 7};
+    Vector y = {7, 6, 5, 4, 3, 2, 1, 0};
 
-  // ConstVectorView -> Vector
-  //Vector a1(cvw);  assert(fequal(v, a1));
-  //Vector a2(cv);  assert(fequal(v, a2));
+    VectorView xw(x);
+    VectorView yw(y);
+
+    // that's OK.
+    VectorView xw2(xw);
+
+    // Copies contents from xw to yw
+    yw = xw;
+    assert_not_the_same(x, y);
+    assert_equal(x, y);
+
+  }
+
+  // Part 6: Print
+  {
+    Vector x = {0, 1, 2, 3, 4, 5, 6, 7};
+    VectorView xw(x);
+
+    std::cout << x << std::endl;
+    std::cout << xw << std::endl;
+  }
+
 
   std::cout << "OK.\n";
 }
 
-/*
+
 void test_vector_algebra(){
   std::cout << "test_vector_algebra...\n";
   Vector x(5, 3);
@@ -207,6 +382,7 @@ void test_vector_algebra(){
 
   std::cout << "OK.\n";
 }
+
 
 void test_vector_functions() {
 
@@ -303,18 +479,23 @@ void test_range(){
 
   std::cout << "OK.\n";
 }
-*/
+
 int main(){
 
   test_vector_constructors();
   test_vector_copy_constructors();
 
-//  test_vector_view();
-//  test_load_save();
-//  test_vector_algebra();
-//  test_vector_comparison();
-//  test_vector_functions();
-//  test_range();
+  test_load_save();
+
+  test_const_vector_view();
+  test_vector_view();
+
+
+  test_vector_algebra();
+
+  test_vector_comparison();
+  test_vector_functions();
+  test_range();
 
   return 0;
 
