@@ -95,6 +95,11 @@ namespace pml {
 
       Vector& operator=(VectorView v);
 
+
+    private:
+
+      void copyFromView(ConstVectorView cvw);
+
     public:
       // Vector resize. If new size is smaller, the data_ is cropped.
       // If new size is larger, garbage values are appended.
@@ -455,28 +460,38 @@ namespace pml {
           : data_(that.data_), size_(that.size_), stride_(that.stride_){}
 
 
-  Vector::Vector(ConstVectorView cvw) : Block(cvw.size()){
+  Vector::Vector(ConstVectorView cvw) : Block(cvw.size()) {
     std::cout << "Vector(ConstVectorView vw)\n";
-    __copy_from__(cvw.data_, cvw.size_);
+    copyFromView(cvw);
   }
 
   Vector& Vector::operator=(ConstVectorView cvw){
     std::cout << "Vector::operator=(ConstVectorView vw)\n";
-    __free_data__();
-    __copy_from__(cvw.data_, cvw.size_);
+    copyFromView(cvw);
     return *this;
   }
 
   Vector::Vector(VectorView vw) : Block(vw.size()){
     std::cout << "Vector(VectorView vw)\n";
-    __copy_from__(vw.data_, vw.size_);
+    copyFromView(vw);
   }
 
   Vector& Vector::operator=(VectorView vw){
     std::cout << "Vector::operator=(VectorView vw)\n";
-    __free_data__();
-    __copy_from__(vw.data_, vw.size_);
+    copyFromView(vw);
     return *this;
+  }
+
+  void Vector::copyFromView(ConstVectorView cvw){
+    if( cvw.size_ != size_)
+      __resize__(cvw.size_, true);
+    if(cvw.stride_ == 1)
+      memcpy(data_, cvw.data_, sizeof(double) * size_);
+    else{
+      size_t i = 0;
+      for(auto it = cvw.begin(); it != cvw.end(); ++it)
+        data_[i++] = *it;
+    }
   }
 
   // Apply1 : v[i] = f(cvw[i])

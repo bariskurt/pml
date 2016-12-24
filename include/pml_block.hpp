@@ -26,10 +26,10 @@ namespace pml {
       static const double GROWTH_RATIO;
 
     public:
-      explicit Block(size_t size = 0)
-          : data_(nullptr), size_(size), capacity_(capacity){
-        if(size_ > 0)
-          __realloc_data__(size);
+      explicit Block(size_t size = 0) : data_(nullptr), capacity_(0), size_(0) {
+        // Allocate size with exact fit in memory
+        if(size > 0)
+          __resize__(size, true);
       }
 
       Block(const Block &that) : Block(that.size_){
@@ -44,16 +44,16 @@ namespace pml {
       }
 
       Block& operator=(const Block &that) {
-        if( &that != this ){
-          __free_data__();
-          __resize__(that.size_);
+        if( &that != this ) {
+          if( size_ != that.size_)
+            __resize__(that.size_, true);
           memcpy(data_, that.data_, sizeof(double) * that.size_);
         }
         return *this;
       }
 
       Block& operator=(Block &&that) {
-        __free_data__();
+        __free__();
         // hijack the data of that block
         data_ = that.data_;
         size_ = that.size_;
@@ -66,8 +66,7 @@ namespace pml {
       }
 
       ~Block() {
-        if( data_ )
-          __free_data__();
+        __free__();
       }
 
     public:
@@ -95,19 +94,19 @@ namespace pml {
     public:
 
       // -------- Accessors --------
-      inline double &operator[](const size_t i) {
+      double &operator[](const size_t i) {
         return data_[i];
       }
 
-      inline double operator[](const size_t i) const {
+      double operator[](const size_t i) const {
         return data_[i];
       }
 
-      inline double &operator()(const size_t i) {
+      double &operator()(const size_t i) {
         return data_[i];
       }
 
-      inline double operator()(const size_t i) const {
+      double operator()(const size_t i) const {
         return data_[i];
       }
 
@@ -120,17 +119,23 @@ namespace pml {
 
       void __push_back__(double value) {
         if (size_ == capacity_) {
-          __realloc_data__(capacity_ * GROWTH_RATIO);
+          __realloc__(capacity_ * GROWTH_RATIO);
         }
         data_[size_++] = value;
       }
 
       void __push_back__(const Block &block) {
-        if (size_ + block.size() > capacity_) {
-          __realloc_data__( (size_ + block.size_) * GROWTH_RATIO);
+        if( this == &block ){
+          // self push back
+          if( size_ > 0){
+            __realloc__(2 * size_ * GROWTH_RATIO);
+            memcpy(data_ + size_, data_ , sizeof(double) * size_);
+          }
+        } else {
+          if (size_ + block.size() > capacity_)
+            __realloc__( (size_ + block.size_) * GROWTH_RATIO );
+          memcpy(data_ + size_, block.data_, sizeof(double) * block.size_);
         }
-        double *source = &block == this ? data_ : block.data_;
-        memcpy(data_ + size_, source, sizeof(double) * block.size_);
         size_ += block.size_;
       }
 
@@ -145,30 +150,32 @@ namespace pml {
         size_ = 0;
       }
 
-      void __resize__(size_t new_size) {
-        if( new_size > capacity_ )
-          __realloc_data__(new_size);
+      void __resize__(size_t new_size, bool fit_in_memory = false) {
+        if( fit_in_memory || new_size > capacity_ )
+          __realloc__(new_size);
         size_ = new_size;
       }
 
       void __reserve__(size_t new_capacity) {
         if (new_capacity > capacity_)
-          __realloc_data__(new_capacity);
+          __realloc__(new_capacity);
       }
 
       void __shrink_to_fit__() {
-          __realloc_data__(size_);
+          __realloc__(size_);
       }
 
     private:
 
-      void __realloc_data__(size_t new_capacity) {
+      void __realloc__(size_t new_capacity) {
         new_capacity = std::max(MINIMUM_CAPACITY, new_capacity);
-        data_ = (double*) realloc(data_, sizeof(double) * new_capacity);
-        capacity_ = new_capacity;
+        if( new_capacity != capacity_) {
+          data_ = (double *) realloc(data_, sizeof(double) * new_capacity);
+          capacity_ = new_capacity;
+        }
       }
 
-      void __free_data__(){
+      void __free__(){
         if( data_ ){
           free(data_);
           data_ = nullptr;
@@ -183,8 +190,9 @@ namespace pml {
       size_t capacity_;
       size_t size_;
   };
+
+  const size_t Block::MINIMUM_CAPACITY = 4;
   const double Block::GROWTH_RATIO  = 1.5;
-  const size_t Block::INITIAL_CAPACITY = 128; // start with 1K memory
 
 }
 
