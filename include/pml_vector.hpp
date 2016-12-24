@@ -81,8 +81,6 @@ namespace pml {
         return *this;
       }
 
-
-
       // Vector from range
       explicit Vector(Range range) {
         for (double d = range.start; d < range.stop; d += range.step)

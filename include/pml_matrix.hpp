@@ -63,6 +63,31 @@ namespace pml {
              const std::initializer_list<double> &values) :
           Matrix(shape.first, shape.second, values) { }
 
+      // Copy Constructors
+      Matrix(const Matrix &other)
+          : Block(other), nrows_(other.nrows_), ncols_(other.ncols_){}
+
+      Matrix(Matrix &&other)
+        : Block(std::move(other)), nrows_(other.nrows_), ncols_(other.ncols_){
+        other.nrows_ = 0;
+        other.ncols_ = 0;
+      }
+
+      Matrix& operator=(const Matrix &other) {
+        Block::operator=(other);
+        nrows_ = other.nrows_;
+        ncols_ = other.ncols_;
+        return *this;
+      }
+
+      // Move-Assignment
+      Matrix& operator=(Matrix &&other) {
+        Block::operator=(std::move(other));
+        nrows_ = other.nrows_; other.nrows_ = 0;
+        ncols_ = other.ncols_; other.ncols_ = 0;
+        return *this;
+      }
+
     public:
       // Zeros Matrix
       static Matrix zeros(size_t num_rows, size_t num_cols) {
@@ -79,6 +104,15 @@ namespace pml {
         for (size_t i = 0; i < size; ++i)
           X(i, i) = 1.0;
         return X;
+      }
+
+    public:
+      ConstVectorView const_view() const{
+        return ConstVectorView(data_, size_, 1);
+      }
+
+      VectorView view() {
+        return VectorView(data_, size_, 1);
       }
 
     public:
@@ -249,58 +283,58 @@ namespace pml {
   }
 
   bool any(const Matrix &m){
-    return any(ConstVectorView(m));
+    return any(m.const_view());
   }
 
   bool all(const Matrix &m){
-    return all(ConstVectorView(m));
+    return all(m.const_view());
   }
 
   void operator+=(Matrix &m, const double value) {
-    VectorView(m) += value;
+    m.view() += value;
   }
 
   // A = A - b
   void operator-=(Matrix &m, const double value) {
-    VectorView(m) -= value;
+    m.view() -= value;
   }
 
   // A = A * b
   void operator*=(Matrix &m, const double value) {
-    VectorView(m) *= value;
+    m.view() *= value;
   }
 
   // A = A / b
   void operator/=(Matrix &m, const double value) {
-    VectorView(m) /= value;
+    m.view() /= value;
   }
 
   // A = A + B
   void operator+=(Matrix &m, const Matrix &other) {
     ASSERT_TRUE(m.shape() == other.shape(),
                 "Matrix::operator+=:: Shape mismatch.");
-    VectorView(m) += ConstVectorView(other);
+    m.view() += other.const_view();
   }
 
   // A = A - B
   void operator-=(Matrix &m, const Matrix &other) {
     ASSERT_TRUE(m.shape() == other.shape(),
                 "Matrix::operator-=:: Shape mismatch.");
-    VectorView(m) -= ConstVectorView(other);
+    m.view() -= other.const_view();
   }
 
   // A = A * B (elementwise)
   void operator*=(Matrix &m, const Matrix &other) {
     ASSERT_TRUE(m.shape() == other.shape(),
                 "Matrix::operator*=:: Shape mismatch.");
-    VectorView(m) *= ConstVectorView(other);
+    m.view() *= other.const_view();
   }
 
   // A = A / B (elementwise)
   void operator/=(Matrix &m, const Matrix &other) {
     ASSERT_TRUE(m.shape() == other.shape(),
                 "Matrix::operator/=:: Shape mismatch.");
-    VectorView(m) /= ConstVectorView(other);
+    m.view() /= other.const_view();
   }
 
   // returns A + b
@@ -446,7 +480,7 @@ namespace pml {
   bool fequal(const Matrix &m1, const Matrix &m2){
     if(m1.shape() != m2.shape())
       return false;
-    return fequal(ConstVectorView(m1), ConstVectorView(m2));
+    return fequal(m1.const_view(), m2.const_view());
   }
 
   // Transpose
@@ -470,7 +504,7 @@ namespace pml {
 //-----------------------------------
 
 double sum(const Matrix &x) {
-  return sum(ConstVectorView(x));
+  return sum(x.const_view());
 }
 
 Vector sum(const Matrix &x, const size_t axis) {
@@ -483,7 +517,7 @@ Vector sum(const Matrix &x, const size_t axis) {
 }
 
 double min(const Matrix &x) {
-  return min(ConstVectorView(x));
+  return min(x.const_view());
 }
 
 Vector min(const Matrix &x, size_t axis) {
@@ -495,7 +529,7 @@ Vector min(const Matrix &x, size_t axis) {
 }
 
 double max(const Matrix &x) {
-  return max(ConstVectorView(x));
+  return max(x.const_view());
 }
 
 Vector max(const Matrix &x, size_t axis) {

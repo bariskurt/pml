@@ -4,6 +4,20 @@
 
 using namespace pml;
 
+
+void assert_equal(const Matrix&x, const Matrix&x2){
+  assert(x.size() == x2.size());
+  assert(x.nrows() == x2.nrows());
+  assert(x.ncols() == x2.ncols());
+  for(size_t i=0; i < x.size(); ++i)
+    assert(fequal(x[i], x2[i]));
+}
+
+void assert_not_the_same(const Matrix&x, const Matrix&x2){
+  assert(x.data() != x2.data());
+}
+
+
 void test_matrix(){
   std::cout << "test_matrix...\n";
 
@@ -35,6 +49,85 @@ void test_matrix(){
   }
 
   std::cout << "OK\n";
+}
+
+void test_matrix_copy_constructors(){
+  std::cout << "test_matrix_copy_constructors...\n";
+
+  // Copy Constructor
+  {
+    Matrix x = Matrix(3,2, {1,2,3,4,5,6});
+    Matrix x2(x);
+    assert_not_the_same(x, x2);
+    assert_equal(x, x2);
+  }
+
+  // Assignment
+  {
+    Matrix x = Matrix(3,2, {1,2,3,4,5,6});
+    Matrix x2 = x;
+    assert(fequal(x, x2));
+    assert_not_the_same(x, x2);
+    assert_equal(x, x2);
+  }
+
+  // Assignment 2
+  {
+    Matrix x = Matrix(3,2, {1,2,3,4,5,6});
+    Matrix x2;
+    x2 = x;
+    assert(fequal(x, x2));
+    assert_not_the_same(x, x2);
+    assert_equal(x, x2);
+  }
+
+  // Move constructor
+  {
+    Matrix x = Matrix(3,2, {1,2,3,4,5,6});
+    const double *data_ = x.data();
+    const size_t x_size = x.size();
+    const size_t x_nrows = x.nrows();
+    const size_t x_ncols = x.ncols();
+
+    Matrix x2(std::move(x));
+    assert(x.size() == 0);
+    assert(x.nrows() == 0);
+    assert(x.ncols() == 0);
+    assert(x.data() != data_);
+
+    assert(x2.data() == data_);
+    assert(x2.size() == x_size);
+    assert(x2.nrows() == x_nrows);
+    assert(x2.ncols() == x_ncols);
+    for(size_t i = 0; i < x_size; ++i)
+      assert( x2[i] == i+1);
+
+  }
+
+  // Move Assignment
+  {
+    Matrix x = Matrix(3,2, {1,2,3,4,5,6});
+    const double *data_ = x.data();
+    const size_t x_size = x.size();
+    const size_t x_nrows = x.nrows();
+    const size_t x_ncols = x.ncols();
+
+    Matrix x2; x2 = std::move(x);
+
+    assert(x.size() == 0);
+    assert(x.nrows() == 0);
+    assert(x.ncols() == 0);
+    assert(x.data() != data_);
+
+    assert(x2.data() == data_);
+    assert(x2.size() == x_size);
+    assert(x2.nrows() == x_nrows);
+    assert(x2.ncols() == x_ncols);
+    for(size_t i = 0; i < x_size; ++i)
+      assert( x2[i] == i+1);
+  }
+
+  std::cout << "OK.\n";
 }
 
 void test_load_save(){
@@ -112,87 +205,55 @@ void test_matrix_algebra(){
 }
 
 
-void test_rows_cols(){
+void test_rows_cols() {
 
   std::cout << "test_rows_cols...\n";
+  {
+    Matrix m(3, 4, {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11});
 
-  // Set & Get Column
-  Matrix m(3,4, {0,1,2,3,4,5,6,7,8,9,10,11});
+    // Get Cols
+    assert(fequal(m.col(0), Vector({0, 1, 2})));
+    assert(fequal(m.col(1), Vector({3, 4, 5})));
+    assert(fequal(m.col(2), Vector({6, 7, 8})));
+    assert(fequal(m.col(3), Vector({9, 10, 11})));
 
-  // Get Cols
-  assert(fequal(m.col(0), Vector({0,1,2})));
-  assert(fequal(m.col(1), Vector({3,4,5})));
-  assert(fequal(m.col(2), Vector({6,7,8})));
-  assert(fequal(m.col(3), Vector({9,10,11})));
-
-  // Get Rows
-  assert(fequal(m.row(0), Vector({0,3,6,9})));
-  assert(fequal(m.row(1), Vector({1,4,7,10})));
-  assert(fequal(m.row(2), Vector({2,5,8,11})));
-
+    // Get Rows
+    assert(fequal(m.row(0), Vector({0, 3, 6, 9})));
+    assert(fequal(m.row(1), Vector({1, 4, 7, 10})));
+    assert(fequal(m.row(2), Vector({2, 5, 8, 11})));
+  }
 
   // Set Cols
-  m.col(0) = -1;
-  assert(fequal(m.col(0), Vector({-1, -1, -1})));
+  {
+    Matrix x(3, 4, {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11});
+    Matrix y(3, 4, {-1, -1, -1, 3, 4, 5, 6, 7, 8, 9, 10, 11});
+    Matrix z(3, 4, {-1, -1, -1, 3, 4, 5, -7, -8, -9, 9, 10, 11});
 
-  m.col(1) = Vector({-2,-2,-2});
-  assert(fequal(m.col(1), Vector({-2, -2, -2})));
+    x.col(0) = -1;
+    assert(fequal(x ,y));
 
+    x.col(2) = Vector({-7, -8, -9});
+    assert(fequal(x ,z));
+
+  }
 
   // Set Rows
-  m.row(0) = -3;
-  assert(fequal(m.row(0), Vector({-3, -3, -3, -3})));
+  {
+    Matrix x(3, 4, {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11});
+    Matrix y(3, 4, {-1, 1, 2, -1, 4, 5, -1, 7, 8, -1, 10, 11});
+    Matrix z(3, 4, {-1, 1, -6, -1, 4, -7, -1, 7, -8, -1, 10, -9});
 
-  m.row(1) = Vector({-4,-4,-4,-4});
-  assert(fequal(m.row(1), Vector({-4,-4,-4,-4})));
+    x.row(0) = -1;
+    assert(fequal(x, y));
 
-
-  // Copy columns
-  std::cout << m << std::endl;
-  m.col(0) = m.col(3);
-  std::cout << m << std::endl;
-
-  assert(fequal(m.col(0), m.col(3)));
-
-  /*
-  Vector v1 = m.col(3);
-  Vector v2(m.nrows());
-  v2(0) = m(0,3);
-  v2(1) = m(1,3);
-  v2(2) = m(2,3);
-  assert(v1.equals(v2));
-
-  m.setColumn(2, Vector::ones(3));
-  assert(m(0,2) == 1);
-  assert(m(1,2) == 1);
-  assert(m(2,2) == 1);
-
-  // Set & Get Row
-  m = Matrix(3,4, {0,1,2,3,4,5,6,7,8,9,10,11});
-  v1 = m.getRow(2);
-  v2 = Vector({m(2,0), m(2,1), m(2,2), m(2,3)});
-  assert(v1.equals(v2));
-
-  m.setRow(1, Vector::ones(4));
-  assert(m(1,0) == 1);
-  assert(m(1,1) == 1);
-  assert(m(1,2) == 1);
-  assert(m(1,3) == 1);
-
-  // Get Columns
-  m = Matrix(3,4, {0,1,2,3,4,5,6,7,8,9,10,11});
-  Matrix m2 = m.getColumns({0, 4, 2});
-  assert(m2.nrows() == 3);
-  assert(m2.ncols() == 2);
-  for(size_t i=0; i<m.nrows(); ++i){
-    assert(m(i,0) == m2(i,0));
-    assert(m(i,2) == m2(i,1));
+    x.row(2) = Vector({-6,-7,-8,-9});
+    assert(fequal(x, z));
   }
-  */
+
   std::cout << "OK\n";
 }
 
-/*
+
 void test_matrix_functions(){
   std::cout << "test_matrix_functions...\n";
 
@@ -221,6 +282,7 @@ void test_matrix_functions(){
   assert(all(exp(m3) == 1.64872127));
 
   // Normalizations
+/*
   Matrix m4(2,2, {1, 2, 3, 4});
   assert(normalize(m4).equals(Matrix(2,2, {0.1, 0.2, 0.3, 0.4})));
   assert(normalize(m4,0).equals(Matrix(2,2, {1.0/3, 2.0/3, 3.0/7, 4.0/7})));
@@ -242,10 +304,10 @@ void test_matrix_functions(){
   //assert(tile(v, 2).equals(Matrix(2,2, {1,1,2,2})));
   //assert(tile(v, 2, 1).equals(Matrix(2,2, {1,2,1,2})));
   //assert(repmat(v, 2, 2).equals(Matrix(4,2, {1,2,1,2,1,2,1,2})));
-
+*/
    std::cout << "OK\n";
 }
-*/
+
 /*
 void test_matrix_append(){
 
@@ -287,10 +349,11 @@ void test_matrix_append(){
 
 int main(){
   test_matrix();
+  test_matrix_copy_constructors();
   test_load_save();
   test_matrix_algebra();
   test_rows_cols();
-  //test_matrix_functions();
+  test_matrix_functions();
   //test_matrix_append();
   return 0;
 }
