@@ -781,10 +781,11 @@ namespace pml {
   }
 
   double max(ConstVectorView cvw) {
-    ASSERT_TRUE(!cvw.empty(), "ConstVectorView::min()::error: Block empty");
-    double cvw_max = std::numeric_limits<double>::min();
+    ASSERT_TRUE(!cvw.empty(), "ConstVectorView::max()::error: Block empty");
+    double cvw_max = std::numeric_limits<double>::lowest();
     for(const double d : cvw)
       cvw_max = std::max(cvw_max, d);
+
     return cvw_max;
   }
 
@@ -880,6 +881,12 @@ namespace pml {
   }
 
 
+  Vector cat(const std::vector<Vector> &v_list){
+    Vector result;
+    for(const Vector &v : v_list)
+      result.append(v);
+    return result;
+  }
 
 } // namespace pml
 
