@@ -6,8 +6,6 @@ link_libraries(gslcblas)
 
 add_executable(test_block test_block.cc)
 
-add_executable(test_memory test_memory.cc)
-
 add_executable(test_vector test_vector.cc)
 
 add_executable(test_vector_view test_vector_view.cc)
