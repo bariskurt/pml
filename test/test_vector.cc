@@ -498,5 +498,4 @@ int main(){
   test_range();
 
   return 0;
-
 }

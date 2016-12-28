@@ -4,6 +4,7 @@
 #include <vector>
 
 #include "pml_block.hpp"
+#include "pml_time.hpp"
 
 using namespace pml;
 using namespace std;
@@ -79,6 +80,8 @@ namespace pml {
 
       void test_rvalue_references() {
 
+        std::cout << "test_rvalue_references...\n";
+
         // Move constructor
         const size_t SIZE = 10;
         Block b(SIZE);
@@ -110,7 +113,7 @@ namespace pml {
         for (size_t i = 0; i < SIZE; ++i)
           assert(b3.data_[i] == i);
 
-
+        std::cout << "OK.\n";
       }
 
       void test_size() {
@@ -154,6 +157,7 @@ namespace pml {
       }
 
       void test_push_back(const size_t X_SIZE, const size_t Y_SIZE){
+
         Block x(X_SIZE);
         for(size_t i=0; i < x.size(); ++i)
           x[i] = i;
@@ -233,6 +237,73 @@ namespace pml {
 
         std::cout << "OK.\n";
       }
+
+      void test_speed(){
+
+        std::cout << "test_speed...\n";
+
+        size_t K = 1e6;
+        size_t N = 10;
+
+        TicTocTimer timer;
+
+        for(size_t n=0; n < N; ++n){
+          std::vector<double> v;
+          for(size_t k=0; k < K; ++k){
+            v.push_back(k);
+          }
+        }
+
+        std::cout << "Vector push back: "
+                  << timer.toc().to_string() << std::endl;
+
+        timer.tic();
+        for(size_t n=0; n < N; ++n){
+          Block b;
+          for(size_t k=0; k < K; ++k){
+            b.__push_back__(k);
+          }
+        }
+        std::cout << "Block push back: "
+                  << timer.toc().to_string() << std::endl;
+
+
+        std::vector<double> v;
+        for(size_t k=0; k < K; ++k){
+          v.push_back(k);
+        }
+
+        timer.tic();
+        for(size_t n=0; n < N; ++n){
+          for(size_t k=1; k < K; ++k){
+            v[k] = v[k-1] ;
+          }
+        }
+
+        std::cout << "Vector access: "
+                  << timer.toc().to_string() << std::endl;
+
+        Block b;
+        for(size_t k=0; k < K; ++k){
+          b.__push_back__(k);
+        }
+
+        timer.tic();
+        for(size_t n=0; n < N; ++n){
+          for(size_t k=1; k < K; ++k){
+            b[k] = b[k-1] ;
+          }
+        }
+
+        std::cout << "Block access: "
+                  << timer.toc().to_string() << std::endl;
+
+        for(size_t k=1; k < K; ++k){
+          assert(fequal(v[k], b[k]));
+        }
+
+        std::cout << "OK.\n";
+      }
   };
 }
 
@@ -242,4 +313,5 @@ int main(){
   blockTester.test_rvalue_references();
   blockTester.test_size();
   blockTester.test_push_back();
+  blockTester.test_speed();
 }

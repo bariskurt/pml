@@ -173,6 +173,10 @@ namespace pml {
         return ConstVectorView(&data_[i * nrows_], nrows_);
       }
 
+      ConstVectorView getColumn(size_t i) const {
+        return ConstVectorView(&data_[i * nrows_], nrows_);
+      }
+
       VectorView row(size_t i){
         return VectorView(&data_[i], ncols_, nrows_);
       }
