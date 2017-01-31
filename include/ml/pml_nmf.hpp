@@ -30,41 +30,42 @@ namespace pml {
       };
 
     public:
-      enum class Algorithm : char { MAXIMUM_LIKELIHOOD = 0,
-                                    VARIATIONAL_BAYES = 1,
-                                    ITERATIVE_CONDITIONAL_MODES = 2 };
-
-      NMF(double at_=1, double bt_=1, double av_=1, double bv_=1)
-          : at(at_), bt(bt_), av(av_), bv(bv_) {}
-
-      Matrix randgen(size_t dim1, size_t dim2, size_t rank){
-        Matrix T = Gamma(at, bt).rand(dim1, rank);
-        Matrix V = Gamma(av, bv).rand(rank, dim2);
-        return dot(T,V);
+      NMF(size_t dim1, size_t dim2, size_t rank) {
+        At = Matrix::ones(dim1, rank);
+        Bt = Matrix::ones(dim1, rank);
+        Av = Matrix::ones(rank, dim2);
+        Bv = Matrix::ones(rank, dim2);
       }
 
-      Solution fit(const Matrix &X, size_t rank,
-                   Algorithm algorithm = Algorithm::MAXIMUM_LIKELIHOOD){
-        if(algorithm == Algorithm::MAXIMUM_LIKELIHOOD)
-          return ml(X, rank);
-        if(algorithm == Algorithm::VARIATIONAL_BAYES)
-          return vb(X, rank);
-        return icm(X, rank);
+      NMF(const Matrix &At_, const Matrix &Bt_,
+          const Matrix &Av_, const Matrix &Bv_)
+          : At(At_), Bt(Bt_), Av(Av_), Bv(Bv_) {
+      }
+
+    public:
+      Matrix randgen() {
+        initialize_T_V();
+        Matrix X = Matrix::zeros(At.nrows(), Av.ncols());
+        for(size_t i = 0; i < X.nrows(); ++i)
+          for(size_t j = 0; j < X.ncols(); ++j)
+            for(size_t k = 0; k < At.ncols(); ++k)
+              X(i,j) += Poisson(T(i,k) * V(k, j)).rand();
+
+        return X;
+      }
+
+      size_t rank() const {
+        return At.ncols();
       }
 
     public:
       // Maximum Likelihood Solution
-      Solution ml(const Matrix &X, size_t rank){
+      Solution ml(const Matrix &X){
 
         // Initialize T,V
-        //Matrix X = X_ + std::numeric_limits<double>::epsilon();
-        size_t dim1 = X.nrows();
-        size_t dim2 = X.ncols();
-
+        initialize_T_V();
+        Matrix M = Matrix::ones(X.nrows(), X.ncols());
         Vector kl;
-        Matrix T = Dirichlet(Vector::ones(dim1)).rand(rank);
-        Matrix V = Dirichlet(Vector::ones(rank)).rand(dim2);
-        Matrix M = Matrix::ones(dim1, dim2);
 
         for(unsigned i = 0; i < MAX_ITER; ++i){
 
@@ -72,9 +73,8 @@ namespace pml {
           kl.append(kl_div(X, TV));
 
           // Early stop ?
-          if(i > MIN_ITER && kl(i) - kl(i-1) < 1e-5){
+          if(i > MIN_ITER && kl(i) - kl(i-1) < 1e-5)
             break;
-          }
 
           // Update T and normalize its columns to avoid degeneracy
           T = (T * dot((X / TV), V, false, true)) / dot(M, V, false, true);
@@ -88,25 +88,49 @@ namespace pml {
       }
 
     public:
-      // Variational Bayes Solution
-      Solution vb(const Matrix &X, size_t rank){
+      // Iterative Conditional Modes
+      Solution icm(const Matrix &X){
 
-        size_t dim1 = X.nrows();
-        size_t dim2 = X.ncols();
-
-        // Initialize T,V
-        Matrix Lt = Gamma(at, bt).rand(dim1, rank);
-        Matrix Et = Lt;
-
-        Matrix Lv = Gamma(av, bv).rand(rank, dim2);
-        Matrix Ev = Lv;
-
-        Matrix M = Matrix::ones(dim1, dim2);
-        Matrix Mt = Matrix::ones(dim1, rank);
-        Matrix Mv = Matrix::ones(rank, dim2);
-
+        initialize_T_V();
+        Matrix M = Matrix::ones(X.nrows(), X.ncols());
         Vector kl;
 
+        for(unsigned i = 0; i < MAX_ITER; ++i){
+          Matrix TV = dot(T, V);
+          kl.append(kl_div(X, TV));
+
+          // Early stop ?
+          if(i > MIN_ITER && kl(i) - kl(i-1) < 1e-5)
+            break;
+
+          T = (At + (T * dot((X / TV), V, false, true)))
+              / ((At / Bt) + dot(M, V, false, true));
+          T = normalize(T, 0);
+
+          V = (Av + (V * dot(T, (X / TV ), true)))
+              / ((Av / Bv) + dot(T, M, true));
+        }
+        return {T, V, kl};
+      }
+
+    public:
+      // Variational Bayes Solution
+      Solution vb(const Matrix &X, bool update_parameters = false){
+
+        // Initialize
+        initialize_T_V();
+
+        Matrix Lt = T;
+        Matrix Et = T;
+
+        Matrix Lv = V;
+        Matrix Ev = V;
+
+        Matrix M = Matrix::ones(X.nrows(), X.ncols());
+        Matrix Mt = Matrix::ones(T.nrows(), T.ncols());
+        Matrix Mv = Matrix::ones(V.nrows(), V.ncols());
+
+        Vector kl;
 
         for(unsigned i = 0; i < MAX_ITER; ++i){
 
@@ -114,70 +138,55 @@ namespace pml {
           Matrix Z = X / dot(Lt,Lv);
 
           // 2. Means
-          Matrix alpha_t = at + (Lt * dot( Z, Lv, false, true));
-          Matrix beta_t = Mt / ((at/bt) + dot(M, Ev, false, true));
+          Matrix alpha_t = At + (Lt * dot( Z, Lv, false, true));
+          Matrix beta_t = Mt / ((At/Bt) + dot(M, Ev, false, true));
           Et = alpha_t * beta_t;
 
-          Matrix alpha_v = av + (Lv * dot( Lt, Z, true, false));
-          Matrix beta_v = Mv / ((av/bv) + dot(Et, M, true, false));
+          Matrix alpha_v = Av + (Lv * dot( Lt, Z, true, false));
+          Matrix beta_v = Mv / ((Av/Bv) + dot(Et, M, true, false));
           Ev = alpha_v * beta_v;
 
           // 3. Means of Logs
           Lt = exp(psi(alpha_t)) * beta_t;
           Lv = exp(psi(alpha_v)) * beta_v;
 
-          // 3a. Update Hyper parameters
-          //Bt = (At * T_).Sum() / At.Sum();
-          //Bv = (Av * V_).Sum() / Av.Sum();
+
+          // Update parameters if necessary (B only, all tied)
+          if(update_parameters){
+            Bt = sum(At * Et) / sum(At);
+            Bv = sum(Av * Ev) / sum(Av);
+          }
 
           // 4. Track KL
           kl.append(kl_div(X, dot(Et, Ev)));
+
           // Early stop ?
-          if(i > MIN_ITER && kl(i) - kl(i-1) < 1e-5){
+          if(i > MIN_ITER && kl(i) - kl(i-1) < 1e-5)
             break;
-          }
         }
 
         // Normalize T_ columns to get basis vectors:
-        Matrix V = Ev * sum(Et, 0);
-        Matrix T = normalize(Et, 0);
+        V = Ev * sum(Et, 0);
+        T = normalize(Et, 0);
+
         return {T, V, kl};
       }
 
-    public:
-      Solution icm(const Matrix &X, size_t rank){
+    private:
 
-        size_t dim1 = X.nrows();
-        size_t dim2 = X.ncols();
+      void initialize_T_V() {
+        T = Matrix(At.shape());
+        for(size_t i=0; i < T.size(); ++i)
+          T[i] = Gamma(At[i], Bt[i] / At[i]).rand();
 
-        // Initialize T,V
-        Matrix T = Gamma(at, bt).rand(dim1, rank);
-        Matrix V = Gamma(av, bv).rand(rank, dim2);
-
-        Vector kl;
-        Matrix M = Matrix::ones(X.nrows(), X.ncols());
-
-        for(unsigned i = 0; i < MAX_ITER; ++i){
-          Matrix TV = dot(T, V);
-          kl.append(kl_div(X, TV));
-
-          // Early stop ?
-          if(i > MIN_ITER && kl(i) - kl(i-1) < 1e-5){
-            break;
-          }
-
-          T = (at + (T * dot((X / TV), V, false, true)))
-              / ((at / bt) + dot(M, V, false, true));
-          T = normalize(T, 0);
-
-          V = (av + (V * dot(T, (X / TV ), true)))
-               / ((av / bv) + dot(T, M, true));
-        }
-        return {T, V, kl};
+        V = Matrix(Av.shape());
+        for(size_t i=0; i < V.size(); ++i)
+          V[i] = Gamma(Av[i], Bv[i] / Av[i]).rand();
       }
 
     public:
-      double at, bt, av, bv;
+      Matrix At, Bt, Av, Bv;
+      Matrix T, V;
   };
 
 }

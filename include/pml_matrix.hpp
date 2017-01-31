@@ -253,6 +253,11 @@ namespace pml {
 
     public:
 
+      Matrix& operator=(double value) {
+        for (auto &d : data_) { d = value; }
+        return *this;
+      }
+
       // ------- Self-Assignment Operations ------
 
       void operator+=(double value) {
