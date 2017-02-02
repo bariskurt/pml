@@ -42,7 +42,7 @@ void test_nmf_vb(){
   find_or_create("/tmp/sol");
   NMF nmf2(10, 40, 3);
   nmf2.At *= 10;
-  auto solution = nmf2.vb(X, true);
+  auto solution = nmf2.vb(X, "tie_all");
   solution.save("/tmp/sol");
 
   std::cout << nmf2.Bt(0) << std::endl;

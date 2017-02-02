@@ -115,7 +115,7 @@ namespace pml {
 
     public:
       // Variational Bayes Solution
-      Solution vb(const Matrix &X, bool update_parameters = false){
+      Solution vb(const Matrix &X, const std::string &opt_params_update= ""){
 
         // Initialize
         initialize_T_V();
@@ -152,9 +152,8 @@ namespace pml {
 
 
           // Update parameters if necessary (B only, all tied)
-          if(update_parameters){
-            Bt = sum(At * Et) / sum(At);
-            Bv = sum(Av * Ev) / sum(Av);
+          if(!opt_params_update.empty()){
+            update_parameters(Et, Ev, opt_params_update);
           }
 
           // 4. Track KL
@@ -182,6 +181,23 @@ namespace pml {
         V = Matrix(Av.shape());
         for(size_t i=0; i < V.size(); ++i)
           V[i] = Gamma(Av[i], Bv[i] / Av[i]).rand();
+      }
+
+      void update_parameters(const Matrix &Et, const Matrix &Ev,
+                             const std::string &opt_params_update){
+        if (opt_params_update == "tie_none"){
+          Bt = Et;
+          Bv = Ev;
+        } else if (opt_params_update == "tie_columns"){
+          Bt = tile(sum(At * Et, 1) / sum(At, 1), Bt.ncols(), 1);
+          Bv = tile(sum(Av * Ev, 1) / sum(Av, 1), Bv.ncols(), 1);
+        } else if (opt_params_update == "tie_rows"){
+          Bt = tile(sum(At * Et, 0) / sum(At, 0), Bt.nrows(), 0);
+          Bv = tile(sum(Av * Ev, 0) / sum(Av, 0), Bv.nrows(), 0);
+        } else if (opt_params_update == "tie_all"){
+          Bt = sum(At * Et) / sum(At);
+          Bv = sum(Av * Ev) / sum(Av);
+        }
       }
 
     public:
