@@ -12,11 +12,11 @@ def loadTxt(filename):
 
 
 def saveTxt(filename, X, format = '%.6f'):
-    with open(filename, 'w') as f:
-        dim = len(X.shape)
-        f.write('%d\n' % dim)
-        for i in range(dim):
-            f.write('%d\n' % X.shape[i])
+    with open(filename, 'wb') as f:
+        header = np.asarray(len(X.shape))
+        header = np.append(header, X.shape)
+        np.savetxt(f, header, fmt='%d')
+    with open(filename, 'ab') as f:
         temp = X.reshape(np.product(X.shape), order='F')
         np.savetxt(f, temp, fmt = format)
 

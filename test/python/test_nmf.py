@@ -30,6 +30,7 @@ def plot_nmf():
     t_est = pml.loadTxt("/tmp/sol/t.txt")
     v_est = pml.loadTxt("/tmp/sol/v.txt")
     kl = pml.loadTxt("/tmp/sol/kl.txt")
+    b = pml.loadTxt("/tmp/sol/b.txt")
     x_est = np.dot(t_est,v_est)
 
     fig = plt.figure(figsize=(18, 10))
@@ -47,11 +48,19 @@ def plot_nmf():
 
     fig.tight_layout()
 
-    fig = plt.figure(figsize=(6, 6))
-    ax = fig.gca()
+    fig = plt.figure(figsize=(10, 5))
+    gs = gridspec.GridSpec(1, 2)
+
+    ax = plt.subplot(gs[0])
     ax.plot(kl)
     ax.set_title('KL Divergence')
     ax.set_xlim([0, len(kl)])
+    ax.set_xlabel('epoch')
+
+    ax = plt.subplot(gs[1])
+    ax.plot(b)
+    ax.set_title('Bound')
+    ax.set_xlim([0, len(b)])
     ax.set_xlabel('epoch')
 
     plt.show()

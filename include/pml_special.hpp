@@ -65,7 +65,7 @@ namespace pml{
     double result = 0;
     for (size_t i = 0; i < x.size(); ++i) {
       if(x(i) > 0 && y(i) > 0){
-        result += x(i) * (std::log(x(i)) - std::log(y(i))) - x(i) + y(i);
+        result -= x(i) * (std::log(y(i)) - std::log(x(i))) - y(i) + x(i);
       } else if(x(i) == 0 && y(i) >= 0){
         result += y(i);
       } else {

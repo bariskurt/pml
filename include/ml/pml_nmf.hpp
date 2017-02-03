@@ -7,6 +7,18 @@
 
 #include "../pml.hpp"
 
+/*
+ * T ~ Gamma(x; a_t, b_t/a_t)
+ * V ~ Gamma(x; a_v, b_v/a_v)
+ * X ~ Sum_k Poisson(S[i,k,j]; T[i,k] * V[k,j])
+ *
+ * mean(T) = b_t
+ * var(T) = b_t^2 / a_t
+ *
+ *  Large a_t results in low variance, similar values
+ *  Small a_t results in high variance, hence favors sparsity
+ */
+
 namespace pml {
 
   class NMF {
@@ -22,11 +34,13 @@ namespace pml {
             t.saveTxt(work_dir + "/t.txt");
             v.saveTxt(work_dir + "/v.txt");
             kl.saveTxt(work_dir + "/kl.txt");
+            b.saveTxt(work_dir + "/b.txt");
           }
         public:
           Matrix t;
           Matrix v;
           Vector kl;
+          Vector b;
       };
 
     public:
@@ -130,21 +144,41 @@ namespace pml {
         Matrix Mt = Matrix::ones(T.nrows(), T.ncols());
         Matrix Mv = Matrix::ones(V.nrows(), V.ncols());
 
+        double gammalnX = sum(gammaln(X+1));
+
         Vector kl;
+        Vector b;
 
         for(unsigned i = 0; i < MAX_ITER; ++i){
 
           // 1. Source sufficient statistics
           Matrix Z = X / dot(Lt,Lv);
+          Matrix Sigma_t = Lt * dot( Z, Lv, false, true);
+          Matrix Sigma_v = Lv * dot( Lt, Z, true, false);
+
+          // 1a. Precompute for fast calculation
+          Matrix AtBt = At / Bt;
+          Matrix AvBv = Av / Bv;
+          Matrix LtLv = dot(Lt, Lv);
 
           // 2. Means
-          Matrix alpha_t = At + (Lt * dot( Z, Lv, false, true));
-          Matrix beta_t = Mt / ((At/Bt) + dot(M, Ev, false, true));
+          Matrix alpha_t = At + Sigma_t;
+          Matrix beta_t = Mt / (AtBt + dot(M, Ev, false, true));
           Et = alpha_t * beta_t;
 
-          Matrix alpha_v = Av + (Lv * dot( Lt, Z, true, false));
-          Matrix beta_v = Mv / ((Av/Bv) + dot(Et, M, true, false));
+          Matrix alpha_v = Av + Sigma_v;
+          Matrix beta_v = Mv / (AvBv + dot(Et, M, true, false));
           Ev = alpha_v * beta_v;
+
+          // Calculate Bound
+          b.append(0);
+          b.last() -= sum(dot(Et, Ev)) + gammalnX;
+          b.last() -= sum(((dot(Lt * log(Lt), Lv) + dot(Lt, Lv*log(Lv))) /
+                                 LtLv - log(LtLv)) * X);
+          b.last() -= sum(AtBt * Et) + sum(gammaln(At)) - sum(At * log(AtBt));
+          b.last() += sum(alpha_t * (log(beta_t) + 1) + gammaln(alpha_t));
+          b.last() -= sum(AvBv * Ev) + sum(gammaln(Av)) - sum(Av * log(AvBv));
+          b.last() += sum(alpha_v * (log(beta_v) + 1) + gammaln(alpha_v));
 
           // 3. Means of Logs
           Lt = exp(psi(alpha_t)) * beta_t;
@@ -168,7 +202,7 @@ namespace pml {
         V = Ev * sum(Et, 0);
         T = normalize(Et, 0);
 
-        return {T, V, kl};
+        return {T, V, kl, b};
       }
 
     private:
