@@ -291,9 +291,8 @@ void test_g_em(){
   std::cout << "-----------\n";
 
   std::cout << "Visualizing...\n";
-  if(system("anaconda3 ../test/python/test_bcpm_pg.py True")){
+  if(system("anaconda3 ../test/python/test_bcpm_pg.py True"))
     std::cout <<"plotting error...\n";
-  }
   cout << "OK.\n";
 
 }
@@ -303,8 +302,8 @@ int main() {
   //test_dm();
   //test_dm_em();
 
-  //test_pg();
-  test_pg_em();
+  test_pg();
+  //test_pg_em();
 
   //test_g();
   //test_g_em();

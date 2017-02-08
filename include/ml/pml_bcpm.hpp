@@ -84,7 +84,7 @@ namespace pml {
         std::cout << alpha << " log_c:" << log_c << std::endl;
       }
 
-      void fit(const Vector &ss, double precision = 0){
+      void fit(const Vector &ss, double precision = 0) {
         alpha = Dirichlet::fit(ss, precision).alpha;
       }
 
@@ -419,14 +419,14 @@ namespace pml {
         return msg;
       }
 
-      Vector mean(){
+      Vector mean() const {
         Matrix params;
         for(auto &potential: potentials)
           params.appendColumn(potential.mean());
         return dot(params, normalizeExp(get_consts()));
       }
 
-      double cpp(int num_cpp = 1){
+      double cpp(int num_cpp = 1) const {
         Vector consts = normalizeExp(get_consts());
         if(num_cpp == 1){
           return consts.last();
@@ -436,6 +436,7 @@ namespace pml {
           result += consts[i];
         return result;
       }
+
 
       void prune(size_t max_components){
         while(size() > max_components){
@@ -450,11 +451,11 @@ namespace pml {
         }
       }
 
-      double log_likelihood(){
+      double log_likelihood() const {
         return logSumExp(get_consts());
       }
 
-      Vector get_consts(){
+      Vector get_consts() const {
         Vector consts(potentials.size());
         for(size_t i = 0; i < potentials.size(); ++i){
           consts[i] = potentials[i].log_c;
@@ -573,6 +574,7 @@ namespace pml {
       }
 
     public:
+      /*
       MessageType predict(const Message<P>& prev){
         MessageType message = prev;
         Vector consts;
@@ -581,6 +583,17 @@ namespace pml {
           potential.log_c += model->log_p0;
         }
         message.add_potential(model->prior, model->log_p1 + logSumExp(consts));
+        return message;
+      }
+      */
+
+      MessageType predict(const Message<P>& prev){
+        MessageType message;
+        P potential;
+        potential.fit(compute_ss(prev));
+        double ll = prev.log_likelihood();
+        message.add_potential(potential, model->log_p0 + ll);
+        message.add_potential(model->prior, model->log_p1 + ll);
         return message;
       }
 

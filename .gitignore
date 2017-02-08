@@ -2,3 +2,4 @@
 bin
 build
 run_valgrind.sh
+cmake-build-debug
