@@ -5,28 +5,12 @@
 
 using namespace pml;
 
-void test_vector(){
+void test_column_row_ops(){
   std::cout << "test_column_row_ops...\n";
-
-  Vector x = Uniform(0, 10).rand(1000);
 
   auto t_start = std::chrono::system_clock::now();
-
-  for(int i=0; i < 1000; ++i){
-    logSumExp(x);
-  }
-
-  auto t_end = std::chrono::system_clock::now();
-  std::chrono::duration<double> t_elapsed = t_end-t_start;
-  std::cout << "time elapsed: " <<  t_elapsed.count() <<" seconds.\n";
-}
-
-void test_matrix(){
-  std::cout << "test_column_row_ops...\n";
 
   Matrix m = Uniform(0, 10).rand(1000,1000);
-
-  auto t_start = std::chrono::system_clock::now();
 
   for(int i=0; i < 10; ++i){
     Vector v1 = logSumExp(m, 0);
@@ -38,9 +22,23 @@ void test_matrix(){
   std::cout << "time elapsed: " <<  t_elapsed.count() <<" seconds.\n";
 }
 
+void test2(){
+  std::cout << "test 2...\n";
+  auto t_start = std::chrono::system_clock::now();
+
+  Matrix m = Uniform(0, 10).rand(1000,1000);
+  for(int i=0; i < 1000; ++i){
+    m.col(0) *= 5;
+  }
+
+  auto t_end = std::chrono::system_clock::now();
+  std::chrono::duration<double> t_elapsed = t_end-t_start;
+  std::cout << "time elapsed: " <<  t_elapsed.count() <<" seconds.\n";
+}
+
 
 int main(){
-  test_vector();
-  test_matrix();
+  //test_column_row_ops();
+  test2();
   return 0;
 }
