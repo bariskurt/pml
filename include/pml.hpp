@@ -6,5 +6,6 @@
 #include "pml_random.hpp"
 #include "pml_special.hpp"
 #include "pml_time.hpp"
+#include "pml_utils.hpp"
 
 #endif
